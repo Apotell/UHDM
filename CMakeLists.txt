@@ -25,6 +25,9 @@ project(UHDM)
 cmake_policy(SET CMP0091 NEW)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+message(STATUS "Python3_EXECUTABLE = ${Python3_EXECUTABLE}")
+
 set(BUILD_TESTING OFF CACHE BOOL "Don't build capnproto tests")
 add_subdirectory(third_party/capnproto EXCLUDE_FROM_ALL)
 
@@ -95,20 +98,19 @@ file(GLOB yaml_SRC ${PROJECT_SOURCE_DIR}/model/*.yaml)
 file(GLOB templates_SRC ${PROJECT_SOURCE_DIR}/templates/*.h
      ${PROJECT_SOURCE_DIR}/templates/*.cpp)
 
+file(GLOB py_SRC ${PROJECT_SOURCE_DIR}/scripts/*.py)
+
 foreach(header_file ${model-GENERATED_SRC})
   set_source_files_properties(${header_file} PROPERTIES GENERATED TRUE)
 endforeach(header_file ${model-GENERATED_SRC})
 add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 add_custom_command(
   OUTPUT ${model-GENERATED_SRC}
-  COMMAND tclsh ${PROJECT_SOURCE_DIR}/model_gen/model_gen.tcl
-          ${PROJECT_SOURCE_DIR}/model/models.lst ${CMAKE_CURRENT_BINARY_DIR}
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate.py
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-  DEPENDS ${PROJECT_SOURCE_DIR}/model_gen/model_gen.tcl
-          ${PROJECT_SOURCE_DIR}/model_gen/generate_elaborator.tcl
-          ${PROJECT_SOURCE_DIR}/model_gen/parse_model.tcl
-          ${PROJECT_SOURCE_DIR}/model/models.lst
+  DEPENDS ${PROJECT_SOURCE_DIR}/model/models.lst
           ${PROJECT_SOURCE_DIR}/templates/UHDM.capnp
+          ${py_SRC}
           ${yaml_SRC}
           ${templates_SRC})
 

@@ -71,7 +71,6 @@ const std::vector<vpiHandle> Serializer::Restore(const std::string& file) {
   }
 
 <CAPNP_INIT_FACTORIES>
-
 <CAPNP_RESTORE_FACTORIES>
 
    for (auto d : designMaker.objects_) {

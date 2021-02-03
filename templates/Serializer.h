@@ -35,7 +35,7 @@ namespace UHDM {
   typedef std::function<void(const std::string&)> ErrorHandler;
 
   static void DefaultErrorHandler(const std::string& errorMsg) { std::cout << errorMsg << std::endl; }
-  
+
   class Serializer {
   public:
     Serializer() : incrId_(0), objId_(0), errorHandler(DefaultErrorHandler) {symbolMaker.Make("");}
@@ -54,7 +54,8 @@ namespace UHDM {
     uhdm_handleFactory uhdm_handleMaker;
 <FACTORIES>
 
-  std::unordered_map<const BaseClass*, unsigned long>& AllObjects() { return allIds_; }
+    std::unordered_map<const BaseClass*, unsigned long>& AllObjects() { return allIds_; }
+
   private:
     BaseClass* GetObject(unsigned int objectType, unsigned int index);
     void SetId(const BaseClass* p, unsigned long id);
@@ -66,6 +67,5 @@ namespace UHDM {
     ErrorHandler errorHandler;
   };
 };
-
 
 #endif

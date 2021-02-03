@@ -36,8 +36,10 @@ namespace UHDM {
     }
     BaseClass* the_item = (BaseClass*) item;
     UHDM_OBJECT_TYPE uhdmtype = the_item->UhdmType();
-    if (<CHECKTYPE>) {
-      item->GetSerializer()->GetErrorHandler()("Internal Error: adding wrong object type (" + UhdmName(uhdmtype) + ") in a <GROUPNAME> group!\n");   
+    if (
+<CHECKTYPE>
+    ) {
+      item->GetSerializer()->GetErrorHandler()("Internal Error: adding wrong object type (" + UhdmName(uhdmtype) + ") in a <GROUPNAME> group!\n");
       return false;
     }
     return true;
@@ -46,10 +48,9 @@ namespace UHDM {
   bool <GROUPNAME>GroupCompliant(VectorOfany* vec) {
     for (auto item : *vec) {
       if (!<GROUPNAME>GroupCompliant(item)) {
-	return false;
+        return false;
       }
     }
     return true;
   }
- 	     
-};
+}

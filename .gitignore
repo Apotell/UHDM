@@ -35,9 +35,12 @@
 /headers
 /src
 
+# Environment folders
+__pycache__
+.vs
+.vscode
+
 # Build directory
-.vs/
-.vscode/
-build/
-out/
-CMakeBuilds/
+/build
+/out
+/CMakeBuilds

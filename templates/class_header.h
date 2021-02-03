@@ -38,13 +38,16 @@ namespace UHDM {
     // Implicit constructor used to initialize all members,
     // comment: <CLASSNAME>();
     <VIRTUAL>~<CLASSNAME>() <FINAL_DESTRUCTOR> {}
-    <METHODS>
-   <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return uhdm<CLASSNAME>; }   
+
+<METHODS>
+
+    <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return uhdm<CLASSNAME>; }
+
   private:
-    <MEMBERS>
+<MEMBERS>
   };
 
- <DISABLE_OBJECT_FACTORY> 
+ <DISABLE_OBJECT_FACTORY>
   class <CLASSNAME>Factory {
   friend Serializer;
   public:
@@ -56,8 +59,8 @@ namespace UHDM {
   private:
     std::vector<<CLASSNAME>*> objects_;
   };
- <END_DISABLE_OBJECT_FACTORY> 
-  
+ <END_DISABLE_OBJECT_FACTORY>
+
   class VectorOf<CLASSNAME>Factory {
   friend Serializer;
   public:
@@ -69,7 +72,6 @@ namespace UHDM {
   private:
   std::vector<std::vector<<CLASSNAME>*>*> objects_;
   };
-
 };
 
 #endif

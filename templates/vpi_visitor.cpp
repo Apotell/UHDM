@@ -573,6 +573,7 @@ static std::ostream &stream_indent(std::ostream &out, int indent) {
   if (strcmp(relation, "vpiParent") == 0) {
     return;
   }
+  vpiHandle itr;
 <OBJECT_VISITORS>
 }
 

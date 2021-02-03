@@ -202,7 +202,7 @@ vpiHandle vpi_handle_by_name (PLI_BYTE8    *name,
                               vpiHandle    refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*) refHandle;
   const BaseClass* const object = (const BaseClass*) handle->object;
-  <VPI_HANDLE_BY_NAME_BODY>
+<VPI_HANDLE_BY_NAME_BODY>
   return 0;
 }
 
@@ -210,7 +210,7 @@ vpiHandle vpi_handle (PLI_INT32 type,
                       vpiHandle   refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*) refHandle;
   const BaseClass* const object = (const BaseClass*) handle->object;
-  <VPI_HANDLE_BODY>
+<VPI_HANDLE_BODY>
   std::cout << "VPI ERROR: Bad usage of vpi_handle" << std::endl;
   return 0;
 }
@@ -227,8 +227,7 @@ vpiHandle vpi_handle_multi (PLI_INT32 type,
 vpiHandle vpi_iterate (PLI_INT32 type, vpiHandle refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*) refHandle;
   const BaseClass* const object = (const BaseClass*) handle->object;
-
-  <VPI_ITERATE_BODY>
+<VPI_ITERATE_BODY>
   std::cout << "VPI ERROR: Bad usage of vpi_iterate" << std::endl;
   return 0;
 }
@@ -237,7 +236,7 @@ vpiHandle vpi_scan (vpiHandle iterator) {
   if (!iterator) return 0;
   uhdm_handle* handle = (uhdm_handle*) iterator;
   const void* vect = handle->object;
-  <VPI_SCAN_BODY>
+<VPI_SCAN_BODY>
   return 0;
 }
 
@@ -317,7 +316,7 @@ PLI_BYTE8 *vpi_get_str (PLI_INT32 property,
   }
 
   // ... all other properties currently handled 'manually' for now
-  <VPI_GET_STR_BODY>
+<VPI_GET_STR_BODY>
 
   return 0;
 }
@@ -333,7 +332,7 @@ void vpi_get_delays (vpiHandle object,
   const uhdm_handle* const handle = (const uhdm_handle*) object;
   const BaseClass*  const obj = (const BaseClass*) handle->object;
   delay_p->da = nullptr;
-  <VPI_GET_DELAY_BODY>
+<VPI_GET_DELAY_BODY>
 }
 
 void vpi_put_delays (vpiHandle object,
@@ -350,7 +349,7 @@ void vpi_get_value (vpiHandle vexpr,
   const uhdm_handle* const handle = (const uhdm_handle*) vexpr;
   const BaseClass*  const obj = (const BaseClass*) handle->object;
   value_p->format = 0;
-  <VPI_GET_VALUE_BODY>
+<VPI_GET_VALUE_BODY>
 }
 
 vpiHandle vpi_put_value (vpiHandle object,

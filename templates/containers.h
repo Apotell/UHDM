@@ -32,7 +32,7 @@
 
 namespace UHDM {
   typedef std::vector<any*> VectorOfany;
-  <CONTAINERS>
+<CONTAINERS>
 };
 
 #endif

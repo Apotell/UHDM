@@ -23,7 +23,7 @@ puts "Working dir: $working_dir"
 variable myLocation [file normalize [info script]]
 set myProjetPathNoNormalize [file dirname [file dirname [info script]]]
 
-set DEBUG 0
+set DEBUG 1
 
 proc log { arg } {
     global DEBUG
@@ -242,7 +242,7 @@ proc printIterateBody { name classname vpi card } {
     set vpi_iterate_body ""
     if {$card == "any"} {
         append vpi_iterate_body "
-  if (handle->type == uhdm${classname} \\&\\& type == $vpi) {
+  if ((handle->type == uhdm${classname}) \\&\\& (type == $vpi)) {
     if ((($classname*)(object))->[string toupper ${name} 0 0]())
       return NewHandle(uhdm${name}, (($classname*)(object))->[string toupper ${name} 0 0]());
     else return 0;
@@ -345,7 +345,7 @@ proc printGetHandleBody { classname type vpi object card } {
             set casted_object2 "(($classname*)(object))"
         }
         append vpi_get_handle_body "
-  if (handle->type == uhdm${classname} \\&\\& type == $vpi) {
+  if ((handle->type == uhdm${classname}) \\&\\& (type == $vpi)) {
      if ($casted_object1->[string toupper ${object} 0 0]()))
        return NewHandle($casted_object1->[string toupper ${object} 0 0]())->UhdmType(), $casted_object2->[string toupper ${object} 0 0]());
      else return 0;
@@ -359,7 +359,7 @@ proc printGetStrVisitor {classname type vpi card} {
     set vpi_get_str_body ""
     if {($card == 1) && ($type == "string") && ($vpi != "vpiFile")} {
         append vpi_get_str_body "    if (const char* s = vpi_get_str($vpi, obj_h))
-      stream_indent(out, indent) << \"|$vpi:\" << s << \"\\n\";
+      stream_indent(out, indent) << \"|$vpi:\" << s << std::endl;
 "
     }
     return $vpi_get_str_body
@@ -387,7 +387,7 @@ proc printGetVisitor {classname type vpi card} {
     } elseif {($card == 1) && ($type != "string") && ($vpi != "vpiLineNo") && ($vpi != "vpiType")} {
         append vpi_get_body "    if (const int n = vpi_get($vpi, obj_h))
       if (n != -1)
-        stream_indent(out, indent) << \"|$vpi:\" << n << \"\\n\";
+        stream_indent(out, indent) << \"|$vpi:\" << n << std::endl;
 "
     }
     return $vpi_get_body
@@ -403,7 +403,7 @@ proc printGetStrBody {classname type vpi card} {
     if {$card == 1 && ($type == "string")} {
         if {$vpi == "vpiFullName"} {
             append vpi_get_str_body "
-  if (handle->type == uhdm${classname} \\&\\& property == $vpi) {
+  if ((handle->type == uhdm${classname}) \\&\\& (property == $vpi)) {
     const $classname* const o = (const $classname*)(obj);
     return (o->[string toupper ${vpi} 0 0]().empty() || o->[string toupper ${vpi} 0 0]() == o->VpiName())
         ? 0
@@ -411,7 +411,7 @@ proc printGetStrBody {classname type vpi card} {
   }"
         } else {
             append vpi_get_str_body "
-  if (handle->type == uhdm${classname} \\&\\& property == $vpi) {
+  if ((handle->type == uhdm${classname}) \\&\\& (property == $vpi)) {
     const $classname* const o = (const $classname*)(obj);
     return (PLI_BYTE8*) (o->[string toupper ${vpi} 0 0]().empty() ? 0 : o->[string toupper ${vpi} 0 0]().c_str());
   }"
@@ -513,15 +513,15 @@ proc printVpiVisitor {classname vpi card} {
     global VISITOR_RELATIONS
 
     set vpi_visitor ""
-    if ![info exist VISITOR_RELATIONS($classname)] {
-        set vpi_visitor "    vpiHandle itr;
-"
-    } else {
-        if ![regexp "vpiHandle itr;" $VISITOR_RELATIONS($classname)] {
-            set vpi_visitor "    vpiHandle itr;
-"
-        }
-    }
+#    if ![info exist VISITOR_RELATIONS($classname)] {
+#        set vpi_visitor "    vpiHandle itr;
+#"
+#    } else {
+#        if ![regexp "vpiHandle itr;" $VISITOR_RELATIONS($classname)] {
+#            set vpi_visitor "    vpiHandle itr;
+#"
+#        }
+#    }
 
     if {($vpi == "vpiParent") && ($classname !="part_select")} {
         return
@@ -1646,7 +1646,7 @@ parse_vpi_user_defines
 
 set models [parse_model $model_files]
 
-debug_models $models
+# debug_models $models
 
 generate_code $models
 
