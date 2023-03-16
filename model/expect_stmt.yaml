@@ -13,21 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "expect_stmt" formal description
- 
+
 - obj_def: expect_stmt
-  - extends: atomic_stmt
-  - group_ref: stmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-  - group_ref: else_stmt
-    name: else stmt
-    vpi: vpiElseStmt
-    type: stmt
-    card: 1
-  - obj_ref: property_spec
-    name: property spec
-    vpi: vpiPropertySpec
-    type: property_spec
-    card: 1
+- extends: atomic_stmt
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1
+- group_ref: else_stmt
+  vpi: vpiElseStmt
+  type: stmt
+  card: 1
+- obj_ref: property_spec
+  vpi: vpiPropertySpec
+  type: property_spec
+  card: 1

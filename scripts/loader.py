@@ -24,7 +24,7 @@ def _load_one_model(filepath):
             if not line: # empty line, ignore!
                 continue
 
-            m = re.match('^[-]*\s*(?P<key>\w+)\s*:\s*(?P<value>.+)$', line)
+            m = re.match('^[-]?\s*(?P<key>\w+)\s*:\s*(?P<value>.+)$', line)
             if not m:
               print(f'Failed to parse {filepath}:{lineNo}')
               continue  # TODO(HS): Should this be an error?
@@ -40,20 +40,17 @@ def _load_one_model(filepath):
                 ])
                 cur_def = top_def
 
-            elif key in ['name']:
-                cur_def['vpiname'] = value
-
             elif key in ['extends']:
                 top_def[key] = value
 
-            elif key in ['property', 'class_ref', 'obj_ref', 'group_ref', 'class']:
+            elif key in ['property', 'class_ref', 'obj_ref', 'group_ref']:
                 cur_def = orderedmultidict.omdict([
                     ('type', key),
                     ('name', value),
                 ])
                 top_def.add(key, cur_def)
 
-            elif key in ['type', 'card', 'vpi', 'vpi_obj']:
+            elif key in ['type', 'card', 'vpi']:
                 cur_def[key] = value
 
             else:
@@ -90,6 +87,28 @@ def load_models():
         while baseclass:
             models[baseclass]['subclasses'].add(name)
             baseclass = models[baseclass].get('extends')
+
+    found_duplicates = False
+    for modelname, model in models.items():
+        if model['type'] == 'group_def':
+          continue
+
+        classname = modelname
+        name_plus_vpi = set()
+        while classname:
+            for key, value in models[classname].allitems():
+                if key in ['property', 'obj_ref', 'class_ref', 'group_ref']:
+                    pair = value['name'], value['card']
+                    if pair in name_plus_vpi:
+                        found_duplicates = True
+                        print(f'{modelname}: Duplicate property in hierarchy {pair}')
+                    else:
+                        name_plus_vpi.add(pair)
+
+            classname = models[classname].get('extends')
+
+    if found_duplicates:
+        raise ValueError("Found duplicate properties in model hierarchy!")
 
     return models
 

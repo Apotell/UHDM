@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "force" formal description
- 
-- obj_def: force 
-  - extends: atomic_stmt
-  - class_ref: rhs
-    name: rhs
-    vpi: vpiRhs
-    type: expr
-    card: 1
-  - class_ref: lhs
-    name: lhs
-    vpi: vpiLhs
-    type: expr
-    card: 1
+
+- obj_def: force
+- extends: atomic_stmt
+- class_ref: rhs
+  vpi: vpiRhs
+  type: expr
+  card: 1
+- class_ref: lhs
+  vpi: vpiLhs
+  type: expr
+  card: 1

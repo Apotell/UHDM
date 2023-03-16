@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "udp" formal description
- 
+
 - obj_def: udp
-  - extends: primitive
-  - obj_ref: udp_defn
-    name: udp defn
-    vpi: vpiUdpDefn
-    type: udp_defn
-    card: 1 
+- extends: primitive
+- obj_ref: udp_defn
+  vpi: vpiUdpDefn
+  type: udp_defn
+  card: 1

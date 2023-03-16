@@ -24,39 +24,41 @@
  * Created on Nov 29, 2022, 9:03 PM
  */
 
-#ifndef UHDM_ADJUSTER_H
-#define UHDM_ADJUSTER_H
+#ifndef UHDM_UHDMADJUSTER_H
+#define UHDM_UHDMADJUSTER_H
 
 #include <uhdm/VpiListener.h>
 
-namespace UHDM {
+namespace uhdm {
 class Serializer;
 class UhdmAdjuster final : public VpiListener {
  public:
-  UhdmAdjuster(Serializer* serializer, design* des) : serializer_(serializer), design_(des) {}
+  UhdmAdjuster(Serializer* serializer, Design* design)
+      : m_serializer(serializer), m_design(design) {}
 
  private:
-  
-  void leaveCase_stmt(const case_stmt* object, vpiHandle handle) final;
-  void leaveOperation(const operation* object, vpiHandle handle) final;
-  void leaveSys_func_call(const sys_func_call* object, vpiHandle handle) final;
-  void leaveFunc_call(const func_call* object, vpiHandle handle) final;
-  void leaveConstant(const constant* object, vpiHandle handle) final;
-  void enterModule_inst(const module_inst* object, vpiHandle handle) final;
-  void leaveModule_inst(const module_inst* object, vpiHandle handle) final;
-  void enterPackage(const package* object, vpiHandle handle) final;
-  void leavePackage(const package* object, vpiHandle handle) final;
-  void leaveCase_item(const case_item* object, vpiHandle handle) final;
-  void enterGen_scope(const gen_scope* object, vpiHandle handle) final;
-  void leaveGen_scope(const gen_scope* object, vpiHandle handle) final;
-  void leaveReturn_stmt(const return_stmt* object, vpiHandle) final;
-  const any* resize(const any* object, int32_t maxsize, bool is_unsigned);
-  void updateParentWithReducedExpression(const any* object, const any* parent);
-  Serializer* serializer_ = nullptr;
-  design* design_ = nullptr;
-  const scope* currentInstance_ = nullptr;
+  void leaveCaseStmt(const CaseStmt* object, vpiHandle handle) final;
+  void leaveOperation(const Operation* object, vpiHandle handle) final;
+  void leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) final;
+  void leaveFuncCall(const FuncCall* object, vpiHandle handle) final;
+  void leaveConstant(const Constant* object, vpiHandle handle) final;
+  void enterModule(const Module* object, vpiHandle handle) final;
+  void leaveModule(const Module* object, vpiHandle handle) final;
+  void enterPackage(const Package* object, vpiHandle handle) final;
+  void leavePackage(const Package* object, vpiHandle handle) final;
+  void leaveCaseItem(const CaseItem* object, vpiHandle handle) final;
+  void enterGenScope(const GenScope* object, vpiHandle handle) final;
+  void leaveGenScope(const GenScope* object, vpiHandle handle) final;
+  void leaveReturnStmt(const ReturnStmt* object, vpiHandle) final;
+  const Any* resize(const Any* object, int32_t maxsize, bool is_unsigned);
+  void updateParentWithReducedExpression(const Any* object, const Any* parent);
+
+ private:
+  Serializer* m_serializer = nullptr;
+  Design* m_design = nullptr;
+  const Scope* m_currentInstance = nullptr;
 };
 
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif
+#endif  // UHDM_UHDMADJUSTER_H

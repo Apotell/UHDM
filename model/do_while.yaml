@@ -13,17 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "do_while" formal description
- 
-- obj_def: do_while
-  - extends: atomic_stmt
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
 
+- obj_def: do_while
+- extends: atomic_stmt
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

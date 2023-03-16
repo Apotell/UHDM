@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "switch array" formal description
- 
-- obj_def: switch_array
-  - extends: primitive_array
 
+- obj_def: switch_array
+- extends: primitive_array

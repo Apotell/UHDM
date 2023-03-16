@@ -13,20 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "modport" formal description
- 
+
 - obj_def: modport
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: io_decls
-    name: io decl
-    vpi: vpiIODecl
-    type: io_decl
-    card: any
-  - obj_ref: interface_inst
-    name: interface_inst
-    vpi: vpiInterface
-    type: interface_inst
-    card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: io_decl
+  vpi: vpiIODecl
+  type: io_decl
+  card: any
+- obj_ref: interface
+  vpi: vpiInterface
+  type: interface
+  card: 1

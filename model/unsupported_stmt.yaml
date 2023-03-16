@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "unsupported_stmt" formal description
- 
+
 - obj_def: unsupported_stmt
-  - extends: atomic_stmt
-  - property: vpi_get_value
-    name: vpi_get_value
-    vpi: vpiValue
-    type: value
-    card: 1
+- extends: atomic_stmt
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1

@@ -25,13 +25,23 @@
 #include <uhdm/VpiListener.h>
 #include <uhdm/uhdm.h>
 
-namespace UHDM {
+namespace uhdm {
+void VpiListener::listenBaseClass_(vpiHandle handle) {
+  // NOTE(HS): Don't want upwards. When initiating calls from non-design
+  // objects, the intended behavior to walk the subtree but enabling this
+  // walks the entire deisgn.
+  // if (vpiHandle itr = vpi_handle(vpiParent, handle)) {
+  //   listenAny(itr);
+  //   vpi_free_object(itr);
+  // }
+}
+
 <VPI_PRIVATE_LISTEN_IMPLEMENTATIONS>
 <VPI_PUBLIC_LISTEN_IMPLEMENTATIONS>
 
-bool VpiListener::inCallstackOfType(UHDM_OBJECT_TYPE type) {
-  for (any_stack_t::reverse_iterator itr = callstack.rbegin(); itr != callstack.rend(); ++itr) {
-    if ((*itr)->UhdmType() == type) {
+bool VpiListener::inCallstackOfType(UhdmType type) {
+  for (any_stack_t::reverse_iterator itr = m_callstack.rbegin(); itr != m_callstack.rend(); ++itr) {
+    if ((*itr)->getUhdmType() == type) {
       return true;
     }
   }
@@ -39,23 +49,26 @@ bool VpiListener::inCallstackOfType(UHDM_OBJECT_TYPE type) {
 }
 
 void VpiListener::listenAny(vpiHandle handle) {
-  const any* object = (const any*)((const uhdm_handle*)handle)->object;
-  const bool revisiting = visited.find(object) != visited.end();
+  const Any* object = (const Any*)((const uhdm_handle*)handle)->object;
+  const bool revisiting = m_visited.find(object) != m_visited.end();
   if (!revisiting) enterAny(object, handle);
 
-  UHDM_OBJECT_TYPE type = ((const uhdm_handle*)handle)->type;
+  UhdmType type = ((const uhdm_handle*)handle)->type;
+
+  m_callstack.emplace_back(object);
   switch (type) {
 <VPI_LISTENANY_IMPLEMENTATION>
     default : break;
   }
+  m_callstack.pop_back();
 
   if (!revisiting) leaveAny(object, handle);
 }
 
 void VpiListener::listenDesigns(const std::vector<vpiHandle>& designs) {
   for (auto design_h : designs) {
-    currentDesign_ = (design*) ((const uhdm_handle*)design_h)->object;
+    m_currentDesign = (Design*) ((const uhdm_handle*)design_h)->object;
     listenAny(design_h);
   }
 }
-}  // namespace UHDM
+}  // namespace uhdm

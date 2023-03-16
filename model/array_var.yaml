@@ -13,37 +13,30 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "array var" formal description
- 
+
 - obj_def: array_var
-  - extends: variables
-  - property: array_type
-    name: array type
-    vpi: vpiArrayType
-    type: int32_t
-    card: 1
-  - obj_ref: var_selects
-    name: var selects
-    vpi: vpiVarSelect
-    type: var_select
-    card: any
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
-  - class_ref: left_expr
-    name: left range
-    vpi: vpiLeftRange
-    type: expr
-    card: 1
-  - class_ref: right_expr
-    name: right range
-    vpi: vpiRightRange
-    type: expr
-    card: 1
-  - class_ref: variables
-    name: variables
-    vpi: vpiReg
-    type: variables
-    card: any
-  
+- extends: variables
+- property: array_type
+  vpi: vpiArrayType
+  type: int32_t
+  card: 1
+- obj_ref: var_select
+  vpi: vpiVarSelect
+  type: var_select
+  card: any
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any
+- class_ref: left_expr
+  vpi: vpiLeftRange
+  type: expr
+  card: 1
+- class_ref: right_expr
+  vpi: vpiRightRange
+  type: expr
+  card: 1
+- class_ref: variables
+  vpi: vpiReg
+  type: variables
+  card: any

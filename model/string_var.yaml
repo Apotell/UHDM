@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "string var" formal description
- 
-- obj_def: string_var
-  - extends: variables
 
+- obj_def: string_var
+- extends: variables

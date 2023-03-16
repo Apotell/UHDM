@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "enum net" formal description
- 
+
 - obj_def: enum_net
-  - extends: net
-  - property: packed_array_member
-    name: packed array member
-    vpi: vpiPackedArrayMember
-    type: bool
-    card: 1
+- extends: net
+- property: packed_array_member
+  vpi: vpiPackedArrayMember
+  type: bool
+  card: 1

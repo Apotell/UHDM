@@ -13,36 +13,26 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "operation" formal description
- 
+
 - obj_def: operation
-  - extends: expr
-  - property: operation_type
-    name: operation type
-    vpi: vpiOpType
-    type: int32_t
-    card: 1
-  - property: reordered
-    name: reordered
-    vpi: vpiReordered
-    type: bool
-    card: 1
-  - property: flattened
-    name: flattened
-    vpi: vpiFlattened
-    type: bool
-    card: 1 
-  - property: operator_strength
-    name: operator strength
-    vpi: vpiOpStrong
-    type: bool
-    card: 1  
-  - group_ref: operands
-    name: operands
-    vpi: vpiOperand
-    type: operand_group
-    card: any
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- extends: expr
+- property: op_type
+  vpi: vpiOpType
+  type: int32_t
+  card: 1
+- property: reordered
+  vpi: vpiReordered
+  type: bool
+  card: 1
+- property: flattened
+  vpi: vpiFlattened
+  type: bool
+  card: 1
+- property: op_strong
+  vpi: vpiOpStrong
+  type: bool
+  card: 1
+- group_ref: operand
+  vpi: vpiOperand
+  type: operand_group
+  card: any

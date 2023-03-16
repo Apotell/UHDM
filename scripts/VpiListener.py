@@ -24,7 +24,7 @@ def _get_listeners(classname, vpi, type, card):
     listeners.append( '  }')
 
   else:
-    if 'uhdmall' in vpi:
+    if 'vpiAll' in vpi:
       listeners.append(f'  uhdmAllIterator = true;')
 
     listeners.append(f'  if (vpiHandle itr = vpi_iterate({vpi}, handle)) {{')
@@ -35,10 +35,10 @@ def _get_listeners(classname, vpi, type, card):
     listeners.append( '    vpi_free_object(itr);')
     listeners.append( '  }')
 
-    if 'uhdmall' in vpi:
+    if 'vpiAll' in vpi:
       listeners.append(f'  uhdmAllIterator = false;')
-      listeners.append(f'  visited.clear();')
-      listeners.append(f'  visited.emplace((const any*)((const uhdm_handle*)handle)->object);')
+      listeners.append(f'  m_visited.clear();')
+      listeners.append(f'  m_visited.emplace((const Any*)((const uhdm_handle*)handle)->object);')
 
   return listeners
 
@@ -54,17 +54,15 @@ def generate(models):
     if modeltype == 'group_def':
       continue
 
-    classname = model['name']
-    Classname_ = classname[:1].upper() + classname[1:]
-
-    baseclass = model.get('extends')
+    classname = config.make_class_name(model['name'])
+    baseclass = model.get('extends') or 'BaseClass'
 
     if model.get('subclasses') or modeltype == 'obj_def':
-      private_declarations.append(f'  void listen{Classname_}_(vpiHandle handle);')
-      private_implementations.append(f'void VpiListener::listen{Classname_}_(vpiHandle handle) {{')
+      private_declarations.append(f'  void listen{classname}_(vpiHandle handle);')
+      private_implementations.append(f'void VpiListener::listen{classname}_(vpiHandle handle) {{')
       if baseclass:
-        Baseclass_ = baseclass[:1].upper() + baseclass[1:]
-        private_implementations.append(f'  listen{Baseclass_}_(handle);')
+        BaseClass = config.make_class_name(baseclass)
+        private_implementations.append(f'  listen{BaseClass}_(handle);')
 
       for key, value in model.allitems():
         if key in ['class', 'obj_ref', 'class_ref', 'group_ref']:
@@ -83,15 +81,13 @@ def generate(models):
     if modeltype != 'class_def':
       classnames.add(classname)
 
-      public_implementations.append(f'void VpiListener::listen{Classname_}(vpiHandle handle) {{')
+      public_implementations.append(f'void VpiListener::listen{classname}(vpiHandle handle) {{')
       public_implementations.append(f'  const {classname}* object = (const {classname}*) ((const uhdm_handle*)handle)->object;')
-      public_implementations.append(f'  callstack.push_back(object);')
-      public_implementations.append(f'  enter{Classname_}(object, handle);')
-      public_implementations.append( '  if (visited.insert(object).second) {')
-      public_implementations.append(f'    listen{Classname_}_(handle);')
+      public_implementations.append(f'  enter{classname}(object, handle);')
+      public_implementations.append( '  if (m_visited.insert(object).second) {')
+      public_implementations.append(f'    listen{classname}_(handle);')
       public_implementations.append( '  }')
-      public_implementations.append(f'  leave{Classname_}(object, handle);')
-      public_implementations.append(f'  callstack.pop_back();')
+      public_implementations.append(f'  leave{classname}(object, handle);')
       public_implementations.append(f'}}')
       public_implementations.append( '')
 
@@ -99,15 +95,13 @@ def generate(models):
   enter_leave_declarations = []
   public_declarations = []
   for classname in sorted(classnames):
-    Classname_ = classname[:1].upper() + classname[1:]
+    any_implementation.append(f'    case UhdmType::{classname}: listen{classname}(handle); break;')
 
-    any_implementation.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname}: listen{Classname_}(handle); break;')
-
-    enter_leave_declarations.append(f'  virtual void enter{Classname_}(const {classname}* object, vpiHandle handle) {{}}')
-    enter_leave_declarations.append(f'  virtual void leave{Classname_}(const {classname}* object, vpiHandle handle) {{}}')
+    enter_leave_declarations.append(f'  virtual void enter{classname}(const {classname}* object, vpiHandle handle) {{}}')
+    enter_leave_declarations.append(f'  virtual void leave{classname}(const {classname}* object, vpiHandle handle) {{}}')
     enter_leave_declarations.append( '')
 
-    public_declarations.append(f'  void listen{Classname_}(vpiHandle handle);')
+    public_declarations.append(f'  void listen{classname}(vpiHandle handle);')
 
   # VpiListener.h
   with open(config.get_template_filepath('VpiListener.h'), 'rt') as strm:

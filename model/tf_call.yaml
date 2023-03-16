@@ -19,19 +19,16 @@
 # But since we don't support multiple inheritence, it is more practical to make it inherit from
 # expr
 #  - extends: atomic_stmt
-  - extends: expr
-  - class_ref: scope
-    name: scope
-    vpi: vpiScope
-    type: scope
-    card: 1
-  - group_ref: tf_call_args
-    name: tf_call_args
-    vpi: vpiArgument
-    type: tf_call_args
-    card: any
-  - property: name
-    name: name
-    type: string
-    vpi: vpiName
-    card: 1
+- extends: expr
+- class_ref: scope
+  vpi: vpiScope
+  type: scope
+  card: 1
+- group_ref: argument
+  vpi: vpiArgument
+  type: tf_call_args
+  card: any
+- property: name
+  type: string
+  vpi: vpiName
+  card: 1

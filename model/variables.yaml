@@ -13,136 +13,106 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "variables" formal description
- 
+
 - class_def: variables
-  - extends: simple_expr
-  - property: array_member
-    name: array member
-    vpi: vpiArrayMember
-    type: bool
-    card: 1
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
-  - property: default_lifetime
-    name: default lifetime
-    vpi: vpiAutomatic
-    type: bool
-    card: 1
-  - property: memory_allocation
-    name: memory allocation
-    vpi: vpiAllocScheme
-    type: int32_t
-    card: 1
-  - property: constant_variable
-    name: constant variable
-    vpi: vpiConstantVariable
-    type: bool
-    card: 1
-  - property: is_randomized
-    name: is randomized
-    vpi: vpiIsRandomized
-    type: bool
-    card: 1
-  - property: randomization_type
-    name: randomization type
-    vpi: vpiRandType
-    type: int32_t
-    card: 1
-  - property: member
-    name: member
-    vpi: vpiStructUnionMember
-    type: bool
-    card: 1
-  - property: scalar
-    name: scalar
-    vpi: vpiScalar
-    type: bool
-    card: 1
-  - property: visibility
-    name: visibility
-    vpi: vpiVisibility
-    type: int32_t
-    card: 1
-  - property: vector
-    name: vector
-    vpi: vpiVector
-    type: bool
-    card: 1 
-  - class_ref: ports
-    name: ports
-    vpi: vpiPortInst
-    type: ports
-    card: any
-  - group_ref: variable_drivers
-    name: variable drivers
-    vpi: vpiDriver
-    type: variable_drivers_group
-    card: any
-  - group_ref: variable_loads
-    name: variable loads
-    vpi: vpiLoad
-    type: variable_loads_group
-    card: any
-  - obj_ref: prim_terms
-    name: prim term
-    vpi: vpiPrimTerm
-    type: prim_term
-    card: any
-  - obj_ref: cont_assigns
-    name: cont assign
-    vpi: vpiContAssign
-    type: cont_assign
-    card: any
-  - obj_ref: path_term
-    name: path term
-    vpi: vpiPathTerm
-    type: path_term
-    card: 1
-  - obj_ref: tchk_term
-    name: tchk term
-    vpi: vpiTchkTerm
-    type: tchk_term
-    card: 1
-  - obj_ref: module_inst
-    name: module_inst
-    vpi: vpiModule
-    type: module_inst
-    card: 1
-  - class_ref: instance
-    name: instance
-    vpi: vpiInstance
-    type: instance
-    card: 1
-  - class_ref: scope
-    name: scope
-    vpi: vpiScope
-    type: scope
-    card: 1
-  - class_ref: expr
-    name: expr
-    vpi: vpiExpr
-    type: expr
-    card: 1
-  - class_ref: indexes
-    name: indexes
-    vpi: vpiIndex
-    type: expr
-    card: any
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- extends: simple_expr
+- property: array_member
+  vpi: vpiArrayMember
+  type: bool
+  card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1
+- property: automatic
+  vpi: vpiAutomatic
+  type: bool
+  card: 1
+- property: alloc_scheme
+  vpi: vpiAllocScheme
+  type: int32_t
+  card: 1
+- property: constant_variable
+  vpi: vpiConstantVariable
+  type: bool
+  card: 1
+- property: is_randomized
+  vpi: vpiIsRandomized
+  type: bool
+  card: 1
+- property: rand_type
+  vpi: vpiRandType
+  type: int32_t
+  card: 1
+- property: struct_union_member
+  vpi: vpiStructUnionMember
+  type: bool
+  card: 1
+- property: scalar
+  vpi: vpiScalar
+  type: bool
+  card: 1
+- property: visibility
+  vpi: vpiVisibility
+  type: int32_t
+  card: 1
+- property: vector
+  vpi: vpiVector
+  type: bool
+  card: 1
+- class_ref: port_inst
+  vpi: vpiPortInst
+  type: ports
+  card: any
+- group_ref: driver
+  vpi: vpiDriver
+  type: drivers_group
+  card: any
+- group_ref: load
+  vpi: vpiLoad
+  type: loads_group
+  card: any
+- obj_ref: prim_term
+  vpi: vpiPrimTerm
+  type: prim_term
+  card: any
+- obj_ref: cont_assign
+  vpi: vpiContAssign
+  type: cont_assign
+  card: any
+- obj_ref: path_term
+  vpi: vpiPathTerm
+  type: path_term
+  card: 1
+- obj_ref: tchk_term
+  vpi: vpiTchkTerm
+  type: tchk_term
+  card: 1
+- obj_ref: module
+  vpi: vpiModule
+  type: module
+  card: 1
+- class_ref: instance
+  vpi: vpiInstance
+  type: instance
+  card: 1
+- class_ref: scope
+  vpi: vpiScope
+  type: scope
+  card: 1
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: 1
+- class_ref: indexes
+  vpi: vpiIndex
+  type: expr
+  card: any

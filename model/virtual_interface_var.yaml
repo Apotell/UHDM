@@ -13,6 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "virtual interface var" formal description
- 
-- obj_def: virtual_interface_var
 
+- obj_def: virtual_interface_var
+- extends: variables

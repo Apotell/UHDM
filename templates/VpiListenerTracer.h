@@ -34,11 +34,11 @@
 #include <ostream>
 #include <string>
 
-#define TRACE_CONTEXT                 \
-  "[" << object->VpiLineNo() <<       \
-  "," << object->VpiColumnNo() <<     \
-  ":" << object->VpiEndLineNo() <<    \
-  "," << object->VpiEndColumnNo() <<  \
+#define TRACE_CONTEXT                   \
+  "[" << object->getStartLine() <<      \
+  "," << object->getStartColumn() <<    \
+  ":" << object->getEndLine() <<        \
+  "," << object->getEndColumn() <<      \
   "]"
 
 #define TRACE_ENTER strm                \
@@ -50,20 +50,17 @@
   << __func__ << ": " << TRACE_CONTEXT  \
   << std::endl
 
-namespace UHDM {
-
-  class VpiListenerTracer : public VpiListener {
+namespace uhdm {
+class VpiListenerTracer : public VpiListener {
   public:
     VpiListenerTracer(std::ostream &strm) : strm(strm) {}
-
-    virtual ~VpiListenerTracer() = default;
+    ~VpiListenerTracer() final = default;
 
 <VPI_LISTENER_TRACER_METHODS>
-
   protected:
    std::ostream &strm;
    int32_t indent = -1;
-  };
 };
+} // namespace uhdm
 
-#endif
+#endif  // UHDM_VPILISTENERTRACER_H

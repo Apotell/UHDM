@@ -13,21 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "struct_typespec" formal description
- 
+
 - obj_def: struct_typespec
-  - extends: typespec
-  - property: packed
-    name: packed
-    vpi: vpiPacked
-    type: bool
-    card: 1
-  - obj_ref: members
-    name: members
-    vpi: vpiTypespecMember
-    type: typespec_member
-    card: any
-  - obj_ref: resolution_func
-    name: resolution func
-    vpi: vpiFunction
-    type: function
-    card: 1
+- extends: typespec
+- property: packed
+  vpi: vpiPacked
+  type: bool
+  card: 1
+- obj_ref: member
+  vpi: vpiTypespecMember
+  type: typespec_member
+  card: any
+- obj_ref: resolution_func
+  vpi: vpiFunction
+  type: function
+  card: 1

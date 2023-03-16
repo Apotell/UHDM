@@ -10,21 +10,21 @@
 #include "uhdm/vpi_uhdm.h"    // struct uhdm_handle
 
 TEST(VpiGetTest, WriteReadRoundtrip) {
-  UHDM::Serializer serializer;
+  uhdm::Serializer serializer;
 
   // Let's choose a type that is multiple levels deep to see levels
-  // base-class <- expr <- constant
+  // base-class <- expr <- Constant
 
-  UHDM::constant *value = serializer.MakeConstant();
+  uhdm::Constant *value = serializer.make<uhdm::Constant>();
   // Base class values
-  EXPECT_TRUE(value->VpiFile("hello.v"));
-  EXPECT_TRUE(value->VpiLineNo(42));
+  EXPECT_TRUE(value->setFile("hello.v"));
+  EXPECT_TRUE(value->setStartLine(42));
 
   // expr values
-  EXPECT_TRUE(value->VpiSize(12345));
-  EXPECT_TRUE(value->VpiDecompile("decompile"));
+  EXPECT_TRUE(value->setSize(12345));
+  EXPECT_TRUE(value->setDecompile("decompile"));
 
-  uhdm_handle uhdm_handle(UHDM::uhdmconstant, value);
+  uhdm_handle uhdm_handle(uhdm::UhdmType::Constant, value);
   vpiHandle vpi_handle = (vpiHandle)&uhdm_handle;
 
   // Request all the properties set above via vpi

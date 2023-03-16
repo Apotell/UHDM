@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "primitive array" formal description
- 
+
 - class_def: primitive_array
-  - extends: instance_array
-  - class_ref: delay
-    name: delay
-    vpi: vpiDelay
-    type: expr
-    card: 1
-  - class_ref: primitives
-    name: primitives
-    vpi: vpiPrimitive
-    type: primitive
-    card: any
+- extends: instance_array
+- class_ref: delay
+  vpi: vpiDelay
+  type: expr
+  card: 1
+- class_ref: primitive
+  vpi: vpiPrimitive
+  type: primitive
+  card: any

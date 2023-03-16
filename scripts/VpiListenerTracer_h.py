@@ -1,16 +1,16 @@
 import config
 import file_utils
-
+import uhdm_types_h
 
 def generate(models):
     methods = []
     for model in models.values():
         if model['type'] not in ['class_def', 'group_def']:
             classname = model['name']
-            Classname_ = classname[:1].upper() + classname[1:]
+            ClassName = config.make_class_name(classname)
 
-            methods.append(f'  virtual void enter{Classname_}(const {classname}* object, vpiHandle handle) {{ TRACE_ENTER; }}')
-            methods.append(f'  virtual void leave{Classname_}(const {classname}* object, vpiHandle handle) {{ TRACE_LEAVE; }}')
+            methods.append(f'    void enter{ClassName}(const {ClassName}* object, vpiHandle handle) final {{ TRACE_ENTER; }}')
+            methods.append(f'    void leave{ClassName}(const {ClassName}* object, vpiHandle handle) final {{ TRACE_LEAVE; }}')
             methods.append('')
 
     with open(config.get_template_filepath('VpiListenerTracer.h'), 'rt') as strm:

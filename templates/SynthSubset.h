@@ -24,80 +24,80 @@
  * Created on Feb 16, 2022, 9:03 PM
  */
 
-#ifndef SYNTH_SUBSET_H
-#define SYNTH_SUBSET_H
+#ifndef UHDM_SYNTHSUBSET_H
+#define UHDM_SYNTHSUBSET_H
 
 #include <uhdm/VpiListener.h>
 
 #include <iostream>
 #include <sstream>
-#include <vector>
 #include <utility>
+#include <vector>
 
-namespace UHDM {
+namespace uhdm {
 class Serializer;
 class SynthSubset final : public VpiListener {
  public:
   SynthSubset(Serializer* serializer,
-              std::set<const any*>& nonSynthesizableObjects, design* des, bool reportErrors, bool allowFormal);
+              std::set<const Any*>& nonSynthesizableObjects, Design* des,
+              bool reportErrors, bool allowFormal);
   ~SynthSubset() override = default;
   void filterNonSynthesizable();
   void report(std::ostream& out);
 
  private:
-  void leaveAny(const any* object, vpiHandle handle) override;
-  void leaveSys_task_call(const sys_task_call* object,
+  void leaveAny(const Any* object, vpiHandle handle) override;
+  void leaveSysTaskCall(const SysTaskCall* object, vpiHandle handle) override;
+
+  void leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) override;
+
+  void leaveTask(const Task* object, vpiHandle handle) override;
+
+  void leaveClassTypespec(const ClassTypespec* object,
                           vpiHandle handle) override;
 
-  void leaveSys_func_call(const sys_func_call* object,
-                          vpiHandle handle) override;
-
-  void leaveTask(const task* object, vpiHandle handle) override;
-
-  void leaveClass_typespec(const class_typespec* object,
-                           vpiHandle handle) override;
-
-  void leaveClass_var(const class_var* object, vpiHandle handle) override;
+  void leaveClassVar(const ClassVar* object, vpiHandle handle) override;
 
   // Apply some rewrite rule for Yosys limitations
-  void leaveFor_stmt(const for_stmt* object, vpiHandle handle) override;
+  void leaveForStmt(const ForStmt* object, vpiHandle handle) override;
 
   // Apply some rewrite rule for Yosys limitations
-  void leaveAlways(const always* object, vpiHandle handle) override;
+  void leaveAlways(const Always* object, vpiHandle handle) override;
 
   // Apply some rewrite rule for Synlig limitations
-  void leaveRef_typespec(const ref_typespec* object, vpiHandle handle) override;
+  void leaveRefTypespec(const RefTypespec* object, vpiHandle handle) override;
 
   // Signed/Unsigned port transform to allow Yosys to Synthesize
-  void leavePort(const port* object, vpiHandle handle) override;
+  void leavePort(const Port* object, vpiHandle handle) override;
 
   // Typespec substitution to allow Yosys to perform RAM  Inference
-  void leaveArray_var(const array_var* object, vpiHandle handle) override;
+  void leaveArrayVar(const ArrayVar* object, vpiHandle handle) override;
 
-  // Remove Typespec information on allModules to allow Yosys to perform RAM Inference
-  void leaveLogic_net(const logic_net* object, vpiHandle handle) override;
+  // Remove Typespec information on allModules to allow Yosys to perform RAM
+  // Inference
+  void leaveLogicNet(const LogicNet* object, vpiHandle handle) override;
 
-  void reportError(const any* object);
-  void mark(const any* object);
-  bool reportedParent(const any* object);
+  void reportError(const Any* object);
+  void mark(const Any* object);
+  bool reportedParent(const Any* object);
 
-  void sensitivityListRewrite(const always* object, vpiHandle handle);
-  void blockingToNonBlockingRewrite(const always* object, vpiHandle handle);
+  void sensitivityListRewrite(const Always* object, vpiHandle handle);
+  void blockingToNonBlockingRewrite(const Always* object, vpiHandle handle);
 
-  void removeFromVector(VectorOfany* vec, const any* object);
-  void removeFromStmt(any* parent, const any* object);
-  sys_func_call* makeStubDisplayStmt(const any* object);
+  void removeFromVector(AnyCollection* vec, const Any* object);
+  void removeFromStmt(Any* parent, const Any* object);
+  SysFuncCall* makeStubDisplayStmt(const Any* object);
 
-  Serializer* serializer_ = nullptr;
-  std::set<const any*>& nonSynthesizableObjects_;
-  std::set<std::string, std::less<>> nonSynthSysCalls_;
-  design* design_;
-  bool reportErrors_;
-  bool allowFormal_;
-  std::vector<std::pair<VectorOfany*, const any*>> m_scheduledFilteredObjectsInVector;
-  std::vector<std::pair<any*, const any*>> m_scheduledFilteredObjectsInStmt;
+  Serializer* m_serializer = nullptr;
+  std::set<const Any*>& m_nonSynthesizableObjects;
+  std::set<std::string, std::less<>> m_nonSynthSysCalls;
+  Design* m_design = nullptr;
+  bool m_reportErrors = false;
+  bool m_allowFormal = false;
+  std::vector<std::pair<AnyCollection*, const Any*>> m_scheduledFilteredObjectsInVector;
+  std::vector<std::pair<Any*, const Any*>> m_scheduledFilteredObjectsInStmt;
 };
 
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif
+#endif  // UHDM_SYNTHSUBSET_H

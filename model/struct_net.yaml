@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "struct net" formal description
- 
+
 - obj_def: struct_net
-  - extends: net
-  - property: packed_array_member
-    name: packed array member
-    vpi: vpiPackedArrayMember
-    type: bool
-    card: 1
-  - class_ref: nets
-    name: nets
-    vpi: vpiMember
-    type: nets
-    card: any
+- extends: net
+- property: packed_array_member
+  vpi: vpiPackedArrayMember
+  type: bool
+  card: 1
+- class_ref: member
+  vpi: vpiMember
+  type: nets
+  card: any

@@ -13,9 +13,8 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "enum struct packed net group" formal description
- 
-- group_def: enum_struct_packed_net_group
-  - obj_ref: enum_net
-  - obj_ref: struct_net
-  - obj_ref: packed_array_net
 
+- group_def: enum_struct_packed_net_group
+- obj_ref: enum_net
+- obj_ref: struct_net
+- obj_ref: packed_array_net

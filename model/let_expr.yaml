@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "let_expr" formal description
- 
+
 - obj_def: let_expr
-  - extends: expr
-  - class_ref: arguments
-    name: arguments
-    vpi: vpiArgument
-    type: expr
-    card: any
-  - obj_ref: let_decl
-    name: let decl
-    vpi: vpiLetDecl
-    type: let_decl
-    card: 1
+- extends: expr
+- class_ref: argument
+  vpi: vpiArgument
+  type: expr
+  card: any
+- obj_ref: let_decl
+  vpi: vpiLetDecl
+  type: let_decl
+  card: 1

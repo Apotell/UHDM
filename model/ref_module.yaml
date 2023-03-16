@@ -15,25 +15,21 @@
 # Universal Hardware Data Model (UHDM) "ref_module" formal description
 # This model is non-standard, it allows to represent module instances in folded
 # model. The Verilog Opbject Model is elaborated, it does not permit a folded (non-elaborated) view.
- 
+
 - obj_def: ref_module
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: definition_name
-    name: definition name
-    vpi: vpiDefName
-    type: string
-    card: 1  
-  - group_ref: actual_group
-    name: actual group
-    vpi: vpiActual
-    type: actual_group
-    card: 1
-  - obj_ref: ports
-    vpi: vpiPort
-    name: port
-    type: port
-    card: any
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: def_name
+  vpi: vpiDefName
+  type: string
+  card: 1
+- group_ref: actual
+  vpi: vpiActual
+  type: actual_instance
+  card: 1
+- obj_ref: port
+  vpi: vpiPort
+  type: port
+  card: any

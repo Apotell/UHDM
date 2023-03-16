@@ -17,10 +17,8 @@
 # Note this is a custom extension of the IEEE standard, the checker is omitted from the VPI Object model
 
 - obj_def: checker_inst
-  - extends: instance
-  - obj_ref: ports
-    vpi: vpiPort
-    name: port
-    type: checker_inst_port
-    card: any
-  
+- extends: instance
+- obj_ref: port
+  vpi: vpiPort
+  type: checker_inst_port
+  card: any

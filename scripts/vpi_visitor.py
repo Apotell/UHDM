@@ -8,27 +8,26 @@ def _get_implementation(classname, vpi, card):
     content = []
 
     if card == '1':
-        shallow_visit = 'false'
+        shallow_visit = False
 
         if vpi in ['vpiParent', 'vpiInstance', 'vpiModule', 'vpiInterface', 'vpiUse', 'vpiProgram', 'vpiClassDefn', 'vpiPackage', 'vpiUdp', 'vpiActual']:
             # Prevent walking upwards and makes the UHDM output cleaner
             # Prevent loop in Standard VPI
-            shallow_visit = 'true'
+            shallow_visit = True
 
-        if ('func_call' in classname) and (vpi == 'vpiFunction'):
+        if (classname == 'func_call') and (vpi == 'vpiFunction'):
             # Prevent stepping inside functions while processing calls (func_call, method_func_call) to them
-            shallow_visit = 'true'
+            shallow_visit = True
 
-        if ('task_call' in classname) and (vpi == 'vpiTask'):
+        if (classname == 'task_call') and (vpi == 'vpiTask'):
             # Prevent stepping inside tasks while processing calls (task_call, method_task_call) to them
-            shallow_visit = 'true'
+            shallow_visit = True
 
-        if classname in ['ref_obj', 'ref_typespec']:
-            # Ref_obj are always printed shallow
-            shallow_visit = 'true'
+        if (classname == 'preproc_macro_instance') and vpi in ['vpiPreprocMacroDefinition', 'vpiObject']:
+            shallow_visit = True
 
         content.append(f'  if (vpiHandle itr = vpi_handle({vpi}, obj_h)) {{')
-        content.append(f'    visit_object(itr, indent + kLevelIndent, "{vpi}", {shallow_visit});')
+        content.append(f'    visit_object(itr, indent + kLevelIndent, "{vpi}", {str(shallow_visit).lower()});')
         content.append( '    release_handle(itr);')
         content.append( '  }')
     else:

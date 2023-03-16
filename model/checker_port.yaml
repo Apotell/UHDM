@@ -17,21 +17,16 @@
 # Note this is a custom extension of the IEEE standard, the checker is omitted from the VPI Object model
 
 - obj_def: checker_port
-  - extends: ports
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-  - obj_ref: property
-    name: property
-    vpi: vpiPropertyDecl
-    type: property_decl
-    card: 1
-  - obj_ref: sequence
-    name: sequence
-    vpi: vpiSequenceDecl
-    type: sequence_decl
-    card: 1  
- 
-    
+- extends: ports
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any
+- obj_ref: property_decl
+  vpi: vpiPropertyDecl
+  type: property_decl
+  card: 1
+- obj_ref: sequence_decl
+  vpi: vpiSequenceDecl
+  type: sequence_decl
+  card: 1

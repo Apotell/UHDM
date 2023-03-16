@@ -1,4 +1,4 @@
-# Copyright 2019 Alain Dargelas
+# Copyright 2019-2020 Alain Dargelas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "named begin" formal description
- 
-- obj_def: named_begin
-  - extends: scope
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+# Universal Hardware Data Model (UHDM) "source_file" formal description
+
+- obj_def: source_file
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: includes
+  vpi: vpiIncludes
+  type: source_file
+  card: any
+- obj_ref: preproc_macro_definition
+  vpi: vpiPreprocMacroDefinition
+  type: preproc_macro_definition
+  card: any
+- obj_ref: preproc_macro_instance
+  vpi: vpiPreprocMacroInstance
+  type: preproc_macro_instance
+  card: any

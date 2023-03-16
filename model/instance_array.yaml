@@ -13,60 +13,49 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "instance array" formal description
- 
+
 - class_def: instance_array
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - property: size
-    name: size
-    vpi: vpiSize
-    type: int32_t
-    card: 1
-  - class_ref: expr
-    name: expr
-    vpi: vpiExpr
-    type: expr
-    card: 1
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
-  - class_ref: left_expr
-    name: left range
-    vpi: vpiLeftRange
-    type: expr
-    card: 1
-  - class_ref: right_expr
-    name: right range
-    vpi: vpiRightRange
-    type: expr
-    card: 1
-  - class_ref: instances
-    name: instances
-    vpi: vpiInstance
-    type: instance
-    card: any
-  - obj_ref: modules
-    name: modules
-    vpi: vpiModule
-    type: module_inst
-    card: any
-  - class_ref: elem_typespec
-    name: elem typespec
-    vpi: vpiElemTypespec
-    type: ref_typespec
-    card: 1
-  - obj_ref: ports
-    vpi: vpiPort
-    name: port
-    type: port
-    card: any
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- property: size
+  vpi: vpiSize
+  type: int32_t
+  card: 1
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: 1
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any
+- class_ref: left_expr
+  vpi: vpiLeftRange
+  type: expr
+  card: 1
+- class_ref: right_expr
+  vpi: vpiRightRange
+  type: expr
+  card: 1
+- class_ref: instance
+  vpi: vpiInstance
+  type: instance
+  card: any
+- obj_ref: module
+  vpi: vpiModule
+  type: module
+  card: any
+- class_ref: elem_typespec
+  vpi: vpiElemTypespec
+  type: ref_typespec
+  card: 1
+- obj_ref: port
+  vpi: vpiPort
+  type: port
+  card: any

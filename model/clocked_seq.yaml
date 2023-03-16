@@ -15,13 +15,11 @@
 # Universal Hardware Data Model (UHDM) "clocked_seq" formal description
 
 - obj_def: clocked_seq
-  - class_ref: vpiClockingEvent
-    name: clocking event
-    vpi: vpiClockingEvent
-    type: expr
-    card: 1   
-  - group_ref: vpiSequenceExpr
-    name: sequence expr
-    vpi: vpiSequenceExpr
-    type: sequence_expr_group
-    card: 1
+- class_ref: clocking_event
+  vpi: vpiClockingEvent
+  type: expr
+  card: 1
+- group_ref: sequence_expr
+  vpi: vpiSequenceExpr
+  type: sequence_expr_group
+  card: 1

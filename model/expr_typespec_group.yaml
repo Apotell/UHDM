@@ -15,6 +15,6 @@
 # Universal Hardware Data Model (UHDM) "expr_typespec_group" formal description
 
 - group_def: expr_typespec_group
-  - class_ref: expr
-  - class_ref: typespec
-  - obj_ref: tagged_pattern
+- class_ref: expr
+- class_ref: typespec
+- obj_ref: tagged_pattern

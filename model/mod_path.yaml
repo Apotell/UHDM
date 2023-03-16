@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "mod_path.yaml" formal description
- 
+# Universal Hardware Data Model (UHDM) "modpath.yaml" formal description
+
 - obj_def: mod_path
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-
-
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

@@ -15,8 +15,7 @@
 # Universal Hardware Data Model (UHDM) "task_func_named_begin_fork_group" formal description
 
 - group_def: task_func_named_begin_fork_group
-  - obj_ref: task
-  - obj_ref: function
-  - obj_ref: named_begin
-  - obj_ref: named_fork
-
+- obj_ref: task
+- obj_ref: function
+- obj_ref: begin
+- obj_ref: fork_stmt

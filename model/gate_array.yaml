@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "gate array" formal description
- 
-- obj_def: gate_array
-  - extends: primitive_array
 
+- obj_def: gate_array
+- extends: primitive_array

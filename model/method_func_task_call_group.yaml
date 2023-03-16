@@ -16,5 +16,5 @@
 
 - group_def: method_func_task_call_group
   # Should extend: tf_call, but a group cannot - will be done in members
-  - obj_ref: method_func_call
-  - obj_ref: method_task_call
+- obj_ref: method_func_call
+- obj_ref: method_task_call

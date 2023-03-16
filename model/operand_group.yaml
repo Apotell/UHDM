@@ -13,13 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "operand group" formal description
- 
+
 - group_def: operand_group
-  - class_ref: expr
-  - group_ref: interface_expr
-  - obj_ref: range
-  - group_ref: pattern
-  - obj_ref: sequence_inst
-  - group_ref: sequence_expr_group
-  - obj_ref: property_inst
-  - group_ref: property_expr_group
+- class_ref: expr
+- group_ref: interface_expr
+- obj_ref: range
+- group_ref: pattern
+- obj_ref: sequence_inst
+- group_ref: sequence_expr_group
+- obj_ref: property_inst
+- group_ref: property_expr_group

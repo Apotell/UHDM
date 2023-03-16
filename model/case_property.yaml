@@ -15,13 +15,11 @@
 # Universal Hardware Data Model (UHDM) "case_property" formal description
 
 - obj_def: case_property
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1   
-  - obj_ref: case_property_item
-    name: case property item
-    vpi: vpiCasePropertyItem
-    type: case_property_item
-    card: any
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- obj_ref: case_property_item
+  vpi: vpiCasePropertyItem
+  type: case_property_item
+  card: any

@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "soft_disable" formal description
- 
+
 - obj_def: soft_disable
-  - extends: constraint_expr
-  - class_ref: expr
-    name: expr
-    vpi: vpiExpr
-    type: expr
-    card: 1
+- extends: constraint_expr
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: 1

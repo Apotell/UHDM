@@ -36,7 +36,7 @@
 #include <uhdm/uhdm.h>
 #include <uhdm/uhdm-version.h>
 
-using namespace UHDM;
+using namespace uhdm;
 
 static int32_t usage(const char* progname) {
   fprintf(stderr, "Usage:\n%s [options] <uhdm-file> ?--line?\n", progname);
@@ -74,7 +74,7 @@ int32_t main(int32_t argc, char** argv) {
   }
 
   Serializer serializer;
-  std::vector<vpiHandle> restoredDesigns = serializer.Restore(uhdmFile);
+  std::vector<vpiHandle> restoredDesigns = serializer.restore(uhdmFile);
 
   if (restoredDesigns.empty()) {
     std::cerr << uhdmFile << ": empty design." << std::endl;
@@ -87,7 +87,7 @@ int32_t main(int32_t argc, char** argv) {
           "Design name: " + std::string(vpi_get_str(vpiName, design)) + "\n";
       result += "Instance tree:\n";
       std::cout << result;
-      vpiHandle instItr = vpi_iterate(UHDM::uhdmtopModules, design);
+      vpiHandle instItr = vpi_iterate(vpiTopModules, design);
       while (vpiHandle obj_h = vpi_scan(instItr)) {
         std::function<std::string(vpiHandle, std::string)> inst_visit =
             [&inst_visit, printLineInfo](vpiHandle obj_h, std::string path) {

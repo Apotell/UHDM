@@ -41,7 +41,7 @@
 
 <HEADERS>
 
-using namespace UHDM;
+using namespace uhdm;
 
 static char* StrClone(std::string_view sv) {
   char* clone = new char[sv.length() + 1];
@@ -62,11 +62,11 @@ static int32_t StriCmp(std::string_view lhs, std::string_view rhs) {
     : ((lhs.length() < rhs.length()) ? -1 : +1);
 }
 
-UHDM::design* UhdmDesignFromVpiHandle(vpiHandle hdesign) {
+Design* UhdmDesignFromVpiHandle(vpiHandle hdesign) {
   if (!hdesign) return nullptr;
-  UHDM::any* tmp = (UHDM::any*)((uhdm_handle*)hdesign)->object;
-  if (tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdmdesign)
-    return (UHDM::design*)tmp;
+  Any* tmp = (Any*)((uhdm_handle*)hdesign)->object;
+  if (tmp->getUhdmType() == UhdmType::Design)
+    return (Design*)tmp;
   else
     return nullptr;
 }
@@ -145,7 +145,7 @@ s_vpi_value* String2VpiValue(std::string_view sv) {
   return val;
 }
 
-s_vpi_delay* String2VpiDelays(std::string_view sv) {
+s_vpi_delay* String2VpiDelay(std::string_view sv) {
   while (!sv.empty() && isspace(sv.front())) sv.remove_prefix(1);
   s_vpi_delay* delay = new s_vpi_delay;
   delay->da = nullptr;
@@ -218,12 +218,12 @@ std::string VpiDelay2String(const s_vpi_delay* delay) {
   return result;
 }
 
-vpiHandle NewVpiHandle(const UHDM::BaseClass* object) {
+vpiHandle NewVpiHandle(const BaseClass* object) {
   return reinterpret_cast<vpiHandle>(
-      new uhdm_handle(object->UhdmType(), object));
+      new uhdm_handle(object->getUhdmType(), object));
 }
 
-static vpiHandle NewHandle(UHDM_OBJECT_TYPE type, const void* object) {
+static vpiHandle NewHandle(UhdmType type, const void* object) {
   return reinterpret_cast<vpiHandle>(new uhdm_handle(type, object));
 }
 
@@ -232,19 +232,19 @@ vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 indx) { return 0; }
 vpiHandle vpi_handle_by_name(PLI_BYTE8* name, vpiHandle refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
-  if (object->GetSerializer()->GetSymbolId(name) ==
+  if (object->getSerializer()->getSymbolId(name) ==
       SymbolFactory::getBadId()) {
     return nullptr;
   }
-  const BaseClass *const ref = object->GetByVpiName(std::string_view(name));
+  const BaseClass *const ref = object->getByVpiName(std::string_view(name));
   return (ref != nullptr) ? NewVpiHandle(ref) : nullptr;
 }
 
 vpiHandle vpi_handle(PLI_INT32 type, vpiHandle refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
-  auto [ref, ignored1, ignored2] = object->GetByVpiType(type);
-  return (ref != nullptr) ? NewHandle(ref->UhdmType(), ref) : nullptr;
+  auto [ignored1, ref, ignored2] = object->getByVpiType(type);
+  return (ref != nullptr) ? NewHandle(ref->getUhdmType(), ref) : nullptr;
 }
 
 vpiHandle vpi_handle_multi(PLI_INT32 type, vpiHandle refHandle1,
@@ -257,8 +257,8 @@ vpiHandle vpi_handle_multi(PLI_INT32 type, vpiHandle refHandle1,
 vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
   const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
-  auto [ignored, refType, refVector] = object->GetByVpiType(type);
-  return (refVector != nullptr) ? NewHandle(refType, refVector) : nullptr;
+  auto [refType, ignored, refCollection] = object->getByVpiType(type);
+  return (refCollection != nullptr) ? NewHandle(refType, refCollection) : nullptr;
 }
 
 PLI_INT32 vpi_compare_objects(vpiHandle handle1, vpiHandle handle2) {
@@ -270,7 +270,7 @@ PLI_INT32 vpi_compare_objects(vpiHandle handle1, vpiHandle handle2) {
   // And, yes that is counter intuitive. But BaseClass::Compare returns a 0
   // for equal. Negate the result here to meet standard requirements.
   CompareContext context;
-  return (object1 == object2) ? 1 : ((object1->Compare(object2, &context) == 0) ? 1 : 0);
+  return (object1 == object2) ? 1 : ((object1->compare(object2, &context) == 0) ? 1 : 0);
 }
 
 vpiHandle vpi_scan(vpiHandle iterator) {
@@ -280,7 +280,7 @@ vpiHandle vpi_scan(vpiHandle iterator) {
       (const std::vector<const BaseClass*>*)handle->object;
   if (handle->index < vect->size()) {
     const BaseClass* const object = vect->at(handle->index);
-    uhdm_handle* h = new uhdm_handle(object->UhdmType(), object);
+    uhdm_handle* h = new uhdm_handle(object->getUhdmType(), object);
     ++handle->index;
     return (vpiHandle) h;
   }
@@ -317,7 +317,7 @@ PLI_INT64 vpi_get64(PLI_INT32 property, vpiHandle object) {
 
   const uhdm_handle* const handle = (const uhdm_handle*)object;
   const BaseClass* const obj = (const BaseClass*)handle->object;
-  BaseClass::vpi_property_value_t value = obj->GetVpiPropertyValue(property);
+  BaseClass::vpi_property_value_t value = obj->getVpiPropertyValue(property);
   return std::holds_alternative<int64_t>(value) ? std::get<int64_t>(value) : 0;
 }
 
@@ -328,7 +328,7 @@ PLI_BYTE8* vpi_get_str(PLI_INT32 property, vpiHandle object) {
   }
   const uhdm_handle* const handle = (const uhdm_handle*)object;
   const BaseClass* const obj = (const BaseClass*)handle->object;
-  BaseClass::vpi_property_value_t value = obj->GetVpiPropertyValue(property);
+  BaseClass::vpi_property_value_t value = obj->getVpiPropertyValue(property);
   return std::holds_alternative<const char *>(value)
       ? const_cast<char *>(std::get<const char *>(value))
       : nullptr;
@@ -395,61 +395,61 @@ vpiHandle vpi_handle_by_multi_index(vpiHandle obj, PLI_INT32 num_index,
 }
 
 
-vpiHandle vpi_register_assertion_cb( vpiHandle assertion, PLI_INT32 reason, vpi_assertion_callback_func *cb_rtn, PLI_BYTE8 *user_data) {
+vpiHandle vpi_register_assertion_cb(vpiHandle assertion, PLI_INT32 reason, vpi_assertion_callback_func *cb_rtn, PLI_BYTE8 *user_data) {
   return 0;
 }
 
 
-PLI_INT32 vpi_printf(PLI_BYTE8 *format, ...){
+PLI_INT32 vpi_printf(PLI_BYTE8 *format, ...) {
   return 0;
 };
 
 /* callback related */
-vpiHandle vpi_register_cb(p_cb_data cb_data_p){
+vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
   return 0;
 }
 
-PLI_INT32 vpi_remove_cb(vpiHandle cb_obj){
+PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) {
   return 0;
 }
 
-void vpi_get_cb_info(vpiHandle object, p_cb_data cb_data_p){
+void vpi_get_cb_info(vpiHandle object, p_cb_data cb_data_p) {
 }
 
-vpiHandle vpi_register_systf(p_vpi_systf_data systf_data_p){
-  return 0;
-}
-
-void vpi_get_systf_info(vpiHandle object, p_vpi_systf_data systf_data_p){
-}
-
-PLI_UINT32 vpi_mcd_open(PLI_BYTE8 *fileName){
-  return 0;
-}
-PLI_UINT32 vpi_mcd_close(PLI_UINT32 mcd){
-  return 0;
-}
-PLI_BYTE8 *vpi_mcd_name(PLI_UINT32 cd){
-  return 0;
-}
-PLI_INT32 vpi_mcd_printf(PLI_UINT32 mcd,PLI_BYTE8 *format, ...){
+vpiHandle vpi_register_systf(p_vpi_systf_data systf_data_p) {
   return 0;
 }
 
-PLI_INT32 vpi_chk_error(p_vpi_error_info error_info_p){
+void vpi_get_systf_info(vpiHandle object, p_vpi_systf_data systf_data_p) {
+}
+
+PLI_UINT32 vpi_mcd_open(PLI_BYTE8 *fileName) {
   return 0;
 }
-PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p){
+PLI_UINT32 vpi_mcd_close(PLI_UINT32 mcd) {
+  return 0;
+}
+PLI_BYTE8 *vpi_mcd_name(PLI_UINT32 cd) {
+  return 0;
+}
+PLI_INT32 vpi_mcd_printf(PLI_UINT32 mcd,PLI_BYTE8 *format, ...) {
+  return 0;
+}
+
+PLI_INT32 vpi_chk_error(p_vpi_error_info error_info_p) {
+  return 0;
+}
+PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
   return 0;
 }
 
 PLI_INT32 vpi_flush(void) {
   return 0;
 }
-PLI_INT32 vpi_mcd_flush(PLI_UINT32 mcd){
+PLI_INT32 vpi_mcd_flush(PLI_UINT32 mcd) {
   return 0;
 }
-PLI_INT32 vpi_control(PLI_INT32 operation, ...){
+PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
   return 0;
 }
 

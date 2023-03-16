@@ -13,26 +13,22 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "if_else_stmt" formal description
- 
+
 - obj_def: if_else
-  - extends: atomic_stmt
-  - property: qualifier
-    name: qualifier
-    vpi: vpiQualifier
-    type: int32_t
-    card: 1
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-  - group_ref: vpiElseStmt
-    name: else stmt
-    vpi: vpiElseStmt
-    type: stmt
-    card: 1
+- extends: atomic_stmt
+- property: qualifier
+  vpi: vpiQualifier
+  type: int32_t
+  card: 1
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1
+- group_ref: elseStmt
+  vpi: vpiElseStmt
+  type: stmt
+  card: 1

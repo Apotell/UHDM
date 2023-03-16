@@ -13,22 +13,20 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "instance item" formal description
- 
-- group_def: instance_item
-  - obj_ref: program
-  - obj_ref: program_array
-  - class_ref: task_func
-  - class_ref: net
-  - obj_ref: array_net
-  - class_ref: variables
-  - obj_ref: logic_var
-  - obj_ref: array_var  
-  - obj_ref: named_event
-  - obj_ref: named_event_array
-  - group_ref: parameters
-  - obj_ref: spec_param
-  - group_ref: assertion
-  - class_ref: typespec
-  - obj_ref: class_defn
- 
 
+- group_def: instance_item
+- obj_ref: program
+- obj_ref: program_array
+- class_ref: task_func
+- class_ref: net
+- obj_ref: array_net
+- class_ref: variables
+- obj_ref: logic_var
+- obj_ref: array_var
+- obj_ref: named_event
+- obj_ref: named_event_array
+- group_ref: parameters
+- obj_ref: spec_param
+- group_ref: assertion
+- class_ref: typespec
+- obj_ref: class_defn

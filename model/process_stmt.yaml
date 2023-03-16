@@ -13,20 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "process" formal description
- 
+
 - class_def: process_stmt
-  - group_ref: stmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-  - obj_ref: module_inst
-    name: module_inst
-    vpi: vpiModule
-    type: module_inst
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1
+- obj_ref: module
+  vpi: vpiModule
+  type: module
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

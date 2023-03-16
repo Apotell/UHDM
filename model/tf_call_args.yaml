@@ -15,9 +15,9 @@
 # Universal Hardware Data Model (UHDM) "tf_call_args" formal description
 
 - group_def: tf_call_args
-  - class_ref: expr
-  - group_ref: interface_expr
-  - class_ref: scope
-  - class_ref: primitive
-  - obj_ref: named_event
-  - obj_ref: named_event_array
+- class_ref: expr
+- group_ref: interface_expr
+- class_ref: scope
+- class_ref: primitive
+- obj_ref: named_event
+- obj_ref: named_event_array

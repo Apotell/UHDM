@@ -13,13 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "waits" formal description
- 
-- class_def: waits
-  - extends: atomic_stmt
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-    
 
+- class_def: waits
+- extends: atomic_stmt
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

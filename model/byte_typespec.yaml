@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "byte_typespec" formal description
- 
-- obj_def: byte_typespec
-  - extends: typespec
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
 
+- obj_def: byte_typespec
+- extends: typespec
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1

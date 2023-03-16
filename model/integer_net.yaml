@@ -13,6 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "integer net" formal description
- 
+
 - obj_def: integer_net
-  - extends: net
+- extends: net

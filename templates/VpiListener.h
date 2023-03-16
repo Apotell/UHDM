@@ -28,15 +28,20 @@
 #define UHDM_VPILISTENER_H
 
 #include <uhdm/containers.h>
+#include <uhdm/uhdm_types.h>
 #include <uhdm/vpi_user.h>
 
-namespace UHDM {
+#include <set>
+#include <vector>
+
+namespace uhdm {
 class VpiListener {
 protected:
-  typedef std::vector<const any *> any_stack_t;
+  using visited_t = std::set<const Any*>;
+  using any_stack_t = std::vector<const Any *>;
 
-  VisitedContainer visited;
-  any_stack_t callstack;
+  visited_t m_visited;
+  any_stack_t m_callstack;
 
 public:
   // Use implicit constructor to initialize all members
@@ -49,19 +54,22 @@ public:
   void listenDesigns(const std::vector<vpiHandle>& designs);
 <VPI_PUBLIC_LISTEN_DECLARATIONS>
 
-  virtual void enterAny(const any* object, vpiHandle handle) {}
-  virtual void leaveAny(const any* object, vpiHandle handle) {}
+  virtual void enterAny(const Any* object, vpiHandle handle) {}
+  virtual void leaveAny(const Any* object, vpiHandle handle) {}
 
 <VPI_ENTER_LEAVE_DECLARATIONS>
   bool isInUhdmAllIterator() const { return uhdmAllIterator; }
-  bool inCallstackOfType(UHDM_OBJECT_TYPE type);
-  design* currentDesign() { return currentDesign_; }
+  bool inCallstackOfType(UhdmType type);
+  Design* currentDesign() { return m_currentDesign; }
+
 protected:
   bool uhdmAllIterator = false;
-  design* currentDesign_ = nullptr;
+  Design* m_currentDesign = nullptr;
+
 private:
+  void listenBaseClass_(vpiHandle handle);
 <VPI_PRIVATE_LISTEN_DECLARATIONS>
 };
-}  // namespace UHDM
+}  // namespace uhdm
 
 #endif  // UHDM_VPILISTENER_H

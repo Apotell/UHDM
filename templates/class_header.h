@@ -17,7 +17,7 @@
  */
 
 /*
- * File:   <CLASSNAME>.h
+ * File:   <CLASSNAME_HEADER>.h
  * Author:
  *
  * Created on December 14, 2019, 10:03 PM
@@ -30,38 +30,35 @@
 #include <uhdm/uhdm_vpi_user.h>
 
 #include <uhdm/containers.h>
-#include <uhdm/<EXTENDS>.h>
+#include <uhdm/<EXTENDS_HEADER>.h>
 
 <GROUP_HEADER_DEPENDENCY>
 
-
-namespace UHDM {
+namespace uhdm {
 <TYPE_FORWARD_DECLARE>
 
 class <CLASSNAME><FINAL_CLASS> : public <EXTENDS> {
   UHDM_IMPLEMENT_RTTI(<CLASSNAME>, <EXTENDS>)
+
 public:
+  static constexpr UhdmType kUhdmType = UhdmType::<CLASSNAME>;
+
   // Implicit constructor used to initialize all members,
   // comment: <CLASSNAME>();
   <VIRTUAL>~<CLASSNAME>()<FINAL_DESTRUCTOR> = default;
 
-<METHODS>
+<PUBLIC_METHODS>
 
-  <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return UHDM_OBJECT_TYPE::uhdm<CLASSNAME>; }
+  <VIRTUAL> UhdmType getUhdmType() const <OVERRIDE_OR_FINAL> { return UhdmType::<CLASSNAME>; }
 
 protected:
-  void DeepCopy(<CLASSNAME>* clone, BaseClass* parent, CloneContext* context) const;
+  void deepCopy(<CLASSNAME>* clone, BaseClass* parent, CloneContext* context) const;
 
-private:
+<PRIVATE_METHODS>
+
+protected:
 <MEMBERS>
 };
-
-<DISABLE_OBJECT_FACTORY>
-typedef FactoryT<<CLASSNAME>> <CLASSNAME>Factory;
-<END_DISABLE_OBJECT_FACTORY>
-
-typedef FactoryT<std::vector<<CLASSNAME> *>> VectorOf<CLASSNAME>Factory;
-
-}  // namespace UHDM
+}  // namespace uhdm
 
 #endif

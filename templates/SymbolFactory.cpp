@@ -25,7 +25,7 @@
 
 #include <cassert>
 
-namespace UHDM {
+namespace uhdm {
 
 SymbolFactory::SymbolFactory() : m_parent(nullptr), m_idOffset(0) {
   registerSymbol(getBadSymbol());
@@ -99,9 +99,9 @@ SymbolId SymbolFactory::copyFrom(SymbolId id, const SymbolFactory* rhs) {
   return id ? registerSymbol(rhs->getSymbol(id)) : BadSymbolId;
 }
 
-void SymbolFactory::AppendSymbols(int64_t up_to,
-                                std::vector<std::string_view>* dest) const {
-  if (m_parent) m_parent->AppendSymbols(m_idOffset, dest);
+void SymbolFactory::appendSymbols(int64_t up_to,
+                                  std::vector<std::string_view>* dest) const {
+  if (m_parent) m_parent->appendSymbols(m_idOffset, dest);
   up_to -= m_idOffset;
   assert(up_to >= 0);
   for (const auto& s : m_id2SymbolMap) {
@@ -113,46 +113,14 @@ void SymbolFactory::AppendSymbols(int64_t up_to,
 std::vector<std::string_view> SymbolFactory::getSymbols() const {
   std::vector<std::string_view> result;
   result.reserve(m_idOffset + m_id2SymbolMap.size());
-  AppendSymbols(m_idOffset + m_id2SymbolMap.size(), &result);
+  appendSymbols(m_idOffset + m_id2SymbolMap.size(), &result);
   return result;
 }
 
-void SymbolFactory::Purge() {
+void SymbolFactory::purge() {
   Symbol2IdMap().swap(m_symbol2IdMap);
   Id2SymbolMap().swap(m_id2SymbolMap);
   m_idCounter = 0;
   registerSymbol(getBadSymbol());
 }
-
-SymbolId SymbolFactory::Make(std::string_view symbol) {
-  // IMPORTANT NOTE:
-  // This is UHDM specific API and to be used within UHDM only.
-  // An important distinction between these and the above -
-  // For invalid id, these will return an empty string
-  // unlike the above which return bad symbol.
-  return (symbol.empty() || (symbol == getBadSymbol()))
-             ? getBadId()
-             : registerSymbol(symbol);
-}
-
-std::string_view SymbolFactory::GetSymbol(SymbolId id) const {
-  // IMPORTANT NOTE:
-  // This is UHDM specific API and to be used within UHDM only.
-  // An important distinction between these and the above -
-  // For invalid id, these will return an empty string
-  // unlike the above which return bad symbol.
-  static constexpr std::string_view k_empty;
-  return id ? getSymbol(id) : k_empty;
-}
-
-SymbolId SymbolFactory::GetId(std::string_view symbol) const {
-  // IMPORTANT NOTE:
-  // This is UHDM specific API and to be used within UHDM only.
-  // An important distinction between these and the above -
-  // For invalid id, these will return an empty string
-  // unlike the above which return bad symbol.
-  return (symbol.empty() || (symbol == getBadSymbol())) ? getBadId()
-                                                        : getId(symbol);
-}
-
-}  // namespace UHDM
+}  // namespace uhdm

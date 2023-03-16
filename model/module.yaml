@@ -1,0 +1,130 @@
+# Copyright 2019 Alain Dargelas
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Universal Hardware Data Model (UHDM) "module" formal description
+
+- obj_def: module
+- extends: instance
+- property: index
+  vpi: vpiIndex
+  type: int32_t
+  card: 1
+- property: top_module
+  type: bool
+  vpi: vpiTopModule
+  card: 1
+- property: def_decay_time
+  type: int32_t
+  vpi: vpiDefDecayTime
+  card: 1
+- obj_ref: global_clocking
+  vpi: vpiGlobalClocking
+  type: clocking_block
+  card: 1
+- obj_ref: default_clocking
+  vpi: vpiDefaultClocking
+  type: clocking_block
+  card: 1
+- group_ref: default_disable_iff
+  vpi: vpiDefaultDisableIff
+  type: expr_dist
+  card: 1
+- obj_ref: module_array
+  vpi: vpiModuleArray
+  type: module_array
+  card: 1
+- class_ref: instance_array
+  vpi: vpiInstanceArray
+  type: instance_array
+  card: 1
+- obj_ref: port
+  vpi: vpiPort
+  type: port
+  card: any
+- obj_ref: interface
+  vpi: vpiInterface
+  type: interface
+  card: any
+- obj_ref: interface_array
+  vpi: vpiInterfaceArray
+  type: interface_array
+  card: any
+- class_ref: processes
+  vpi: vpiProcess
+  type: process_stmt
+  card: any
+- obj_ref: modules
+  vpi: vpiModules
+  type: module
+  card: any
+- obj_ref: module_arrays
+  vpi: vpiModuleArrays
+  type: module_array
+  card: any
+- obj_ref: gen_scope_array
+  vpi: vpiGenScopeArray
+  type: gen_scope_array
+  card: any
+- obj_ref: cont_assign
+  vpi: vpiContAssign
+  type: cont_assign
+  card: any
+- class_ref: primitive
+  vpi: vpiPrimitive
+  type: primitive
+  card: any
+- class_ref: primitive_array
+  vpi: vpiPrimitiveArray
+  type: primitive_array
+  card: any
+- obj_ref: mod_path
+  vpi: vpiModPath
+  type: mod_path
+  card: any
+- obj_ref: tchk
+  vpi: vpiTchk
+  type: tchk
+  card: any
+- obj_ref: def_param
+  vpi: vpiDefParam
+  type: def_param
+  card: any
+- obj_ref: io_decl
+  vpi: vpiIODecl
+  type: io_decl
+  card: any
+- obj_ref: aliases
+  vpi: vpiAliasStmt
+  type: alias_stmt
+  card: any
+- obj_ref: clocking_block
+  vpi: vpiClockingBlock
+  type: clocking_block
+  card: any
+- class_ref: sys_task_call
+  vpi: vpiSysTaskCall
+  type: tf_call
+  card: any
+- obj_ref: ref_module
+  vpi: vpiRefModule
+  type: ref_module
+  card: any
+- group_ref: gen_stmt
+  vpi: vpiGenStmt
+  type: gen_stmts
+  card: any
+- property: end_label
+  vpi: vpiEndLabel
+  type: string
+  card: 1

@@ -1,5 +1,4 @@
 attribute.yaml
-virtual_interface_var.yaml
 let_decl.yaml
 assertion.yaml
 stmt.yaml
@@ -16,11 +15,10 @@ expr_sequence_inst_named_event_group.yaml
 event_control.yaml
 repeat_control.yaml
 parameters.yaml
+gen_stmts.yaml
 instance_item.yaml
 scope.yaml
 begin.yaml
-named_begin.yaml
-named_fork.yaml
 fork_stmt.yaml
 for_stmt.yaml
 if_stmt.yaml
@@ -76,7 +74,10 @@ tagged_pattern.yaml
 struct_pattern.yaml
 unsupported_expr.yaml
 unsupported_stmt.yaml
-include_file_info.yaml
+
+preproc_macro_definition.yaml
+preproc_macro_instance.yaml
+source_file.yaml
 
 sequence_expr_group.yaml
 sequence_expr_multiclock_group.yaml
@@ -105,14 +106,15 @@ operand_group.yaml
 operation.yaml
 actual_group.yaml
 ref_obj.yaml
+actual_instance.yaml
 ref_module.yaml
 ref_typespec.yaml
 part_select.yaml
 indexed_part_select.yaml
 var_select.yaml
 bit_select.yaml
-variable_drivers_group.yaml
-variable_loads_group.yaml
+drivers_group.yaml
+loads_group.yaml
 variables.yaml
 hier_path.yaml
 ref_var.yaml
@@ -137,10 +139,14 @@ union_var.yaml
 enum_var.yaml
 string_var.yaml
 chandle_var.yaml
+virtual_interface_var.yaml
 var_bit.yaml
 task_func.yaml
 task.yaml
 function.yaml
+task_func_decl.yaml
+task_decl.yaml
+function_decl.yaml
 modport.yaml
 interface_tf_decl.yaml
 cont_assign.yaml
@@ -206,10 +212,10 @@ class_defn.yaml
 class_obj.yaml
 class_var.yaml
 instance.yaml
-interface_inst.yaml
+interface.yaml
 program.yaml
 package.yaml
-module_inst.yaml
+module.yaml
 checker_decl.yaml
 checker_inst.yaml
 short_real_typespec.yaml
@@ -222,6 +228,7 @@ integer_typespec.yaml
 time_typespec.yaml
 enum_typespec.yaml
 string_typespec.yaml
+typedef_typespec.yaml
 chandle_typespec.yaml
 module_typespec.yaml
 struct_typespec.yaml

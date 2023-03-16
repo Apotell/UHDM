@@ -22,42 +22,43 @@
 #include "gtest/gtest.h"
 #include "uhdm/SymbolFactory.h"
 
-namespace UHDM {
+namespace uhdm {
 using testing::ElementsAre;
 
 namespace {
 TEST(SymbolFactoryTest, SymbolFactoryAccess) {
   SymbolFactory table;
 
-  const SymbolId foo_id = table.Make("foo");
+  const SymbolId foo_id = table.registerSymbol("foo");
   EXPECT_NE(foo_id, SymbolFactory::getBadId());
 
-  const SymbolId bar_id = table.Make("bar");
+  const SymbolId bar_id = table.registerSymbol("bar");
   EXPECT_NE(foo_id, bar_id);
 
   // Attempting to register the same symbol will result in original ID.
-  EXPECT_EQ(table.Make("foo"), foo_id);
-  EXPECT_EQ(table.Make("bar"), bar_id);
+  EXPECT_EQ(table.registerSymbol("foo"), foo_id);
+  EXPECT_EQ(table.registerSymbol("bar"), bar_id);
 
   // Retrieve symbol-ID by text string
-  EXPECT_EQ(table.GetId("foo"), foo_id);
-  EXPECT_EQ(table.GetId("bar"), bar_id);
-  EXPECT_EQ(table.GetId("baz"), SymbolFactory::getBadId());  // no-exist
+  EXPECT_EQ(table.getId("foo"), foo_id);
+  EXPECT_EQ(table.getId("bar"), bar_id);
+  EXPECT_EQ(table.getId("baz"), SymbolFactory::getBadId());  // no-exist
 
   // Make sure comparisons don't latch on the address of the string constants
   // (as the linker will make all "foo" constants appear on the same address),
   // but actually do the find by content
   const std::string stringsource("foobar");
-  EXPECT_EQ(table.GetId(stringsource.substr(0, 3)), foo_id);
-  EXPECT_EQ(table.GetId(stringsource.substr(3, 3)), bar_id);
+  EXPECT_EQ(table.getId(stringsource.substr(0, 3)), foo_id);
+  EXPECT_EQ(table.getId(stringsource.substr(3, 3)), bar_id);
 
   // Retrieve text symbol by ID
-  EXPECT_EQ(table.GetSymbol(foo_id), "foo");
-  EXPECT_EQ(table.GetSymbol(bar_id), "bar");
-  EXPECT_EQ(table.GetSymbol(SymbolId(42, "<whatever>")),
+  EXPECT_EQ(table.getSymbol(foo_id), "foo");
+  EXPECT_EQ(table.getSymbol(bar_id), "bar");
+  EXPECT_EQ(table.getSymbol(SymbolId(42, "<whatever>")),
             SymbolFactory::getBadSymbol());  // no-exist
-  EXPECT_EQ(table.GetSymbol(SymbolId(0, "")),
-            "");  // no-exist, but zero however should return an empty string
+  EXPECT_EQ(table.getSymbol(SymbolId(0, "")),
+            SymbolFactory::getBadSymbol());  // no-exist, but zero however
+                                             // should return a bad string
 
   // For now, symbols returned in getSymbols() always contain bad symbol as
   // first element (though this is an implementation detail and might change).
@@ -68,23 +69,23 @@ TEST(SymbolFactoryTest, SymbolFactoryAccess) {
 TEST(SymbolFactoryTest, SymbolStringsAreStable) {
   SymbolFactory table;
 
-  const SymbolId foo_id = table.Make("foo");
+  const SymbolId foo_id = table.registerSymbol("foo");
 
   // Deliberately using .data() here so that API change to GetSymbol() returning
   // std::string_view later will keep this test source-code compatible.
-  const char *before_data = table.GetSymbol(foo_id).data();
+  const char *before_data = table.getSymbol(foo_id).data();
 
   // We want to make sure that even after reallocing the underlying
   // data structure, the symbol reference does not change. Let's enforce
   // some reallocs by creating a bunch of symbols.
   for (int32_t i = 0; i < 100000; ++i) {
-    table.Make("bar" + std::to_string(i));
+    table.registerSymbol("bar" + std::to_string(i));
   }
 
-  const char *after_data = table.GetSymbol(foo_id).data();
+  const char *after_data = table.getSymbol(foo_id).data();
 
   EXPECT_EQ(before_data, after_data);
 }
 
 }  // namespace
-}  // namespace UHDM
+}  // namespace uhdm

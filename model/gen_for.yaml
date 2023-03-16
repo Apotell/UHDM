@@ -17,45 +17,32 @@
 # in the non-elaborate tree
 
 - obj_def: gen_for
-  - extends: gen_stmt
-  - property: type
-    name: vpiFor
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - property: has_local_variables
-    name: has local variables
-    vpi: vpiLocalVarDecls
-    type: int32_t
-    card: 1
-  - group_ref: vpiForInitStmts
-    name: init stmts
-    vpi: vpiForInitStmt
-    type: stmt
-    card: any
-  - group_ref: vpiForIncStmts
-    name: inc stmts
-    vpi: vpiForIncStmt
-    type: stmt
-    card: any
-  - group_ref: vpiForInitStmt
-    name: init stmt
-    vpi: vpiForInitStmt
-    type: stmt
-    card: 1
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiForIncStmt
-    name: inc stmt
-    vpi: vpiForIncStmt
-    type: stmt
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-    
+- extends: gen_scope
+- property: local_var_decls
+  vpi: vpiLocalVarDecls
+  type: int32_t
+  card: 1
+- group_ref: for_init_stmt
+  vpi: vpiForInitStmt
+  type: stmt
+  card: any
+- group_ref: for_inc_stmt
+  vpi: vpiForIncStmt
+  type: stmt
+  card: any
+- group_ref: for_init_stmt
+  vpi: vpiForInitStmt
+  type: stmt
+  card: 1
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: for_inc_stmt
+  vpi: vpiForIncStmt
+  type: stmt
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

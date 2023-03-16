@@ -1,4 +1,4 @@
-# Copyright 2019 Alain Dargelas
+# Copyright 2019-2020 Alain Dargelas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "variable loads group" formal description
- 
-- group_def: variable_loads_group
-  - obj_ref: force
-  - obj_ref: cont_assign
-  - obj_ref: cont_assign_bit
-  - obj_ref: assign_stmt
+# Universal Hardware Data Model (UHDM) "typedef_typespec" formal description
 
+- obj_def: typedef_typespec
+- extends: typespec
+- class_ref: typedef_alias
+  vpi: vpiTypedefAlias
+  type: ref_typespec
+  card: 1

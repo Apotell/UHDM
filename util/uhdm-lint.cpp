@@ -39,42 +39,42 @@ static int32_t usage(const char *progName) {
   return 0;
 }
 
-class MyLinter : public UHDM::VpiListener {
+class MyLinter : public uhdm::VpiListener {
  public:
-  explicit MyLinter(UHDM::Serializer* serializer) : serializer_(serializer) {}
+  explicit MyLinter(uhdm::Serializer* serializer) : m_serializer(serializer) {}
   ~MyLinter() override = default;
 
-  void leaveAny(const UHDM::any* object, vpiHandle handle) final {
-    if (any_cast<const UHDM::typespec*>(object) != nullptr) {
+  void leaveAny(const uhdm::Any* object, vpiHandle handle) final {
+    if (any_cast<const uhdm::Typespec*>(object) != nullptr) {
     }
   }
 
-  void leaveUnsupported_expr(const UHDM::unsupported_expr* object,
+  void leaveUnsupportedExpr(const uhdm::UnsupportedExpr* object,
                              vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
-    serializer_->GetErrorHandler()(UHDM::ErrorType::UHDM_UNSUPPORTED_EXPR,
-                                   std::string(object->VpiName()), object,
+    m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_EXPR,
+                                   std::string(object->getName()), object,
                                    nullptr);
   }
 
-  void leaveUnsupported_stmt(const UHDM::unsupported_stmt* object,
+  void leaveUnsupportedStmt(const uhdm::UnsupportedStmt* object,
                              vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
-    serializer_->GetErrorHandler()(UHDM::ErrorType::UHDM_UNSUPPORTED_STMT,
-                                   std::string(object->VpiName()), object,
+    m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_STMT,
+                                   std::string(object->getName()), object,
                                    nullptr);
   }
 
-  void leaveUnsupported_typespec(const UHDM::unsupported_typespec* object,
+  void leaveUnsupportedTypespec(const uhdm::UnsupportedTypespec* object,
                                  vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
-    serializer_->GetErrorHandler()(UHDM::ErrorType::UHDM_UNSUPPORTED_TYPESPEC,
-                                   std::string(object->VpiName()), object,
-                                   object->VpiParent());
+    m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_TYPESPEC,
+                                   std::string(object->getName()), object,
+                                   object->getParent());
   }
 
  private:
-  UHDM::Serializer* serializer_;
+  uhdm::Serializer *const m_serializer = nullptr;
 };
 
 int32_t main(int32_t argc, char **argv) {
@@ -90,119 +90,119 @@ int32_t main(int32_t argc, char **argv) {
     return usage(argv[0]);
   }
 
-  std::unique_ptr<UHDM::Serializer> serializer(new UHDM::Serializer);
-  std::vector<vpiHandle> designs = serializer->Restore(file);
+  std::unique_ptr<uhdm::Serializer> serializer(new uhdm::Serializer);
+  std::vector<vpiHandle> designs = serializer->restore(file);
 
   if (designs.empty()) {
     std::cerr << file << ": Failed to load." << std::endl;
     return 1;
   }
 
-  UHDM::ErrorHandler errHandler =
-      [=](UHDM::ErrorType errType, std::string_view msg,
-          const UHDM::any* object1, const UHDM::any* object2) {
+  uhdm::ErrorHandler errHandler =
+      [=](uhdm::ErrorType errType, std::string_view msg,
+          const uhdm::Any* object1, const uhdm::Any* object2) {
         std::string errmsg;
         switch (errType) {
-          case UHDM::UHDM_UNSUPPORTED_EXPR:
+          case uhdm::UHDM_UNSUPPORTED_EXPR:
             errmsg = "Unsupported expression";
             break;
-          case UHDM::UHDM_UNSUPPORTED_STMT:
+          case uhdm::UHDM_UNSUPPORTED_STMT:
             errmsg = "Unsupported stmt";
             break;
-          case UHDM::UHDM_WRONG_OBJECT_TYPE:
+          case uhdm::UHDM_WRONG_OBJECT_TYPE:
             errmsg = "Wrong object type";
             break;
-          case UHDM::UHDM_UNDEFINED_PATTERN_KEY:
+          case uhdm::UHDM_UNDEFINED_PATTERN_KEY:
             errmsg = "Undefined pattern key";
             break;
-          case UHDM::UHDM_UNMATCHED_FIELD_IN_PATTERN_ASSIGN:
+          case uhdm::UHDM_UNMATCHED_FIELD_IN_PATTERN_ASSIGN:
             errmsg = "Unmatched field in pattern assign";
             break;
-          case UHDM::UHDM_REAL_TYPE_AS_SELECT:
+          case uhdm::UHDM_REAL_TYPE_AS_SELECT:
             errmsg = "Real type used as select";
             break;
-          case UHDM::UHDM_RETURN_VALUE_VOID_FUNCTION:
+          case uhdm::UHDM_RETURN_VALUE_VOID_FUNCTION:
             errmsg = "Return value void function";
             break;
-          case UHDM::UHDM_ILLEGAL_DEFAULT_VALUE:
+          case uhdm::UHDM_ILLEGAL_DEFAULT_VALUE:
             errmsg = "Illegal default value";
             break;
-          case UHDM::UHDM_MULTIPLE_CONT_ASSIGN:
+          case uhdm::UHDM_MULTIPLE_CONT_ASSIGN:
             errmsg = "Multiple cont assign";
             break;
-          case UHDM::UHDM_ILLEGAL_WIRE_LHS:
+          case uhdm::UHDM_ILLEGAL_WIRE_LHS:
             errmsg = "Illegal wire LHS";
             break;
-          case UHDM::UHDM_ILLEGAL_PACKED_DIMENSION:
+          case uhdm::UHDM_ILLEGAL_PACKED_DIMENSION:
             errmsg = "Illegal Packed dimension";
             break;
-          case UHDM::UHDM_NON_SYNTHESIZABLE:
+          case uhdm::UHDM_NON_SYNTHESIZABLE:
             errmsg = "Non synthesizable construct";
             break;
-          case UHDM::UHDM_ENUM_CONST_SIZE_MISMATCH:
+          case uhdm::UHDM_ENUM_CONST_SIZE_MISMATCH:
             errmsg = "Enum const size mismatch";
             break;
-          case UHDM::UHDM_DIVIDE_BY_ZERO:
+          case uhdm::UHDM_DIVIDE_BY_ZERO:
             errmsg = "Division by zero";
             break;
-          case UHDM::UHDM_INTERNAL_ERROR_OUT_OF_BOUND:
+          case uhdm::UHDM_INTERNAL_ERROR_OUT_OF_BOUND:
             errmsg = "Internal error out of bound";
             break;
-          case UHDM::UHDM_UNDEFINED_USER_FUNCTION:
+          case uhdm::UHDM_UNDEFINED_USER_FUNCTION:
             errmsg = "Undefined user function";
             break;
-          case UHDM::UHDM_UNRESOLVED_HIER_PATH:
+          case uhdm::UHDM_UNRESOLVED_HIER_PATH:
             errmsg = "Unresolved hierarchical path";
             break;
-          case UHDM::UHDM_UNDEFINED_VARIABLE:
+          case uhdm::UHDM_UNDEFINED_VARIABLE:
             errmsg = "Undefined variable";
             break;
-          case UHDM::UHDM_INVALID_CASE_STMT_VALUE:
+          case uhdm::UHDM_INVALID_CASE_STMT_VALUE:
             errmsg = "Invalid case stmt value";
             break;
-          case UHDM::UHDM_UNSUPPORTED_TYPESPEC:
+          case uhdm::UHDM_UNSUPPORTED_TYPESPEC:
             errmsg = "Unsupported typespec";
             break;
-          case UHDM::UHDM_UNRESOLVED_PROPERTY:
+          case uhdm::UHDM_UNRESOLVED_PROPERTY:
             errmsg = "Unresolved property";
             break;
-          case UHDM::UHDM_NON_TEMPORAL_SEQUENCE_USE:
+          case uhdm::UHDM_NON_TEMPORAL_SEQUENCE_USE:
             errmsg = "Sequence used in non-temporal context";
             break;
-          case UHDM::UHDM_NON_POSITIVE_VALUE:
+          case uhdm::UHDM_NON_POSITIVE_VALUE:
             errmsg = "Non positive (<1) value";
             break;
-          case UHDM::UHDM_SIGNED_UNSIGNED_PORT_CONN:
+          case uhdm::UHDM_SIGNED_UNSIGNED_PORT_CONN:
             errmsg = "Signed vs Unsigned port connection";
             break;
-          case UHDM::UHDM_FORCING_UNSIGNED_TYPE:
+          case uhdm::UHDM_FORCING_UNSIGNED_TYPE:
             errmsg = "Critical: Forcing signal to unsigned type due to unsigned port binding ";
             break;
         }
 
         if (object1) {
-          std::cout << object1->VpiFile() << ":" << object1->VpiLineNo() << ":"
-                    << object1->VpiColumnNo() << ": ";
+          std::cout << object1->getFile() << ":" << object1->getStartLine() << ":"
+                    << object1->getStartColumn() << ": ";
           std::cout << errmsg << ", " << msg << std::endl;
         } else {
           std::cout << errmsg << ", " << msg << std::endl;
         }
         if (object2) {
-          std::cout << "  \\_ " << object2->VpiFile() << ":"
-                    << object2->VpiLineNo() << ":" << object2->VpiColumnNo() << ":" << std::endl;
+          std::cout << "  \\_ " << object2->getFile() << ":"
+                    << object2->getStartLine() << ":" << object2->getStartColumn() << ":" << std::endl;
         }
       };
-  serializer.get()->SetErrorHandler(errHandler);
+  serializer.get()->setErrorHandler(errHandler);
 
   vpiHandle designH = designs.at(0);
-  UHDM::design* design = UhdmDesignFromVpiHandle(designH);
+  uhdm::Design* design = UhdmDesignFromVpiHandle(designH);
 
-  UHDM::UhdmLint* linter = new UHDM::UhdmLint(serializer.get(), design);
+  uhdm::UhdmLint* linter = new uhdm::UhdmLint(serializer.get(), design);
   linter->listenDesigns(designs);
   delete linter;
 
-  std::set<const UHDM::any*> nonSynthesizableObjects;
-  UHDM::SynthSubset* annotate = new UHDM::SynthSubset(
+  std::set<const uhdm::Any*> nonSynthesizableObjects;
+  uhdm::SynthSubset* annotate = new uhdm::SynthSubset(
       serializer.get(), nonSynthesizableObjects, design, true, true);
   annotate->listenDesigns(designs);
   delete annotate;

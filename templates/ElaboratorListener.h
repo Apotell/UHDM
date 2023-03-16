@@ -34,138 +34,130 @@
 #include <unordered_set>
 #include <vector>
 
-namespace UHDM {
+namespace uhdm {
 
 class ElaboratorContext;
 class ElaboratorListener;
 class Serializer;
 
 class ElaboratorListener final : public VpiListener {
-  friend function;
-  friend task;
-  friend gen_scope_array;
+  friend class Function;
+  friend class Task;
+  friend class GenScopeArray;
 
  public:
-  void setContext(ElaboratorContext* context) { context_ = context; }
-  void uniquifyTypespec(bool uniquify) { uniquifyTypespec_ = uniquify; }
-  bool uniquifyTypespec() { return uniquifyTypespec_; }
-  void bindOnly(bool bindOnly) { clone_ = !bindOnly; }
-  bool bindOnly() { return !clone_; }
-  bool isFunctionCall(std::string_view name, const expr* prefix) const;
-  bool muteErrors() { return muteErrors_; }
-  bool isTaskCall(std::string_view name, const expr* prefix) const;
-  void ignoreLastInstance(bool ignore) { ignoreLastInstance_ = ignore; }
+  void setContext(ElaboratorContext* context) { m_context = context; }
+  void uniquifyTypespec(bool uniquify) { m_uniquifyTypespec = uniquify; }
+  bool uniquifyTypespec() { return m_uniquifyTypespec; }
+  void bindOnly(bool bindOnly) { m_clone = !bindOnly; }
+  bool bindOnly() { return !m_clone; }
+  bool isFunctionCall(std::string_view name, const Expr* prefix) const;
+  bool muteErrors() { return m_muteErrors; }
+  bool isTaskCall(std::string_view name, const Expr* prefix) const;
+  void ignoreLastInstance(bool ignore) { m_ignoreLastInstance = ignore; }
 
   // Bind to a net in the current instance
-  any* bindNet(std::string_view name) const;
+  Any* bindNet(std::string_view name) const;
 
   // Bind to a net or parameter in the current instance
-  any* bindAny(std::string_view name) const;
+  Any* bindAny(std::string_view name) const;
 
   // Bind to a param in the current instance
-  any* bindParam(std::string_view name) const;
+  Any* bindParam(std::string_view name) const;
 
   // Bind to a function or task in the current scope
-  any* bindTaskFunc(std::string_view name,
-                    const class_var* prefix = nullptr) const;
+  Any* bindTaskFunc(std::string_view name,
+                    const ClassVar* prefix = nullptr) const;
 
-  void scheduleTaskFuncBinding(tf_call* clone, const class_var* prefix) {
-    scheduledTfCallBinding_.push_back(std::make_pair(clone, prefix));
+  void scheduleTaskFuncBinding(TFCall* clone, const ClassVar* prefix) {
+    m_scheduledTfCallBinding.emplace_back(clone, prefix);
   }
   void bindScheduledTaskFunc();
 
-  typedef std::map<std::string, const BaseClass*, std::less<>> ComponentMap;
+  using ComponentMap = std::map<std::string, const BaseClass*, std::less<>>;
 
-  void enterAny(const any* object, vpiHandle handle) final;
+  void enterAny(const Any* object, vpiHandle handle) final;
 
-  void leaveDesign(const design* object, vpiHandle handle) final;
+  void leaveDesign(const Design* object, vpiHandle handle) final;
 
-  void enterModule_inst(const module_inst* object, vpiHandle handle) final;
-  void elabModule_inst(const module_inst* object, vpiHandle handle);
-  void leaveModule_inst(const module_inst* object, vpiHandle handle) final;
+  void enterModule(const Module* object, vpiHandle handle) final;
+  void elabModule(const Module* object, vpiHandle handle);
+  void leaveModule(const Module* object, vpiHandle handle) final;
 
-  void enterInterface_inst(const interface_inst* object,
+  void enterInterface(const Interface* object, vpiHandle handle) final;
+  void leaveInterface(const Interface* object, vpiHandle handle) final;
+
+  void enterPackage(const Package* object, vpiHandle handle) final;
+  void leavePackage(const Package* object, vpiHandle handle) final;
+
+  void enterClassDefn(const ClassDefn* object, vpiHandle handle) final;
+  void elabClassDefn(const ClassDefn* object, vpiHandle handle);
+  void leaveClassDefn(const ClassDefn* object, vpiHandle handle) final;
+
+  void enterGenScope(const GenScope* object, vpiHandle handle) final;
+  void leaveGenScope(const GenScope* object, vpiHandle handle) final;
+
+  void leaveRefObj(const RefObj* object, vpiHandle handle) final;
+  void leaveBitSelect(const BitSelect* object, vpiHandle handle) final;
+  void leaveIndexedPartSelect(const IndexedPartSelect* object,
+                              vpiHandle handle) final;
+  void leavePartSelect(const PartSelect* object, vpiHandle handle) final;
+  void leaveVarSelect(const VarSelect* object, vpiHandle handle) final;
+
+  void enterFunction(const Function* object, vpiHandle handle) final;
+  void leaveFunction(const Function* object, vpiHandle handle) final;
+
+  void enterTask(const Task* object, vpiHandle handle) final;
+  void leaveTask(const Task* object, vpiHandle handle) final;
+
+  void enterForeachStmt(const ForeachStmt* object, vpiHandle handle) final;
+  void leaveForeachStmt(const ForeachStmt* object, vpiHandle handle) final;
+
+  void enterForStmt(const ForStmt* object, vpiHandle handle) final;
+  void leaveForStmt(const ForStmt* object, vpiHandle handle) final;
+
+  void enterBegin(const Begin* object, vpiHandle handle) final;
+  void leaveBegin(const Begin* object, vpiHandle handle) final;
+
+  void enterForkStmt(const ForkStmt* object, vpiHandle handle) final;
+  void leaveForkStmt(const ForkStmt* object, vpiHandle handle) final;
+
+  void enterMethodFuncCall(const MethodFuncCall* object,
                            vpiHandle handle) final;
-  void leaveInterface_inst(const interface_inst* object,
+  void leaveMethodFuncCall(const MethodFuncCall* object,
                            vpiHandle handle) final;
 
-  void enterPackage(const package* object, vpiHandle handle) final;
-  void leavePackage(const package* object, vpiHandle handle) final;
-
-  void enterClass_defn(const class_defn* object, vpiHandle handle) final;
-  void elabClass_defn(const class_defn* object, vpiHandle handle);
-  void leaveClass_defn(const class_defn* object, vpiHandle handle) final;
-
-  void enterGen_scope(const gen_scope* object, vpiHandle handle) final;
-  void leaveGen_scope(const gen_scope* object, vpiHandle handle) final;
-
-  void leaveRef_obj(const ref_obj* object, vpiHandle handle) final;
-  void leaveBit_select(const bit_select* object, vpiHandle handle) final;
-  void leaveIndexed_part_select(const indexed_part_select* object,
-                                vpiHandle handle) final;
-  void leavePart_select(const part_select* object, vpiHandle handle) final;
-  void leaveVar_select(const var_select* object, vpiHandle handle) final;
-
-  void enterFunction(const function* object, vpiHandle handle) final;
-  void leaveFunction(const function* object, vpiHandle handle) final;
-
-  void enterTask(const task* object, vpiHandle handle) final;
-  void leaveTask(const task* object, vpiHandle handle) final;
-
-  void enterForeach_stmt(const foreach_stmt* object, vpiHandle handle) final;
-  void leaveForeach_stmt(const foreach_stmt* object, vpiHandle handle) final;
-
-  void enterFor_stmt(const for_stmt* object, vpiHandle handle) final;
-  void leaveFor_stmt(const for_stmt* object, vpiHandle handle) final;
-
-  void enterBegin(const begin* object, vpiHandle handle) final;
-  void leaveBegin(const begin* object, vpiHandle handle) final;
-
-  void enterNamed_begin(const named_begin* object, vpiHandle handle) final;
-  void leaveNamed_begin(const named_begin* object, vpiHandle handle) final;
-
-  void enterFork_stmt(const fork_stmt* object, vpiHandle handle) final;
-  void leaveFork_stmt(const fork_stmt* object, vpiHandle handle) final;
-
-  void enterNamed_fork(const named_fork* object, vpiHandle handle) final;
-  void leaveNamed_fork(const named_fork* object, vpiHandle handle) final;
-
-  void enterMethod_func_call(const method_func_call* object,
-                             vpiHandle handle) final;
-  void leaveMethod_func_call(const method_func_call* object,
-                             vpiHandle handle) final;
-
-  void pushVar(any* var);
-  void popVar(any* var);
+  void pushVar(Any* var);
+  void popVar(Any* var);
 
  private:
   explicit ElaboratorListener(Serializer* serializer, bool debug = false,
                               bool muteErrors = false)
-      : serializer_(serializer), debug_(debug), muteErrors_(muteErrors) {}
+      : m_serializer(serializer), m_debug(debug), m_muteErrors(muteErrors) {}
 
-  void enterVariables(const variables* object, vpiHandle handle);
+  void enterVariables(const Variables* object, vpiHandle handle);
 
-  void enterTask_func(const task_func* object, vpiHandle handle);
-  void leaveTask_func(const task_func* object, vpiHandle handle);
+  void enterTaskFunc(const TaskFunc* object, vpiHandle handle);
+  void leaveTaskFunc(const TaskFunc* object, vpiHandle handle);
 
   // Instance context stack
-  typedef std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap,
-                                 ComponentMap, ComponentMap>>
-      InstStack;
-  InstStack instStack_;
+  using InstStack =
+      std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap,
+                             ComponentMap, ComponentMap>>;
+  InstStack m_instStack;
 
   // Flat list of components (modules, udps, interfaces)
-  ComponentMap flatComponentMap_;
+  ComponentMap m_flatComponentMap;
 
-  Serializer* serializer_ = nullptr;
-  ElaboratorContext* context_ = nullptr;
-  bool inHierarchy_ = false;
-  bool debug_ = false;
-  bool muteErrors_ = false;
-  bool uniquifyTypespec_ = true;
-  bool clone_ = true;
-  bool ignoreLastInstance_ = false;
-  std::vector<std::pair<tf_call*, const class_var*>> scheduledTfCallBinding_;
+  Serializer* m_serializer = nullptr;
+  ElaboratorContext* m_context = nullptr;
+  bool m_inHierarchy = false;
+  bool m_debug = false;
+  bool m_muteErrors = false;
+  bool m_uniquifyTypespec = true;
+  bool m_clone = true;
+  bool m_ignoreLastInstance = false;
+  std::vector<std::pair<TFCall*, const ClassVar*>> m_scheduledTfCallBinding;
 
   friend class ElaboratorContext;
 };
@@ -184,6 +176,6 @@ class ElaboratorContext final : public CloneContext {
   ElaboratorListener m_elaborator;
 };
 
-};  // namespace UHDM
+}  // namespace uhdm
 
 #endif  // UHDM_ELABORATORLISTENER_H

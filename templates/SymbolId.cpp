@@ -24,8 +24,8 @@
 #include <uhdm/SymbolId.h>
 #include <uhdm/SymbolFactory.h>
 
-namespace UHDM {
+namespace uhdm {
 inline std::ostream &operator<<(std::ostream &strm, const SymbolIdPP &id) {
   return strm << id.m_symbolFactory->getSymbol(id.m_id);
 }
-}  // namespace UHDM
+}  // namespace uhdm

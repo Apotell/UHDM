@@ -13,11 +13,9 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "pattern" formal description
- 
+
 - group_def: pattern
-  - obj_ref: any_pattern
-  - obj_ref: tagged_pattern
-  - obj_ref: struct_pattern
-  - class_ref: expr
-
-
+- obj_ref: any_pattern
+- obj_ref: tagged_pattern
+- obj_ref: struct_pattern
+- class_ref: expr

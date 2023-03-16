@@ -13,25 +13,21 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "sequence_inst" formal description
- 
+
 - obj_def: sequence_inst
-  - obj_ref: sequence_decl
-    name: sequence decl
-    vpi: vpiSequenceDecl
-    type: sequence_decl
-    card: 1
-  - group_ref: named_event_sequence_expr_group
-    name: named event sequence expr group
-    vpi: vpiArgument
-    type: named_event_sequence_expr_group
-    card: any
-  - property: assertion_name
-    name: assertion name
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: clocking_block
-    name: clocking block
-    vpi: vpiClockingBlock
-    type: clocking_block
-    card: 1
+- obj_ref: sequence_decl
+  vpi: vpiSequenceDecl
+  type: sequence_decl
+  card: 1
+- group_ref: argument
+  vpi: vpiArgument
+  type: named_event_sequence_expr_group
+  card: any
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: clocking_block
+  vpi: vpiClockingBlock
+  type: clocking_block
+  card: 1

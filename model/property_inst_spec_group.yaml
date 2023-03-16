@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "property_spec" formal description
- 
-- group_def: property_inst_spec_group
-  - obj_ref: property_inst
-  - obj_ref: property_spec
 
+- group_def: property_inst_spec_group
+- obj_ref: property_inst
+- obj_ref: property_spec

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "long int var" formal description
- 
-- obj_def: long_int_var
-  - extends: variables
 
+- obj_def: long_int_var
+- extends: variables

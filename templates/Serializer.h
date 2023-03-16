@@ -27,6 +27,7 @@
 #ifndef UHDM_SERIALIZER_H
 #define UHDM_SERIALIZER_H
 
+#include <uhdm/BaseClass.h>
 #include <uhdm/SymbolFactory.h>
 #include <uhdm/containers.h>
 #include <uhdm/vpi_uhdm.h>
@@ -41,7 +42,9 @@
 
 #define UHDM_MAX_BIT_WIDTH (1024 * 1024)
 
-namespace UHDM {
+namespace uhdm {
+class ScopedScope;
+
 enum ErrorType {
   UHDM_UNSUPPORTED_EXPR = 700,
   UHDM_UNSUPPORTED_STMT = 701,
@@ -71,16 +74,83 @@ enum ErrorType {
 };
 
 #ifndef SWIG
-typedef std::function<void(ErrorType errType, const std::string&,
-                           const any* object1, const any* object2)>
-    ErrorHandler;
+using ErrorHandler =
+    std::function<void(ErrorType errType, const std::string&,
+                       const Any* object1, const Any* object2)>;
 
 void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
-                         const any* object1, const any* object2);
-
-template <typename T>
-class FactoryT;
+                         const Any* object1, const Any* object2);
 #endif
+
+class Factory final {
+  friend Serializer;
+
+  using objects_t = std::vector<Any*>;
+  using collections_t = std::vector<objects_t*>;
+
+ public:
+  template <typename T>
+  T* make() {
+    T* const any = new T;
+    m_objects.emplace_back(any);
+    return any;
+  }
+
+  template <typename T>
+  std::vector<T*>* makeCollection() {
+    std::vector<T*>* const collection = new std::vector<T*>;
+    m_collections.emplace_back((objects_t*)collection);
+    return collection;
+  }
+
+  bool erase(const Any* any) {
+    for (objects_t::const_iterator itr = m_objects.begin();
+         itr != m_objects.end(); ++itr) {
+      if ((*itr) == any) {
+        delete any;
+        m_objects.erase(itr);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void eraseIfNotIn(const AnySet& container, AnySet& erased) {
+    objects_t keepers;
+    for (objects_t::reference any : m_objects) {
+      if (container.find(any) == container.cend()) {
+        erased.emplace(any);
+        delete any;
+      } else {
+        keepers.emplace_back(any);
+      }
+    }
+    keepers.swap(m_objects);
+  }
+
+  void mapToIndex(std::map<const Any*, uint32_t>& table,
+                  uint32_t index = 1) const {
+    for (objects_t::const_reference any : m_objects) {
+      table.emplace(any, index++);
+    }
+  }
+
+  void purge() {
+    for (objects_t::reference any : m_objects) {
+      delete any;
+    }
+    for (collections_t::reference collection : m_collections) {
+      delete collection;
+    }
+
+    m_objects.clear();
+    m_collections.clear();
+  }
+
+ private:
+  objects_t m_objects;
+  collections_t m_collections;
+};
 
 class Serializer final {
  public:
@@ -88,53 +158,84 @@ class Serializer final {
   static constexpr uint32_t kBadIndex = static_cast<uint32_t>(-1);
   static const uint32_t kVersion;
 
-  Serializer() = default;
+  Serializer();
   ~Serializer();
 
 #ifndef SWIG
-  void Save(const std::filesystem::path& filepath);
-  void Save(const std::string& filepath);
-  void Purge();
+  void save(const std::filesystem::path& filepath);
+  void save(const std::string& filepath);
+  void purge();
 
-  void SetGCEnabled(bool enabled) { m_enableGC = enabled; }
-  void GarbageCollect();
+  void setGCEnabled(bool enabled) { m_enableGC = enabled; }
+  void collectGarbage();
 
-  void SetErrorHandler(ErrorHandler handler) { m_errorHandler = handler; }
-  ErrorHandler GetErrorHandler() { return m_errorHandler; }
+  void setErrorHandler(ErrorHandler handler) { m_errorHandler = handler; }
+  ErrorHandler getErrorHandler() { return m_errorHandler; }
 
-  IdMap AllObjects() const;
+  IdMap getAllObjects() const;
 #endif
 
-  const std::vector<vpiHandle> Restore(const std::filesystem::path& filepath);
-  const std::vector<vpiHandle> Restore(const std::string& filepath);
-  std::map<std::string, uint32_t, std::less<>> ObjectStats() const;
-  void PrintStats(std::ostream& strm, std::string_view infoText) const;
+  const std::vector<vpiHandle> restore(const std::filesystem::path& filepath);
+  const std::vector<vpiHandle> restore(const std::string& filepath);
+  std::map<std::string, uint32_t, std::less<>> getObjectStats() const;
+  void printStats(std::ostream& strm, std::string_view infoText) const;
 
 #ifndef SWIG
  private:
   template <typename T>
-  T* Make(FactoryT<T>* const factory);
-
-  template <typename T>
-  void Make(FactoryT<T>* const factory, uint32_t count);
-
-  template <typename T>
-  std::vector<T*>* Make(FactoryT<std::vector<T*>>* const factory);
-
- public:
-  <FACTORY_FUNCTION_DECLARATIONS> std::vector<any*>* MakeAnyVec() {
-    return anyVectMaker.Make();
+  T* make(Factory* const factory) {
+    T *const obj = factory->template make<T>();
+    obj->setSerializer(this);
+    obj->setUhdmId(++m_objId);
+    return obj;
   }
 
-  SymbolId MakeSymbol(std::string_view symbol);
-  std::string_view GetSymbol(SymbolId id) const;
-  SymbolId GetSymbolId(std::string_view symbol) const;
+  template <typename T>
+  void make(Factory *const factory, uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i) make<T>(factory);
+  }
 
-  vpiHandle MakeUhdmHandle(UHDM_OBJECT_TYPE type, const void* object);
+  template <typename T>
+  std::vector<T *> *makeCollection(Factory *const factory) {
+    return factory->template makeCollection<T>();
+  }
 
-  bool Erase(const BaseClass* p);
+ public:
+  template<typename T>
+  T* make() {
+    return make<T>(m_factories[T::kUhdmType]);
+  }
 
- private:
+  template <typename T>
+  void make(uint32_t count) {
+    make<T>(m_factories[T::kUhdmType], count);
+  }
+
+  template <typename T>
+  std::vector<T *> *makeCollection() {
+    return makeCollection<T>(m_factories[T::kUhdmType]);
+  }
+
+  SymbolId makeSymbol(std::string_view symbol);
+  std::string_view getSymbol(SymbolId id) const;
+  SymbolId getSymbolId(std::string_view symbol) const;
+
+  SymbolCollection* makeSymbolCollection();
+
+  vpiHandle makeUhdmHandle(UhdmType type, const void* object);
+
+  bool erase(const BaseClass* p);
+
+#ifndef SWIG
+  void pushScope(Any* s);
+  bool popScope(Any* s);
+  Any* topScope() const {
+    return m_scopeStack.empty() ? nullptr : m_scopeStack.back();
+  }
+
+  friend class ScopedScope;
+#endif
+
   struct SaveAdapter;
   friend struct SaveAdapter;
 
@@ -142,19 +243,35 @@ class Serializer final {
   friend struct RestoreAdapter;
 
  private:
-  BaseClass* GetObject(uint32_t objectType, uint32_t index) const;
+  template<typename T>
+  T* getObject(uint32_t type, uint32_t index) const;
 
   uint64_t m_version = 0;
   uint32_t m_objId = 0;
   bool m_enableGC = true;
   ErrorHandler m_errorHandler = DefaultErrorHandler;
 
-  VectorOfanyFactory anyVectMaker;
-  SymbolFactory symbolMaker;
-  uhdm_handleFactory uhdm_handleMaker;
-<FACTORY_DATA_MEMBERS>
+  SymbolFactory m_symbolFactory;
+  UhdmHandleFactory m_uhdmHandleFactory;
+
+  using scope_stack_t = std::vector<Any *>;
+  scope_stack_t m_scopeStack;
+
+  using factories_t = std::map<UhdmType, Factory*>;
+  factories_t m_factories;
 #endif
 };
-};  // namespace UHDM
 
+#ifndef SWIG
+class ScopedScope final {
+ public:
+  ScopedScope(Any* s);
+  ~ScopedScope();
+
+ private:
+  Any* const m_any = nullptr;
+};
 #endif
+} // namespace uhdm
+
+#endif  // UHDM_SERIALIZER_H

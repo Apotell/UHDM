@@ -1,0 +1,68 @@
+# Copyright 2019-2020 Alain Dargelas
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Universal Hardware Data Model (UHDM) "preproc_macro_instance" formal description
+
+- obj_def: preproc_macro_instance
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: preproc_macro_definition
+  vpi: vpiPreprocMacroDefinition
+  type: preproc_macro_definition
+  card: 1
+- obj_ref: preproc_macro_instance
+  vpi: vpiPreprocMacroInstance
+  type: preproc_macro_instance
+  card: any
+
+- property: section_start_line
+  vpi: vpiSectionStartLine
+  type: uint32_t
+  card: 1
+- property: section_start_column
+  vpi: vpiSectionStartColumn
+  type: uint16_t
+  card: 1
+- property: section_end_line
+  vpi: vpiSectionEndLine
+  type: uint32_t
+  card: 1
+- property: section_end_column
+  vpi: vpiSectionEndColumn
+  type: uint16_t
+  card: 1
+
+- property: source_start_line
+  vpi: vpiSourceStartLine
+  type: uint32_t
+  card: 1
+- property: source_start_column
+  vpi: vpiSourceStartColumn
+  type: uint16_t
+  card: 1
+- property: source_end_line
+  vpi: vpiSourceEndLine
+  type: uint32_t
+  card: 1
+- property: source_end_column
+  vpi: vpiSourceEndColumn
+  type: uint16_t
+  card: 1
+
+- class_ref: object
+  vpi: vpiObject
+  type: any
+  card: any

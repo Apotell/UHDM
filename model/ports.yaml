@@ -13,75 +13,61 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "ports" formal description
- 
+
 - class_def: ports
-  - property: index
-    name: index
-    vpi: vpiPortIndex
-    type: int32_t
-    card: 1
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: port_type
-    name: port_type
-    vpi: vpiPortType
-    type: int32_t
-    card: 1
-  - property: scalar
-    name: scalar
-    vpi: vpiScalar
-    type: bool
-    card: 1
-  - property: vector
-    name: vector
-    vpi: vpiVector
-    type: bool
-    card: 1
-  - property: connected_by_name
-    name: connected by name
-    vpi: vpiConnByName
-    type: bool
-    card: 1
-  - property: direction
-    name: direction
-    vpi: vpiDirection
-    type: int32_t
-    card: 1
-  - property: size
-    name: size
-    vpi: vpiSize
-    type: int32_t
-    card: 1
-  - property: explicitly_named
-    name: name
-    vpi: vpiExplicitName
-    type: string
-    card: 1
-  - group_ref: high_conn
-    name: high conn
-    vpi: vpiHighConn
-    type: expr_ref_obj_group
-    card: 1
-  - group_ref: low_conn
-    name: low conn
-    vpi: vpiLowConn
-    type: expr_ref_obj_group
-    card: 1
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypedef
-    type: ref_typespec
-    card: 1
-  - class_ref: instance
-    name: instance
-    vpi: vpiInstance
-    type: instance
-    card: 1
-  - obj_ref: module_inst
-    name: module_inst
-    vpi: vpiModule
-    type: module_inst
-    card: 1
+- property: port_index
+  vpi: vpiPortIndex
+  type: int32_t
+  card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: port_type
+  vpi: vpiPortType
+  type: int32_t
+  card: 1
+- property: scalar
+  vpi: vpiScalar
+  type: bool
+  card: 1
+- property: vector
+  vpi: vpiVector
+  type: bool
+  card: 1
+- property: conn_by_name
+  vpi: vpiConnByName
+  type: bool
+  card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
+  card: 1
+- property: size
+  vpi: vpiSize
+  type: int32_t
+  card: 1
+- property: explicit_name
+  vpi: vpiExplicitName
+  type: string
+  card: 1
+- group_ref: high_conn
+  vpi: vpiHighConn
+  type: expr_ref_obj_group
+  card: 1
+- group_ref: low_conn
+  vpi: vpiLowConn
+  type: expr_ref_obj_group
+  card: 1
+- class_ref: typespec
+  vpi: vpiTypespec
+  type: ref_typespec
+  card: 1
+- class_ref: instance
+  vpi: vpiInstance
+  type: instance
+  card: 1
+- obj_ref: module
+  vpi: vpiModule
+  type: module
+  card: 1

@@ -39,7 +39,7 @@
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 
-using namespace UHDM;
+using namespace uhdm;
 
 static bool ReadIntoString(const std::string &filename, std::string *content) {
   std::ifstream fs;
@@ -129,7 +129,7 @@ int32_t main(int32_t argc, char **argv) {
 
   Serializer serializer;
   if (verbose) std::cerr << uhdmFile << ": restoring from file" << std::endl;
-  std::vector<vpiHandle> restoredDesigns = serializer.Restore(uhdmFile);
+  std::vector<vpiHandle> restoredDesigns = serializer.restore(uhdmFile);
 
   if (restoredDesigns.empty()) {
     std::cerr << uhdmFile << ": empty design." << std::endl;
@@ -137,10 +137,15 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   if (dumpstats) {
-    serializer.PrintStats(std::cout, uhdmFile);
+    serializer.printStats(std::cout, uhdmFile);
+
+    if (!goldenFile.empty()) {
+      serializer.printStats(std::cout, goldenFile);
+    }
   }
 
   std::cout << uhdmFile << ": Restored design Pre-Elab: " << std::endl;
+  vpi_show_ids(true);
   visit_designs(restoredDesigns, std::cout);
 
   if (!goldenFile.empty()) {
@@ -162,4 +167,4 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   return 0;
-};
+}

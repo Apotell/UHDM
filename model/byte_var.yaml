@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "byte var" formal description
- 
-- obj_def: byte_var
-  - extends: variables
 
+- obj_def: byte_var
+- extends: variables

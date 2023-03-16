@@ -17,10 +17,8 @@
 # in the non-elaborate tree
 
 - obj_def: gen_region
-  - extends: gen_stmt
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-
+- extends: gen_scope
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

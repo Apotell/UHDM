@@ -13,22 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "fork" formal description
- 
+
 - obj_def: fork_stmt
-  - extends: scope
-  - property: type
-    name: vpiFork
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - property: join_type
-    name: join type
-    vpi: vpiJoinType
-    type: int32_t
-    card: 1
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-    
+- extends: scope
+- property: join_type
+  vpi: vpiJoinType
+  type: int32_t
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: any
+- property: end_label
+  vpi: vpiEndLabel
+  type: string
+  card: 1

@@ -13,20 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "dist item" formal description
- 
+
 - obj_def: dist_item
-  - property: distribution_type
-    name: distribution type
-    vpi: vpiDistType
-    type: int32_t
-    card: 1
-  - group_ref: value_range
-    name: value range
-    vpi: vpiValueRange
-    type: expr_range_group
-    card: 1
-  - class_ref: weight
-    name: weight
-    vpi: vpiWeight
-    type: expr
-    card: 1
+- property: dist_type
+  vpi: vpiDistType
+  type: int32_t
+  card: 1
+- group_ref: value_range
+  vpi: vpiValueRange
+  type: expr_range_group
+  card: 1
+- class_ref: weight
+  vpi: vpiWeight
+  type: expr
+  card: 1

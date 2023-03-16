@@ -13,94 +13,85 @@ def _generate_module_listeners(models, classname):
         type = value.get('type')
         card = value.get('card')
 
-        cast = 'any' if key == 'group_ref' else type
-        Cast = cast[:1].upper() + cast[1:]
-        method = name[:1].upper() + name[1:]
-
-        if (card == 'any') and not method.endswith('s'):
-          method += 's'
+        TypeName = config.make_class_name('any' if key == 'group_ref' else type)
+        FuncName = config.make_func_name(name, card)
 
         if card == '1':
-          listeners.append(f'if (auto obj = defMod->{method}()) {{')
-          listeners.append( '  auto* stmt = obj->DeepClone(defMod, context_);')
-          listeners.append( '  stmt->VpiParent(inst);')
-          listeners.append(f'  inst->{method}(stmt);')
+          listeners.append(f'if (auto obj = defMod->get{FuncName}()) {{')
+          listeners.append(f'  inst->set{FuncName}(obj->deepClone(inst, m_context));')
           listeners.append( '}')
 
-        elif method in ['Ref_modules', 'Gen_stmts']:
+        elif FuncName in ['RefModules', 'GenStmts']:
           pass # No elab
 
-        elif method in ['Task_funcs']:
+        elif FuncName in ['TaskFuncs']:
           # We want to deep clone existing instance tasks and funcs
-          listeners.append(f'if (auto vec = inst->{method}()) {{')
-          listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'  inst->{method}(clone_vec);')
+          listeners.append(f'if (auto vec = inst->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 1')
+          listeners.append(f'  inst->set{FuncName}(clone_vec);')
           listeners.append( '  for (auto obj : *vec) {')
-          listeners.append( '    enterTask_func(obj, nullptr);')
-          listeners.append( '    auto* tf = obj->DeepClone(inst, context_);')
-          listeners.append( '    if (!tf->VpiName().empty()) {')
-          listeners.append( '      ComponentMap& funcMap = std::get<3>(instStack_.at(instStack_.size() - 2));')
-          listeners.append( '      auto it = funcMap.find(tf->VpiName());')
+          listeners.append( '    enterTaskFunc(obj, nullptr);')
+          listeners.append( '    auto* tf = obj->deepClone(inst, m_context);')
+          listeners.append( '    if (!tf->getName().empty()) {')
+          listeners.append( '      ComponentMap& funcMap = std::get<3>(m_instStack.at(m_instStack.size() - 2));')
+          listeners.append( '      auto it = funcMap.find(tf->getName());')
           listeners.append( '      if (it != funcMap.end()) funcMap.erase(it);')
-          listeners.append( '      funcMap.emplace(tf->VpiName(), tf);')
+          listeners.append( '      funcMap.emplace(tf->getName(), tf);')
           listeners.append( '    }')
-          listeners.append( '    leaveTask_func(obj, nullptr);')
-          listeners.append( '    clone_vec->push_back(tf);')
+          listeners.append( '    leaveTaskFunc(obj, nullptr);')
+          listeners.append( '    tf->setParent(inst);')
+          listeners.append( '    clone_vec->emplace_back(tf);')
           listeners.append( '  }')
           listeners.append( '}')
 
-        elif method in ['Cont_assigns', 'Primitives', 'Primitive_arrays', 'Ports']:
+        elif FuncName in ['ContAssigns', 'Primitives', 'PrimitiveArrays', 'Ports']:
           # We want to deep clone existing instance cont assign to perform binding
-          listeners.append(f'if (auto vec = inst->{method}()) {{')
-          listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'  inst->{method}(clone_vec);')
+          listeners.append(f'if (auto vec = inst->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 2')
+          listeners.append(f'  inst->set{FuncName}(clone_vec);')
           listeners.append( '  for (auto obj : *vec) {')
-          listeners.append( '    clone_vec->push_back(obj->DeepClone(inst, context_));')
+          listeners.append( '    clone_vec->emplace_back(obj->deepClone(inst, m_context));')
           listeners.append( '  }')
           listeners.append( '}')
 
-        elif method in ['Gen_scope_arrays']:
+        elif FuncName in ['GenScopeArrays']:
           # We want to deep clone existing instance cont assign to perform binding
-          listeners.append(f'if (auto vec = inst->{method}()) {{')
-          listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'  inst->{method}(clone_vec);')
+          listeners.append(f'if (auto vec = inst->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 3')
+          listeners.append(f'  inst->set{FuncName}(clone_vec);')
           listeners.append( '  for (auto obj : *vec) {')
-          listeners.append( '    clone_vec->push_back(obj->DeepClone(inst, context_));')
+          listeners.append( '    clone_vec->emplace_back(obj->deepClone(inst, m_context));')
           listeners.append( '  }')
           listeners.append( '}')
           # We also want to clone the module cont assign
-          listeners.append(f'if (auto vec = defMod->{method}()) {{')
-          listeners.append(f'  if (inst->{method}() == nullptr) {{')
-          listeners.append(f'    auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'    inst->{method}(clone_vec);')
-          listeners.append( '  }')
-          listeners.append(f'  auto clone_vec = inst->{method}();')
+          listeners.append(f'if (auto vec = defMod->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = inst->get{FuncName}(true);')
           listeners.append( '  for (auto obj : *vec) {')
-          listeners.append( '    clone_vec->push_back(obj->DeepClone(inst, context_));')
+          listeners.append( '    clone_vec->emplace_back(obj->deepClone(inst, m_context));')
           listeners.append( '  }')
           listeners.append( '}')
 
-        elif method in ['Typespecs']:
+        elif FuncName in ['Typespecs']:
           # We don't want to override the elaborated instance ports by the module def ports, same for nets, params and param_assigns
-          listeners.append(f'if (auto vec = defMod->{method}()) {{')
-          listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'  inst->{method}(clone_vec);')
+          listeners.append(f'if (auto vec = defMod->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 5')
+          listeners.append(f'  inst->set{FuncName}(clone_vec);')
           listeners.append( '  for (auto obj : *vec) {')
           listeners.append( '    if (uniquifyTypespec()) {')
-          listeners.append( '      clone_vec->push_back(obj->DeepClone(inst, context_));')
+          listeners.append( '      clone_vec->emplace_back(obj->deepClone(inst, m_context));')
           listeners.append( '    } else {')
-          listeners.append( '      clone_vec->push_back(obj);')
+          listeners.append( '      clone_vec->emplace_back(obj);')
           listeners.append( '    }')
           listeners.append( '  }')
           listeners.append( '}')
 
-        elif method not in ['Nets', 'Parameters', 'Param_assigns', 'Interface_arrays', 'Module_arrays']:
+        elif FuncName not in ['Nets', 'Parameters', 'ParamAssigns', 'InterfaceArrays', 'ModuleArrays']:
           # We don't want to override the elaborated instance ports by the module def ports, same for nets, params and param_assigns
-          listeners.append(f'if (auto vec = defMod->{method}()) {{')
-          listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-          listeners.append(f'  inst->{method}(clone_vec);')
+          listeners.append(f'if (auto vec = defMod->get{FuncName}()) {{')
+          listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 6')
+          listeners.append(f'  inst->set{FuncName}(clone_vec);')
           listeners.append( '  for (auto obj : *vec) {')
-          listeners.append( '    clone_vec->push_back(obj->DeepClone(inst, context_));')
+          listeners.append( '    clone_vec->emplace_back(obj->deepClone(inst, m_context));')
           listeners.append( '  }')
           listeners.append( '}')
 
@@ -130,34 +121,29 @@ def _generate_class_listeners(models):
           type = value.get('type')
           card = value.get('card')
 
-          cast = 'any' if key == 'group_ref' else type
-          Cast = cast[:1].upper() + cast[1:]
-          method = name[:1].upper() + name[1:]
-
-          if (card == 'any') and not method.endswith('s'):
-            method += 's'
+          TypeName = config.make_class_name('any' if key == 'group_ref' else type)
+          FuncName = config.make_func_name(name, card)
+          varName = config.make_var_name(name, card)
 
           if card == '1':
-            listeners.append(f'if (auto obj = cl->{method}()) {{')
-            listeners.append(f'  cl->{method}(obj->DeepClone(cl, context_));')
+            listeners.append(f'if (auto obj = cl->get{FuncName}()) {{')
+            listeners.append(f'  cl->set{FuncName}(obj->deepClone(cl, m_context));')
             listeners.append( '}')
 
-          elif method == 'Deriveds':
+          elif FuncName == 'DerivedClasses':
             # Don't deep clone
-            listeners.append(f'if (auto vec = cl->{method}()) {{')
-            listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-            listeners.append(f'  cl->{method}(clone_vec);')
-            listeners.append( '  for (auto obj : *vec) {')
-            listeners.append( '    clone_vec->push_back(obj);')
-            listeners.append( '  }')
+            listeners.append(f'if (auto {varName} = cl->get{FuncName}()) {{')
+            listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 7')
+            listeners.append(f'  cl->set{FuncName}(clone_vec);')
+            listeners.append(f'  clone_vec->insert(clone_vec->cend(), {varName}->cbegin(), {varName}->cend());')
             listeners.append( '}')
 
           else:
-            listeners.append(f'if (auto vec = cl->{method}()) {{')
-            listeners.append(f'  auto clone_vec = serializer_->Make{Cast}Vec();')
-            listeners.append(f'  cl->{method}(clone_vec);')
-            listeners.append( '  for (auto obj : *vec) {')
-            listeners.append( '    clone_vec->push_back(obj->DeepClone(cl, context_));')
+            listeners.append(f'if (auto {varName} = cl->get{FuncName}()) {{')
+            listeners.append(f'  auto clone_vec = m_serializer->makeCollection<{TypeName}>(); // 8')
+            listeners.append(f'  cl->set{FuncName}(clone_vec);')
+            listeners.append(f'  for (auto obj : *{varName}) {{')
+            listeners.append( '    clone_vec->emplace_back(obj->deepClone(cl, m_context));')
             listeners.append( '  }')
             listeners.append( '}')
 
@@ -167,8 +153,8 @@ def _generate_class_listeners(models):
 
 
 def generate(models):
-  module_listeners = _generate_module_listeners(models, 'module_inst')
-  interface_listeners = _generate_module_listeners(models, 'interface_inst')
+  module_listeners = _generate_module_listeners(models, 'module')
+  interface_listeners = _generate_module_listeners(models, 'interface')
   class_listeners = _generate_class_listeners(models)
 
   with open(config.get_template_filepath('ElaboratorListener.cpp'), 'rt') as strm:

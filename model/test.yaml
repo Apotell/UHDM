@@ -28,11 +28,11 @@
     card: 1
   - obj_ref: modules
     vpi: vpiModule
-    type: module_inst
+    type: module
     card: any
 
 - obj_def: design
   - class: uhdmAllModules
-    type: module_inst
+    type: module
     vpi_obj: vpiModule
     card: any

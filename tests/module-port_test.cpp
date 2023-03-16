@@ -3,12 +3,11 @@
 #include <iostream>
 
 #include "gtest/gtest.h"
+#include "test_util.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
-#include "test_util.h"
-
-using namespace UHDM;
+using namespace uhdm;
 
 // TODO: These tests are 'too big', i.e. they don't test a particular aspect
 // of serialization.
@@ -24,101 +23,101 @@ class MyPayLoad : public ClientData {
 static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   std::vector<vpiHandle> designs;
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
+  Design* d = s->make<Design>();
+  d->setName("design1");
   // Module
-  module_inst* m1 = s->MakeModule_inst();
-  m1->VpiTopModule(true);
-  m1->VpiDefName("M1");
-  m1->VpiFullName("top::M1");
-  m1->VpiParent(d);
-  m1->VpiFile("fake1.sv");
-  m1->VpiLineNo(10);
+  Module* m1 = s->make<Module>();
+  m1->setTopModule(true);
+  m1->setDefName("M1");
+  m1->setFullName("top::M1");
+  m1->setParent(d);
+  m1->setFile("fake1.sv");
+  m1->setStartLine(10);
 
-  auto vars = s->MakeVariablesVec();
-  m1->Variables(vars);
-  logic_var* lvar = s->MakeLogic_var();
+  auto vars = s->makeCollection<Variables>();
+  m1->setVariables(vars);
+  LogicVar* lvar = s->make<LogicVar>();
   vars->push_back(lvar);
-  lvar->VpiFullName("top::M1::v1");
+  lvar->setFullName("top::M1::v1");
 
   // Module
-  module_inst* m2 = s->MakeModule_inst();
-  m2->VpiDefName("M2");
-  m2->VpiName("u1");
-  m2->VpiParent(m1);
-  m2->VpiFile("fake2.sv");
-  m2->VpiLineNo(20);
+  Module* m2 = s->make<Module>();
+  m2->setDefName("M2");
+  m2->setName("u1");
+  m2->setParent(m1);
+  m2->setFile("fake2.sv");
+  m2->setStartLine(20);
 
   // Ports
-  VectorOfport* vp = s->MakePortVec();
-  port* p = s->MakePort();
-  p->VpiName("i1");
-  p->VpiDirection(vpiInput);
+  PortCollection* vp = s->makeCollection<Port>();
+  Port* p = s->make<Port>();
+  p->setName("i1");
+  p->setDirection(vpiInput);
   vp->push_back(p);
-  p = s->MakePort();
-  p->VpiName("o1");
-  p->VpiDirection(vpiOutput);
+  p = s->make<Port>();
+  p->setName("o1");
+  p->setDirection(vpiOutput);
   vp->push_back(p);
-  m2->Ports(vp);
+  m2->setPorts(vp);
 
   // Module
-  module_inst* m3 = s->MakeModule_inst();
-  m3->VpiDefName("M3");
-  m3->VpiName("u2");
-  m3->VpiParent(m1);
-  m3->VpiFile("fake3.sv");
-  m3->VpiLineNo(30);
+  Module* m3 = s->make<Module>();
+  m3->setDefName("M3");
+  m3->setName("u2");
+  m3->setParent(m1);
+  m3->setFile("fake3.sv");
+  m3->setStartLine(30);
 
   // Instance
-  module_inst* m4 = s->MakeModule_inst();
-  m4->VpiDefName("M4");
-  m4->VpiName("u3");
-  m4->Ports(vp);
-  m4->VpiParent(m3);
-  m4->Instance(m3);
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
+  Module* m4 = s->make<Module>();
+  m4->setDefName("M4");
+  m4->setName("u3");
+  m4->setPorts(vp);
+  m4->setParent(m3);
+  m4->setInstance(m3);
+  ModuleCollection* v1 = s->makeCollection<Module>();
   v1->push_back(m1);
-  d->AllModules(v1);
-  VectorOfmodule_inst* v2 = s->MakeModule_instVec();
+  d->setAllModules(v1);
+  ModuleCollection* v2 = s->makeCollection<Module>();
   v2->push_back(m2);
   v2->push_back(m3);
-  m1->Modules(v2);
+  m1->setModules(v2);
 
   // Package
-  package* p1 = s->MakePackage();
-  p1->VpiName("P1");
-  p1->VpiDefName("P0");
-  VectorOfpackage* v3 = s->MakePackageVec();
+  Package* p1 = s->make<Package>();
+  p1->setName("P1");
+  p1->setDefName("P0");
+  PackageCollection* v3 = s->makeCollection<Package>();
   v3->push_back(p1);
-  d->AllPackages(v3);
+  d->setAllPackages(v3);
   // Function
-  function* f1 = s->MakeFunction();
-  f1->VpiName("MyFunc1");
-  f1->VpiSize(100);
-  function* f2 = s->MakeFunction();
-  f2->VpiName("MyFunc2");
-  f2->VpiSize(200);
-  VectorOftask_func* v4 = s->MakeTask_funcVec();
+  Function* f1 = s->make<Function>();
+  f1->setName("MyFunc1");
+  f1->setSize(100);
+  Function* f2 = s->make<Function>();
+  f2->setName("MyFunc2");
+  f2->setSize(200);
+  TaskFuncCollection* v4 = s->makeCollection<TaskFunc>();
   v4->push_back(f1);
   v4->push_back(f2);
-  p1->Task_funcs(v4);
+  p1->setTaskFuncs(v4);
 
   // Instance items, illustrates the use of groups
-  program* pr1 = s->MakeProgram();
-  pr1->VpiDefName("PR1");
-  pr1->VpiParent(m1);
-  VectorOfany* inst_items = s->MakeAnyVec();
+  Program* pr1 = s->make<Program>();
+  pr1->setDefName("PR1");
+  pr1->setParent(m1);
+  AnyCollection* inst_items = s->makeCollection<Any>();
   inst_items->push_back(pr1);
-  function* f3 = s->MakeFunction();
-  f3->VpiName("MyFunc3");
-  f3->VpiSize(300);
-  f3->VpiParent(m1);
+  Function* f3 = s->make<Function>();
+  f3->setName("MyFunc3");
+  f3->setSize(300);
+  f3->setParent(m1);
   inst_items->push_back(f3);
-  m1->Instance_items(inst_items);
+  m1->setInstanceItems(inst_items);
   MyPayLoad* pl = new MyPayLoad(10);
-  m1->Data(pl);
+  m1->setClientData(pl);
 
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
 
   {
@@ -142,9 +141,9 @@ TEST(Serialization, SerializeModulePortDesign_e2e) {
 
   const std::string filename =
       testing::TempDir() + "/serialize-module-port-roundrip.uhdm";
-  serializer.Save(filename);
+  serializer.save(filename);
 
-  const std::vector<vpiHandle>& restoredDesigns = serializer.Restore(filename);
+  const std::vector<vpiHandle>& restoredDesigns = serializer.restore(filename);
   const std::string restored = designs_to_string(restoredDesigns);
   EXPECT_EQ(orig, restored);
 }

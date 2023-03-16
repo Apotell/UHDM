@@ -28,11 +28,11 @@
 
 #include <uhdm/containers.h>
 
-namespace UHDM {
+namespace uhdm {
 
-bool <GROUPNAME>GroupCompliant(const any* item);
-bool <GROUPNAME>GroupCompliant(const VectorOfany* vec);
+bool <GROUPNAME>GroupCompliant(const Any* item);
+bool <GROUPNAME>GroupCompliant(const AnyCollection* vec);
 
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif
+#endif  // UHDM_<UPPER_GROUPNAME>_H

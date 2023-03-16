@@ -13,25 +13,21 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "prop formal decl" formal description
- 
+
 - obj_def: prop_formal_decl
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: direction
-    name: direction
-    vpi: vpiDirection
-    type: int32_t
-    card: 1
-  - group_ref: vpiExpr
-    name: vpiExpr
-    vpi: vpiExpr
-    type: property_expr_named_event_group
-    card: 1
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypespec
-    type: ref_typespec
-    card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
+  card: 1
+- group_ref: expr
+  vpi: vpiExpr
+  type: property_expr_named_event_group
+  card: 1
+- class_ref: typespec
+  vpi: vpiTypespec
+  type: ref_typespec
+  card: 1

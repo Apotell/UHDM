@@ -13,11 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "break_stmt" formal description
- 
+
 - obj_def: break_stmt
-  - extends: atomic_stmt
-  - property: type
-    name: vpiBreak
-    vpi: vpiType
-    type: uint32_t
-    card: 1
+- extends: atomic_stmt

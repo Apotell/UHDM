@@ -13,31 +13,25 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "seq formal decl" formal description
- 
+
 - obj_def: seq_formal_decl
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: direction
-    name: direction
-    vpi: vpiDirection
-    type: int32_t
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-  - group_ref: named_event_sequence_expr_group
-    name: named event sequence expr group
-    vpi: vpiExpr
-    type: named_event_sequence_expr_group
-    card: 1
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypespec
-    type: ref_typespec
-    card: 1
-    
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any
+- group_ref: expr
+  vpi: vpiExpr
+  type: named_event_sequence_expr_group
+  card: 1
+- class_ref: typespec
+  vpi: vpiTypespec
+  type: ref_typespec
+  card: 1

@@ -9,8 +9,8 @@ def generate(models):
     relationships = defaultdict(set)
     for model in models.values():
         if model['type'] not in [ 'group_def' ]:
-            thisclass = model['name']
-            baseclass = model.get('extends') or 'BaseClass'
+            thisclass = config.make_class_name(model['name'])
+            baseclass = config.make_class_name(model.get('extends') or 'BaseClass')
             relationships[baseclass].add(thisclass)
 
     file_content = StringIO()

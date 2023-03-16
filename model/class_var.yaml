@@ -13,17 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "class var" formal description
- 
-- obj_def: class_var
-  - extends: variables
-  - property: my_identity
-    name: my identity
-    vpi: vpiObjId
-    type: int32_t
-    card: 1
-  - obj_ref: class_obj
-    name: class obj
-    vpi: vpiClassObj
-    type: class_obj
-    card: 1
 
+- obj_def: class_var
+- extends: variables
+- property: obj_id
+  vpi: vpiObjId
+  type: int32_t
+  card: 1
+- obj_ref: class_obj
+  vpi: vpiClassObj
+  type: class_obj
+  card: 1

@@ -15,5 +15,5 @@
 # Universal Hardware Data Model (UHDM) "expr_tchk_term_group" formal description
 
 - group_def: expr_tchk_term_group
-  - class_ref: expr
-  - obj_ref: tchk_term
+- class_ref: expr
+- obj_ref: tchk_term

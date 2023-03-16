@@ -16,6 +16,5 @@
 
 - group_def: sys_func_task_call_group
   # Should extend: tf_call, but a group cannot - will be done in members
-  - obj_ref: sys_func_call
-  - obj_ref: sys_task_call
-
+- obj_ref: sys_func_call
+- obj_ref: sys_task_call

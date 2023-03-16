@@ -13,12 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "begin" formal description
- 
+
 - obj_def: begin
-  - extends: scope
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-    
+- extends: scope
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: any
+- property: end_label
+  vpi: vpiEndLabel
+  type: string
+  card: 1

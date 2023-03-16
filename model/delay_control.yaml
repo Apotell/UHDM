@@ -13,22 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "delay_control" formal description
- 
+
 - obj_def: delay_control
-  - extends: atomic_stmt
-  - property: vpi_get_delays
-    name: vpi_get_delays
-    vpi: vpiDelay
-    type: delay
-    card: 1
-  - group_ref: stmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-  - class_ref: delay
-    name: delay
-    vpi: vpiDelay
-    type: expr
-    card: 1
-    
+- extends: atomic_stmt
+- property: vpiDelay
+  vpi: vpiDelay
+  type: delay
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1
+- class_ref: delay
+  vpi: vpiDelay
+  type: expr
+  card: 1

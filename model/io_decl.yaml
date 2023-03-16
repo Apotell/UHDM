@@ -13,65 +13,49 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "io_decl" formal description
- 
+
 - obj_def: io_decl
-  - property: type
-    name: vpiIODecl
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - property: direction
-    name: direction
-    vpi: vpiDirection
-    type: int32_t
-    card: 1
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: scalar
-    name: scalar
-    vpi: vpiScalar
-    type: bool
-    card: 1
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
-  - property: size
-    name: size
-    vpi: vpiSize
-    type: int32_t
-    card: 1
-  - property: vector
-    name: vector
-    vpi: vpiVector
-    type: bool
-    card: 1
-  - group_ref: expr
-    name: unnamed group
-    vpi: vpiExpr
-    type: ref_obj_interf_net_var_group
-    card: 1
-  - class_ref: left_expr
-    name: left range
-    vpi: vpiLeftRange
-    type: expr
-    card: 1
-  - class_ref: right_expr
-    name: right range
-    vpi: vpiRightRange
-    type: expr
-    card: 1
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypedef
-    type: ref_typespec
-    card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
+  card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: scalar
+  vpi: vpiScalar
+  type: bool
+  card: 1
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1
+- property: size
+  vpi: vpiSize
+  type: int32_t
+  card: 1
+- property: vector
+  vpi: vpiVector
+  type: bool
+  card: 1
+- group_ref: expr
+  vpi: vpiExpr
+  type: ref_obj_interf_net_var_group
+  card: 1
+- class_ref: left_expr
+  vpi: vpiLeftRange
+  type: expr
+  card: 1
+- class_ref: right_expr
+  vpi: vpiRightRange
+  type: expr
+  card: 1
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any
+- class_ref: typespec
+  vpi: vpiTypedef
+  type: ref_typespec
+  card: 1

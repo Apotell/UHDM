@@ -13,16 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "struct pattern" formal description
- 
+
 - obj_def: struct_pattern
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - group_ref: pattern
-    name: pattern
-    vpi: vpiPattern
-    type: pattern
-    card: 1
-    
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- group_ref: pattern
+  vpi: vpiPattern
+  type: pattern
+  card: 1

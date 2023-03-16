@@ -18,30 +18,25 @@
 # requires UHDM elaboration for data type binding.
 
 - obj_def: ref_var
-  - extends: variables
-  - property: definition_name
-    name: definition name
-    vpi: vpiDefName
-    type: string
-    card: 1  
-  - property: generic
-    name: generic
-    vpi: vpiGeneric
-    type: bool
-    card: 1 
-  - group_ref: actual_group
-    name: actual group
-    vpi: vpiActual
-    type: actual_group
-    card: 1
-  - class_ref: task_func
-    name: task func
-    vpi: vpiTaskFunc
-    type: task_func
-    card: 1
+- extends: variables
+- property: def_name
+  vpi: vpiDefName
+  type: string
+  card: 1
+- property: generic
+  vpi: vpiGeneric
+  type: bool
+  card: 1
+- group_ref: actual
+  vpi: vpiActual
+  type: actual_group
+  card: 1
+- class_ref: task_func
+  vpi: vpiTaskFunc
+  type: task_func
+  card: 1
  # Non Standard: identify reference to a struct member {base : {10'h0, ...  }}
-  - property: is_struct_member
-    name: is struct member
-    vpi: vpiStructMember
-    type: bool
-    card: 1    
+- property: struct_member
+  vpi: vpiStructMember
+  type: bool
+  card: 1

@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "restrict" formal description
- 
+
 - obj_def: restrict
-  - extends: concurrent_assertions
-  - obj_ref: clocking_block
-    name: clocking block
-    vpi: vpiClockingBlock
-    type: clocking_block
-    card: 1
+- extends: concurrent_assertions
+- obj_ref: clocking_block
+  vpi: vpiClockingBlock
+  type: clocking_block
+  card: 1

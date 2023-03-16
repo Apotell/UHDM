@@ -15,25 +15,16 @@
 # Universal Hardware Data Model (UHDM) "if_stmt" formal description
 
 - obj_def: if_stmt
-  - extends: atomic_stmt
-  - property: type
-    name: vpiIf
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - property: qualifier
-    name: qualifier
-    vpi: vpiQualifier
-    type: int32_t
-    card: 1
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-
+- extends: atomic_stmt
+- property: qualifier
+  vpi: vpiQualifier
+  type: int32_t
+  card: 1
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

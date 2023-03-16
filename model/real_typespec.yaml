@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "real_typespec" formal description
- 
+
 - obj_def: real_typespec
-  - extends: typespec
-  - obj_ref: resolution_func
-    name: resolution func
-    vpi: vpiFunction
-    type: function
-    card: 1    
+- extends: typespec
+- obj_ref: resolution_func
+  vpi: vpiFunction
+  type: function
+  card: 1

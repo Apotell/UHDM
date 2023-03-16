@@ -48,44 +48,45 @@
 
 #include "uhdm/config.h"
 
-namespace UHDM {
-inline static uint32_t GetId(const BaseClass* p, const Serializer::IdMap &idMap) {
+namespace uhdm {
+inline static uint32_t getId(const BaseClass* p, const Serializer::IdMap &idMap) {
   auto it = idMap.find(p);
   return (it == idMap.end()) ? Serializer::kBadIndex : it->second;
 }
 
 struct Serializer::SaveAdapter {
-  void operator()(const BaseClass *const obj, Serializer *const serializer, const IdMap& idMap, Any::Builder builder) const {
-    if (obj->VpiParent() != nullptr) {
-      ::ObjIndexType::Builder vpiParentBuilder = builder.getVpiParent();
-      vpiParentBuilder.setIndex(GetId(obj->VpiParent(), idMap));
-      vpiParentBuilder.setType(static_cast<uint32_t>(obj->VpiParent()->UhdmType()));
+  void operator()(const BaseClass *const obj, Serializer *const serializer, const IdMap& idMap, ::Any::Builder builder) const {
+    if (obj->m_parent != nullptr) {
+      ::ObjIndexType::Builder parentBuilder = builder.getParent();
+      parentBuilder.setIndex(getId(obj->getParent(), idMap));
+      parentBuilder.setType(static_cast<uint32_t>(obj->m_parent->getUhdmType()));
     }
-    builder.setVpiFile((RawSymbolId)obj->GetSerializer()->symbolMaker.Make(obj->VpiFile()));
-    builder.setVpiLineNo(obj->VpiLineNo());
-    builder.setVpiColumnNo(obj->VpiColumnNo());
-    builder.setVpiEndLineNo(obj->VpiEndLineNo());
-    builder.setVpiEndColumnNo(obj->VpiEndColumnNo());
-    builder.setUhdmId(obj->UhdmId());
+    builder.setFile((RawSymbolId)obj->getSerializer()->m_symbolFactory.registerSymbol(obj->getFile()));
+    builder.setStartLine(obj->m_startLine);
+    builder.setStartColumn(obj->m_startColumn);
+    builder.setEndLine(obj->m_endLine);
+    builder.setEndColumn(obj->m_endColumn);
+    builder.setUhdmId(obj->m_uhdmId);
   }
 
 <CAPNP_SAVE_ADAPTERS>
 
   template<typename T, typename U, typename = typename std::enable_if<std::is_base_of<BaseClass, T>::value>::type>
-  void operator()(const FactoryT<T>& factory, Serializer* serializer, const Serializer::IdMap& idMap,
+  void operator()(Serializer* const serializer, const Serializer::IdMap& idMap,
                   typename ::capnp::List<U>::Builder builder) const {
+    const Factory* const factory = serializer->m_factories[T::kUhdmType];
     uint32_t index = 0;
-    for (const T* obj : factory.objects_)
-      operator()(obj, serializer, idMap, builder[index++]);
+    for (const BaseClass* obj : factory->m_objects)
+      operator()(any_cast<T>(obj), serializer, idMap, builder[index++]);
   }
 };
 
-void Serializer::Save(const std::filesystem::path& filepath) {
-    Save(filepath.string());
+void Serializer::save(const std::filesystem::path& filepath) {
+    save(filepath.string());
 }
 
-void Serializer::Save(const std::string& filepath) {
-  if (m_enableGC) GarbageCollect();
+void Serializer::save(const std::string& filepath) {
+  if (m_enableGC) collectGarbage();
 
   uint32_t index = 0;
   const std::string file = filepath;
@@ -96,25 +97,18 @@ void Serializer::Save(const std::string& filepath) {
   cap_root.setVersion(kVersion);
   cap_root.setObjectId(m_objId);
 
-  ::capnp::List<Design>::Builder designs = cap_root.initDesigns(designMaker.objects_.size());
-  index = 0;
-  for (auto design : designMaker.objects_) {
-    designs[index].setVpiName((RawSymbolId)design->GetSerializer()->symbolMaker.Make(design->VpiName()));
-    index++;
-  }
-
-  const IdMap idMap = AllObjects();
+  const IdMap idMap = getAllObjects();
   SaveAdapter adapter;
-  <CAPNP_SAVE>
+<CAPNP_SAVE>
 
   // Save the symbols after all save function have been invoked, some symbols are made doing so (VpiFullName)
   // This is not ideal.
   // Ideally, the save should not include the hierarchical nets that can be recreated on the fly.
   // Something broke this mechanism that saved a lot of memory/disk space.
   // Until that is repaired we go for the more disk-hungry and memory hungry method which gives correct results.
-  ::capnp::List<::capnp::Text>::Builder symbols = cap_root.initSymbols(symbolMaker.m_id2SymbolMap.size());
+  ::capnp::List<::capnp::Text>::Builder symbols = cap_root.initSymbols(m_symbolFactory.m_id2SymbolMap.size());
   index = 0;
-  for (const auto& symbol : symbolMaker.m_id2SymbolMap) {
+  for (const auto& symbol : m_symbolFactory.m_id2SymbolMap) {
     symbols.set(index, symbol.c_str());
     index++;
   }
@@ -122,4 +116,4 @@ void Serializer::Save(const std::string& filepath) {
   writePackedMessageToFd(fileid, message);
   close(fileid);
 }
-}  // namespace UHDM
+}  // namespace uhdm

@@ -13,9 +13,7 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "sequence_expr_multiclock_group" formal description
- 
+
 - group_def: sequence_expr_multiclock_group
-  - group_ref: sequence_expr_group
-  - obj_ref: multiclock_sequence_expr
-
-
+- group_ref: sequence_expr_group
+- obj_ref: multiclock_sequence_expr

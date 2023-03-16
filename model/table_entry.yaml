@@ -13,21 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "table_entry" formal description
- 
+
 - obj_def: table_entry
-  - property: number_of_symbol_entries
-    name: number of symbol entries
-    vpi: vpiSize
-    type: int32_t
-    card: 1
-  - property: vpi_get_value
-    name: vpi_get_value
-    vpi: vpiValue
-    type: value
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-    
+- property: size
+  vpi: vpiSize
+  type: int32_t
+  card: 1
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

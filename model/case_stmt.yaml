@@ -13,36 +13,26 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "case_stmt" ("case" is a C++ keyword) formal description
- 
+
 - obj_def: case_stmt
-  - extends: atomic_stmt
-  - property: type
-    name: vpiCase
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - property: randtype
-    name: rand type
-    vpi: vpiRandType
-    type: uint32_t
-    card: 1  
-  - property: case_type
-    name: case type
-    vpi: vpiCaseType
-    type: int32_t
-    card: 1
-  - property: qualifier
-    name: qualifier
-    vpi: vpiQualifier
-    type: int32_t
-    card: 1
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - obj_ref: case_items
-    name: case items
-    vpi: vpiCaseItem
-    type: case_item
-    card: any
+- extends: atomic_stmt
+- property: rand_type
+  vpi: vpiRandType
+  type: uint32_t
+  card: 1
+- property: case_type
+  vpi: vpiCaseType
+  type: int32_t
+  card: 1
+- property: qualifier
+  vpi: vpiQualifier
+  type: int32_t
+  card: 1
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- obj_ref: case_item
+  vpi: vpiCaseItem
+  type: case_item
+  card: any

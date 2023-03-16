@@ -1,23 +1,25 @@
 import config
 import file_utils
+import uhdm_types_h
 
 
 def _get_listen_implementation(classname, name, vpi, type, card):
     listeners = []
 
-    Name_ = name[:1].upper() + name[1:]
+    FuncName = config.make_func_name(name, card)
+    TypeName = config.make_class_name(type)
 
     if card == '1':
-        listeners.append(f'  if (const any *const {name}_ = object->{Name_}()) {{')
-        listeners.append(f'    listenAny({name}_);')
+        listeners.append(f'  if (const Any *const any = object->get{FuncName}()) {{')
+        listeners.append(f'    listenAny(any, {vpi});')
         listeners.append( '  }')
     else:
-        listeners.append(f'  if (const VectorOf{type} *const {name}_ = object->{Name_}()) {{')
-        listeners.append(f'    enter{Name_}(object, *{name}_);')
-        listeners.append(f'    for (VectorOf{type}::const_reference element : *{name}_) {{')
-        listeners.append(f'      listenAny(element);')
+        listeners.append(f'  if (const {TypeName}Collection *const collection = object->get{FuncName}()) {{')
+        listeners.append(f'    enter{TypeName}Collection(object, *collection, {vpi});')
+        listeners.append(f'    for ({TypeName}Collection::const_reference any : *collection) {{')
+        listeners.append(f'      listenAny(any, {vpi});')
         listeners.append( '    }')
-        listeners.append(f'    leave{Name_}(object, *{name}_);')
+        listeners.append(f'    leave{TypeName}Collection(object, *collection, {vpi});')
         listeners.append( '  }')
 
     return listeners
@@ -26,9 +28,9 @@ def _get_listen_implementation(classname, name, vpi, type, card):
 def generate(models):
     private_declarations = []
     private_implementations = []
+    public_declarations = []
     public_implementations = []
-    vector_enters_leaves = set()
-    classnames = set()
+    ClassNames = set()
 
     for model in models.values():
         modeltype = model['type']
@@ -36,18 +38,15 @@ def generate(models):
             continue
 
         classname = model['name']
-        Classname_ = classname[:1].upper() + classname[1:]
+        ClassName = config.make_class_name(classname)
 
-        baseclass = model.get('extends')
+        basename = model.get('extends') or 'Any'
+        BaseName = config.make_class_name(basename)
 
         if model.get('subclasses') or modeltype == 'obj_def':
-            private_declarations.append(f'  void listen{Classname_}_(const {classname}* const object);')
-            private_implementations.append(f'void UhdmListener::listen{Classname_}_(const {classname}* const object) {{')
-            if baseclass:
-                Baseclass_ = baseclass[:1].upper() + baseclass[1:]
-                private_implementations.append(f'  listen{Baseclass_}_(object);')
-            else:
-                private_implementations.append('  listenBaseClass_(object);')
+            private_declarations.append(f'  void listen{ClassName}_(const {ClassName}* const object);')
+            private_implementations.append(f'void UhdmListener::listen{ClassName}_(const {ClassName}* const object) {{')
+            private_implementations.append(f'  listen{BaseName}_(object);')
 
             for key, value in model.allitems():
                 if key in ['class', 'obj_ref', 'class_ref', 'group_ref']:
@@ -56,56 +55,43 @@ def generate(models):
                     type = value.get('type')
                     card = value.get('card')
 
-                    if (card == 'any') and not name.endswith('s'):
-                        name += 's'
-
                     if key == 'group_ref':
                         type = 'any'
 
-                    listen_implementation = _get_listen_implementation(classname, name, vpi, type, card)
-                    private_implementations.extend(listen_implementation)
-
-                    if card == 'any' and listen_implementation:
-                        vector_enters_leaves.add((name, type))
+                    private_implementations.extend(_get_listen_implementation(classname, name, vpi, type, card))
 
             private_implementations.append( '}')
             private_implementations.append( '')
 
         if modeltype != 'class_def':
-            classnames.add(classname)
+            ClassNames.add(ClassName)
 
-            public_implementations.append(f'void UhdmListener::listen{Classname_}(const {classname}* const object) {{')
-            public_implementations.append( '  callstack.push_back(object);')
-            public_implementations.append(f'  enter{Classname_}(object);')
-            public_implementations.append( '  if (visited.insert(object).second) {')
-            public_implementations.append(f'    listen{Classname_}_(object);')
+            public_declarations.append(f'  void listen{ClassName}(const {ClassName} *const object, uint32_t vpiRelation = 0);')
+
+            public_implementations.append(f'void UhdmListener::listen{ClassName}(const {ClassName}* const object, uint32_t vpiRelation /* = 0 */) {{')
+            public_implementations.append(f'  enter{ClassName}(object, vpiRelation);')
+            public_implementations.append( '  if (m_visited.insert(object).second) {')
+            public_implementations.append(f'    listen{ClassName}_(object);')
             public_implementations.append( '  }')
-            public_implementations.append(f'  leave{Classname_}(object);')
-            public_implementations.append( '  callstack.pop_back();')
+            public_implementations.append(f'  leave{ClassName}(object, vpiRelation);')
             public_implementations.append(f'}}')
             public_implementations.append( '')
 
     any_implementation = []
-    uhdm_enter_leave_declarations = []
-    public_declarations = []
-    for classname in sorted(classnames):
-        Classname_ = classname[:1].upper() + classname[1:]
+    enter_leave_declarations = []
+    for ClassName in sorted(ClassNames):
+        any_implementation.append(f'  case UhdmType::{ClassName}: listen{ClassName}(static_cast<const {ClassName} *>(object), vpiRelation); break;')
 
-        any_implementation.append(f'  case UHDM_OBJECT_TYPE::uhdm{classname}: listen{Classname_}(static_cast<const {classname} *>(object)); break;')
+        enter_leave_declarations.append(f'  virtual void enter{ClassName}(const {ClassName}* const object, uint32_t vpiRelation = 0) {{}}')
+        enter_leave_declarations.append(f'  virtual void leave{ClassName}(const {ClassName}* const object, uint32_t vpiRelation = 0) {{}}')
+        enter_leave_declarations.append( '')
 
-        uhdm_enter_leave_declarations.append(f'  virtual void enter{Classname_}(const {classname}* const object) {{}}')
-        uhdm_enter_leave_declarations.append(f'  virtual void leave{Classname_}(const {classname}* const object) {{}}')
-        uhdm_enter_leave_declarations.append( '')
-
-        public_declarations.append(f'  void listen{Classname_}(const {classname} *const object);')
-
-    enter_leave_vector_declarations = []
-    for name, type in sorted(vector_enters_leaves):
-        Name_ = name[:1].upper() + name[1:]
-
-        enter_leave_vector_declarations.append(f'  virtual void enter{Name_}(const any* const object, const VectorOf{type}& objects) {{}}')
-        enter_leave_vector_declarations.append(f'  virtual void leave{Name_}(const any* const object, const VectorOf{type}& objects) {{}}')
-        enter_leave_vector_declarations.append( '')
+    enter_leave_collection_declarations = []
+    for TypeName in sorted(uhdm_types_h.get_type_map(models).keys()):
+        if TypeName != 'BaseClass':
+            enter_leave_collection_declarations.append(f'  virtual void enter{TypeName}Collection(const Any* const object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
+            enter_leave_collection_declarations.append(f'  virtual void leave{TypeName}Collection(const Any* const object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
+            enter_leave_collection_declarations.append( '')
 
     private_declarations = sorted(private_declarations)
 
@@ -113,10 +99,10 @@ def generate(models):
     with open(config.get_template_filepath('UhdmListener.h'), 'rt') as strm:
         file_content = strm.read()
 
-    file_content = file_content.replace('<UHDM_PUBLIC_LISTEN_DECLARATIONS>', '\n'.join(public_declarations))
+    file_content = file_content.replace('<UHDM_PUBLIC_LISTEN_DECLARATIONS>', '\n'.join(sorted(public_declarations)))
     file_content = file_content.replace('<UHDM_PRIVATE_LISTEN_DECLARATIONS>', '\n'.join(private_declarations))
-    file_content = file_content.replace('<UHDM_ENTER_LEAVE_DECLARATIONS>', '\n'.join(uhdm_enter_leave_declarations))
-    file_content = file_content.replace('<UHDM_ENTER_LEAVE_VECTOR_DECLARATIONS>', '\n'.join(enter_leave_vector_declarations))
+    file_content = file_content.replace('<UHDM_ENTER_LEAVE_DECLARATIONS>', '\n'.join(enter_leave_declarations))
+    file_content = file_content.replace('<UHDM_ENTER_LEAVE_COLLECTION_DECLARATIONS>', '\n'.join(enter_leave_collection_declarations))
     file_utils.set_content_if_changed(config.get_output_header_filepath('UhdmListener.h'), file_content)
 
     # UhdmListener.cpp

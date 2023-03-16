@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "time_typespec" formal description
- 
-- obj_def: time_typespec
-  - extends: typespec
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
 
+- obj_def: time_typespec
+- extends: typespec
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1
