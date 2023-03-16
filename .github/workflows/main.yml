@@ -1,297 +1,131 @@
 name: 'main'
 
-on:
-  push:
-  pull_request:
+concurrency:
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on: [ push ]
 
 jobs:
-  linux-gcc:
-    name: ubuntu-gcc
-    runs-on: ubuntu-20.04
+  build:
+    name: "${{ matrix.config.artifact-tag }} | ${{ matrix.config.build-type }}"
+    runs-on: ${{ matrix.config.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        vendored_dependencies: [true, false]
+        config:
+        - { os: ubuntu-20.04, artifact-tag: focal-gcc, build-type: debug }
+        - { os: ubuntu-20.04, artifact-tag: focal-gcc, build-type: release }
+        - { os: windows-2022, artifact-tag: windows-cl, build-type: debug }
+        - { os: windows-2022, artifact-tag: windows-cl, build-type: release }
 
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-    - name: Install dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt install -y g++-9 build-essential pkg-config cmake
-
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.8
-
-    - name: Setup Python Packages
-      run: pip3 install orderedmultidict
-
-    - name: Git pull
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        fetch-depth: 0
-      if: ${{ matrix.vendored_dependencies }}
-
-    - name: Git pull
-      uses: actions/checkout@v3
-      if: ${{ !matrix.vendored_dependencies }}
-
-    # Fetch tags for CMakeLists version check
-    # https://github.com/actions/checkout/issues/701
-    - name: Git fetch tags
-      run: git fetch --tags origin
-
-    - name: Use ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: linux-gcc-cache
-
-    - name: Configure shell
-      run: |
-        echo 'CC=gcc-9' >> $GITHUB_ENV
-        echo 'CXX=g++-9' >> $GITHUB_ENV
-        echo 'PREFIX=/tmp/uhdm-install' >> $GITHUB_ENV
-        echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
-
-    - name: Install vendored dependencies
-      run: |
-        git clone --depth 1 https://github.com/google/googletest.git
-        cd googletest && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 -DCMAKE_POSITION_INDEPENDENT_CODE=ON . && cmake --build build && sudo cmake --install build
-
-        git clone --depth 1 --branch v1.0.0 https://github.com/capnproto/capnproto.git
-        cd capnproto && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 -DCMAKE_POSITION_INDEPENDENT_CODE=ON . && cmake --build build && sudo cmake --install build
-      if: ${{ !matrix.vendored_dependencies }}
-
-    - name: Configure cmake options
-      run: |
-        echo 'ADDITIONAL_CMAKE_OPTIONS=-DUHDM_USE_HOST_GTEST=ON -DUHDM_USE_HOST_CAPNP=ON' >> $GITHUB_ENV
-      if: ${{ !matrix.vendored_dependencies }}
-
-    - name: Ensure build/test env is setup
-      run: |
-        env
-        which cmake && cmake --version
-        which make && make --version
-        which python && python --version
-        which $CC && $CC --version
-        which $CXX && $CXX --version
-
-    - name: Build & Test
-      run: |
-        make release
-        make test
-        make install
-        make test_install
-        make test_install_pkgconfig
-      if: ${{ matrix.vendored_dependencies }}
-
-    - name: Build & Test (Shared)
-      run: |
-        make release-shared UHDM_WITH_PYTHON=ON
-        make test-shared UHDM_WITH_PYTHON=ON
-        make install-shared
-        make test_install
-      if: ${{ !matrix.vendored_dependencies }}
-
-  macos:
-    name: macos-gcc
-    runs-on: macos-12
+    env:
+      artifact-name: UHDM_${{ matrix.config.artifact-tag }}_${{ matrix.config.build-type }}_${{ github.run_number }}
 
     steps:
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v4.5.0
       with:
-        python-version: 3.8
-        architecture: x64
-
-    - name: Setup Python Packages
-      run: pip3 install orderedmultidict
-
-    - name: Git pull
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        fetch-depth: 0
-
-    - name: Use ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: macos-cache
-
-    - name: Configure shell
-      run: |
-        echo "PATH=$(brew --prefix)/opt/ccache/libexec:$PATH" >> $GITHUB_ENV
-        echo 'ADDITIONAL_CMAKE_OPTIONS=-DPython3_ROOT_DIR=${pythonLocation}' >> $GITHUB_ENV
-
-    - name: Build & Test
-      run: |
-        env
-        which cmake && cmake --version
-        which make && make --version
-        which python && python --version
-        which $CC && $CC --version
-        which $CXX && $CXX --version
-
-        make release
-        make test
-
-  msys2-gcc:
-    name: msys2-gcc
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: msys2 {0}
-
-    steps:
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.8
-        architecture: x64
-
-    - name: Setup Python Packages
-      shell: cmd
-      run: pip3 install orderedmultidict
-
-    - name: Setup Msys2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MSYS
-        update: true
-        install: make cmake ninja gcc python git
-      env:
-        MSYS2_PATH_TYPE: inherit
-
-    - name: Git pull
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        fetch-depth: 0
-
-    - name: Configure shell
-      run: |
-        export Py3_ROOT_DIR=`cygpath -u $pythonLocation`
-
-        echo 'CC=gcc' >> $GITHUB_ENV
-        echo 'CXX=g++' >> $GITHUB_ENV
-        echo 'PREFIX=$PWD/install' >> $GITHUB_ENV
-        echo 'CMAKE_GENERATOR=Ninja' >> $GITHUB_ENV
-        echo 'NO_TCMALLOC=On' >> $GITHUB_ENV
-        echo 'TEST_TMPDIR=C:\temp' >> $GITHUB_ENV
-        echo "Py3_ROOT_DIR=$Py3_ROOT_DIR" >> $GITHUB_ENV
-        echo "ADDITIONAL_CMAKE_OPTIONS=-DPython3_ROOT_DIR=$Py3_ROOT_DIR" >> $GITHUB_ENV
-
-        echo "$Py3_ROOT_DIR" >> $GITHUB_PATH
-
-    - name: Build & Test
-      run: |
-        export PATH=$Py3_ROOT_DIR:$PATH
-
-        env
-        where cmake && cmake --version
-        where make && make --version
-        where ninja && ninja --version
-        where python && python --version
-        where $CC && $CC --version
-        where $CXX && $CXX --version
-
-        make release
-        make test
-        make install
-        make test_install
-
-  windows-msvc:
-    name: windows-cl
-    runs-on: windows-2022
-    defaults:
-      run:
-        shell: cmd
-
-    steps:
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.8
-        architecture: x64
+        python-version: '3.x'
+        architecture: 'x64'
 
     - name: Install Core Dependencies
+      if: runner.os == 'Linux'
       run: |
-        choco install -y make
-        pip3 install orderedmultidict
+        sudo apt-get update -qq
+        sudo apt install -y g++-9
+        sudo apt install -y build-essential
+        sudo apt install -y cmake
+        sudo apt install -y ninja-build
 
-    - run: git config --global core.autocrlf input
-      shell: bash
+        python -m pip install orderedmultidict
 
-    - uses: actions/checkout@v3
+    - name: Install Core Dependencies
+      if: runner.os == 'Windows'
+      run: python -m pip install orderedmultidict
+
+    - name: Git pull
+      uses: actions/checkout@v3.4.0
       with:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Build & Test
+    - name: Build on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        CC: gcc-9
+        CXX: g++-9
+      run: |
+        env
+        which cmake && cmake --version
+        which ninja && ninja --version
+        which $CC && $CC --version
+        which $CXX && $CXX --version
+        which python && python --version
+
+        if [[ "${{ matrix.config.build-type }}" == "debug" ]]; then
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=out/install -S . -B out/build
+        else
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=out/install -S . -B out/build
+        fi
+
+        cmake --build out/build -j `nproc`
+        cmake --install out/build
+        cmake --build out/build --target UnitTests -j `nproc`
+        cmake --build out/build --target test_inst -j `nproc`
+
+        find out/build/bin -name test_inst* -exec {} \;
+        cd out/build && ctest -C ${{ matrix.config.build-type }} --output-on-failure
+
+    - name: Build on Windows
+      if: runner.os == 'Windows'
+      shell: cmd
+      env:
+        CC: cl
+        CXX: cl
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-
-        set CC=cl
-        set CXX=cl
-        set PREFIX=%GITHUB_WORKSPACE%\install
-        set CMAKE_GENERATOR=Ninja
-        set NO_TCMALLOC=On
-        set CPU_CORES=%NUMBER_OF_PROCESSORS%
-
-        set MAKE_DIR=C:\make\bin
-        set TEST_TMPDIR=C:\temp
-        set ADDITIONAL_CMAKE_OPTIONS=-DPython3_ROOT_DIR=%pythonLocation%
-        set PATH=%pythonLocation%;%MAKE_DIR%;%PATH%
+        if %errorlevel% neq 0 exit /b %errorlevel%
 
         set
         where cmake && cmake --version
-        where make && make --version
         where ninja && ninja --version
+        where %CC% && %CC%
+        where %CXX% && %CXX%
         where python && python --version
 
-        make release
+        if "${{ matrix.config.build-type }}" EQU "debug" (
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=out/install -S . -B out/build
+        ) else (
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=out/install -S . -B out/build
+        )
         if %errorlevel% neq 0 exit /b %errorlevel%
-        make test
+
+        cmake --build out/build -j %NUMBER_OF_PROCESSORS%
         if %errorlevel% neq 0 exit /b %errorlevel%
-        make install
+        cmake --install out/build
         if %errorlevel% neq 0 exit /b %errorlevel%
-        make test_install
+        cmake --build out/build --target UnitTests -j %NUMBER_OF_PROCESSORS%
+        if %errorlevel% neq 0 exit /b %errorlevel%
+        cmake --build out/build --target test_inst -j %NUMBER_OF_PROCESSORS%
+        if %errorlevel% neq 0 exit /b %errorlevel%
 
-  release-tagging:
-    name: Version Tagging
-    runs-on: ubuntu-20.04
-    if: ${{github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')}}
-    permissions:
-      contents: write
+        out\\build\\bin\\test_inst.exe
+        cd out/build && ctest -C ${{ matrix.config.build-type }} --output-on-failure
 
-    steps:
-    - uses: actions/checkout@v2
-      with:
-       fetch-depth: 0
-       token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Tag with CMake version if not already.
+    - name: Build compressed artifacts
+      if: always()
+      shell: bash
       run: |
-        git config --local user.name "Development Bot"
-        git config --local user.email "uhdm-dev@chipsalliance.org"
+        cd out
+        mv install ${{ env.artifact-name }}
+        tar czfp ${{ env.artifact-name }}.tar.gz ${{ env.artifact-name }}
 
-        # We want to tag whenever the cmake version changes. So extract the
-        # hash of when the current version was entered.
-        read TAG_HASH TAG_VERSION <<<$(git annotate -l CMakeLists.txt | sed 's/\(^[0-9A-Fa-f]\+\).*project(UHDM VERSION \([0-9]\+\.[0-9]\+\).*/\1 \2/p;d')
-
-        echo "UHDM Version v${TAG_VERSION} at hash ${TAG_HASH}"
-
-        # If this is the first time we see this tag: apply.
-        if [ -z "$(git tag -l "v${TAG_VERSION}")" ]; then
-          git tag -a "v${TAG_VERSION}" ${TAG_HASH} -m "Update to v${TAG_VERSION}"
-          git push origin "v${TAG_VERSION}"
-        else
-          echo "Tag already applied"
-        fi
+    - name: Archive artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.artifact-name }}
+        path: out/${{ env.artifact-name }}.tar.gz
