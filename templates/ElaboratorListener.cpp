@@ -205,8 +205,7 @@ void ElaboratorListener::enterModule_inst(const module_inst* object,
     if (object->Ports()) {
       for (port* port : *object->Ports()) {
         if (const any* low = port->Low_conn()) {
-          if (low->UhdmType() == uhdmref_obj) {
-            ref_obj* ref = (ref_obj*)low;
+          if (const ref_obj *ref = any_cast<const ref_obj*>(low)) {
             if (const any* actual = ref->Actual_group()) {
               if (actual->UhdmType() == uhdmmodport) {
                 // If the interface of the modport is not yet in the map
@@ -267,8 +266,7 @@ void ElaboratorListener::enterModule_inst(const module_inst* object,
     if (object->Ports()) {
       for (ports* port : *object->Ports()) {
         if (const any* low = port->Low_conn()) {
-          if (low->UhdmType() == uhdmref_obj) {
-            ref_obj* r = (ref_obj*)low;
+          if (const ref_obj *r = any_cast<const ref_obj*>(low)) {
             if (const any* actual = r->Actual_group()) {
               if (actual->UhdmType() == uhdminterface_inst) {
                 netMap.emplace(port->VpiName(), actual);
@@ -351,8 +349,7 @@ void ElaboratorListener::enterModule_inst(const module_inst* object,
     }
 
     // Push instance context on the stack
-    instStack_.emplace_back(object,
-                            std::make_tuple(netMap, paramMap, funcMap, modMap));
+    instStack_.emplace_back(object, netMap, paramMap, funcMap, modMap);
   }
   if (muteErrors_ == false) {
     elabModule_inst(object, handle);
@@ -409,7 +406,7 @@ void ElaboratorListener::leaveModule_inst(const module_inst* object,
                                           vpiHandle handle) {
   bindScheduledTaskFunc();
   if (inHierarchy_ && !instStack_.empty() &&
-      (instStack_.back().first == object)) {
+      (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
     if (instStack_.empty()) {
       inHierarchy_ = false;
@@ -456,8 +453,7 @@ void ElaboratorListener::enterPackage(const package* object, vpiHandle handle) {
   ComponentMap funcMap;
   ComponentMap modMap;
   // Push instance context on the stack
-  instStack_.emplace_back(object,
-                          std::make_tuple(netMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, netMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leavePackage(const package* object, vpiHandle handle) {
@@ -469,7 +465,7 @@ void ElaboratorListener::leavePackage(const package* object, vpiHandle handle) {
         enterTask_func(obj, nullptr);
         auto* tf = obj->DeepClone(serializer_, this, (package*)object);
         ComponentMap& funcMap =
-            std::get<2>((instStack_.at(instStack_.size() - 2)).second);
+            std::get<3>(instStack_.at(instStack_.size() - 2));
         auto it = funcMap.find(tf->VpiName());
         if (it != funcMap.end()) funcMap.erase(it);
         funcMap.emplace(tf->VpiName(), tf);
@@ -480,7 +476,7 @@ void ElaboratorListener::leavePackage(const package* object, vpiHandle handle) {
     }
   }
   bindScheduledTaskFunc();
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -529,8 +525,7 @@ void ElaboratorListener::enterClass_defn(const class_defn* object,
   // Class context is going to be pushed in case of:
   //   - imbricated classes
   //   - inheriting classes (Through the extends relation)
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
   if (muteErrors_ == false) {
     elabClass_defn(object, handle);
   }
@@ -576,7 +571,7 @@ void ElaboratorListener::bindScheduledTaskFunc() {
 void ElaboratorListener::leaveClass_defn(const class_defn* object,
                                          vpiHandle handle) {
   bindScheduledTaskFunc();
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -665,8 +660,7 @@ void ElaboratorListener::enterInterface_inst(const interface_inst* object,
     if (object->Ports()) {
       for (ports* port : *object->Ports()) {
         if (const any* low = port->Low_conn()) {
-          if (low->UhdmType() == uhdmref_obj) {
-            ref_obj* r = (ref_obj*)low;
+          if (const ref_obj* r = any_cast<const ref_obj*>(low)) {
             if (const any* actual = r->Actual_group()) {
               if (actual->UhdmType() == uhdminterface_inst) {
                 netMap.emplace(port->VpiName(), actual);
@@ -735,8 +729,7 @@ void ElaboratorListener::enterInterface_inst(const interface_inst* object,
     }
 
     // Push instance context on the stack
-    instStack_.emplace_back(object,
-                            std::make_tuple(netMap, paramMap, funcMap, modMap));
+    instStack_.emplace_back(object, netMap, paramMap, funcMap, modMap);
 
     // Check if Module instance has a definition
     if (itrDef != flatComponentMap_.end()) {
@@ -763,7 +756,7 @@ void ElaboratorListener::enterInterface_inst(const interface_inst* object,
 void ElaboratorListener::leaveInterface_inst(const interface_inst* object,
                                              vpiHandle handle) {
   bindScheduledTaskFunc();
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -776,7 +769,7 @@ any* ElaboratorListener::bindNet(std::string_view name) {
     if (ignoreLastInstance_) {
       if (i == instStack_.rbegin()) continue;
     }
-    ComponentMap& netMap = std::get<0>((*i).second);
+    ComponentMap& netMap = std::get<1>(*i);
     ComponentMap::iterator netItr = netMap.find(name);
     if (netItr != netMap.end()) {
       return (any*)(*netItr).second;
@@ -792,19 +785,19 @@ any* ElaboratorListener::bindAny(std::string_view name) {
     if (ignoreLastInstance_) {
       if (i == instStack_.rbegin()) continue;
     }
-    ComponentMap& netMap = std::get<0>((*i).second);
+    ComponentMap& netMap = std::get<1>(*i);
     ComponentMap::iterator netItr = netMap.find(name);
     if (netItr != netMap.end()) {
       return (any*)(*netItr).second;
     }
 
-    ComponentMap& paramMap = std::get<1>((*i).second);
+    ComponentMap& paramMap = std::get<2>(*i);
     ComponentMap::iterator paramItr = paramMap.find(name);
     if (paramItr != paramMap.end()) {
       return (any*)(*paramItr).second;
     }
 
-    ComponentMap& modMap = std::get<3>((*i).second);
+    ComponentMap& modMap = std::get<4>(*i);
     ComponentMap::iterator modItr = modMap.find(name);
     if (modItr != modMap.end()) {
       return (any*)(*modItr).second;
@@ -820,7 +813,7 @@ any* ElaboratorListener::bindParam(std::string_view name) {
     if (ignoreLastInstance_) {
       if (i == instStack_.rbegin()) continue;
     }
-    ComponentMap& paramMap = std::get<1>((*i).second);
+    ComponentMap& paramMap = std::get<2>(*i);
     ComponentMap::iterator paramItr = paramMap.find(name);
     if (paramItr != paramMap.end()) {
       return (any*)(*paramItr).second;
@@ -837,7 +830,7 @@ any* ElaboratorListener::bindTaskFunc(std::string_view name,
     if (ignoreLastInstance_) {
       if (i == instStack_.rbegin()) continue;
     }
-    ComponentMap& funcMap = std::get<2>((*i).second);
+    ComponentMap& funcMap = std::get<3>(*i);
     ComponentMap::iterator funcItr = funcMap.find(name);
     if (funcItr != funcMap.end()) {
       return (any*)(*funcItr).second;
@@ -870,7 +863,7 @@ bool ElaboratorListener::isFunctionCall(std::string_view name,
                                         const expr* prefix) {
   for (InstStack::reverse_iterator i = instStack_.rbegin();
        i != instStack_.rend(); ++i) {
-    ComponentMap& funcMap = std::get<2>((*i).second);
+    ComponentMap& funcMap = std::get<3>(*i);
     ComponentMap::iterator funcItr = funcMap.find(name);
     if (funcItr != funcMap.end()) {
       return ((*funcItr).second->UhdmType() == uhdmfunction);
@@ -895,7 +888,7 @@ bool ElaboratorListener::isFunctionCall(std::string_view name,
 bool ElaboratorListener::isTaskCall(std::string_view name, const expr* prefix) {
   for (InstStack::reverse_iterator i = instStack_.rbegin();
        i != instStack_.rend(); ++i) {
-    ComponentMap& funcMap = std::get<2>((*i).second);
+    ComponentMap& funcMap = std::get<3>(*i);
     ComponentMap::iterator funcItr = funcMap.find(name);
     if (funcItr != funcMap.end()) {
       return ((*funcItr).second->UhdmType() == uhdmtask);
@@ -960,13 +953,12 @@ void ElaboratorListener::enterTask_func(const task_func* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveTask_func(const task_func* object,
                                         vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -998,13 +990,12 @@ void ElaboratorListener::enterFor_stmt(const for_stmt* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveFor_stmt(const for_stmt* object,
                                        vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1031,13 +1022,12 @@ void ElaboratorListener::enterForeach_stmt(const foreach_stmt* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveForeach_stmt(const foreach_stmt* object,
                                            vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1058,12 +1048,11 @@ void ElaboratorListener::enterBegin(const begin* object, vpiHandle handle) {
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveBegin(const begin* object, vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1072,7 +1061,7 @@ void ElaboratorListener::enterNamed_begin(const named_begin* object,
                                           vpiHandle handle) {
   ComponentMap varMap;
   if (!instStack_.empty()) {
-    ComponentMap& modMap = std::get<3>(instStack_.back().second);
+    ComponentMap& modMap = std::get<4>(instStack_.back());
     modMap.emplace(object->VpiName(), object);
   }
   if (object->Array_vars()) {
@@ -1089,12 +1078,11 @@ void ElaboratorListener::enterNamed_begin(const named_begin* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 void ElaboratorListener::leaveNamed_begin(const named_begin* object,
                                           vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1116,12 +1104,11 @@ void ElaboratorListener::enterFork_stmt(const fork_stmt* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 void ElaboratorListener::leaveFork_stmt(const fork_stmt* object,
                                         vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1130,7 +1117,7 @@ void ElaboratorListener::enterNamed_fork(const named_fork* object,
                                          vpiHandle handle) {
   ComponentMap varMap;
   if (!instStack_.empty()) {
-    ComponentMap& modMap = std::get<3>(instStack_.back().second);
+    ComponentMap& modMap = std::get<4>(instStack_.back());
     modMap.emplace(object->VpiName(), object);
   }
   if (object->Array_vars()) {
@@ -1147,13 +1134,12 @@ void ElaboratorListener::enterNamed_fork(const named_fork* object,
   ComponentMap paramMap;
   ComponentMap funcMap;
   ComponentMap modMap;
-  instStack_.emplace_back(object,
-                          std::make_tuple(varMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveNamed_fork(const named_fork* object,
                                          vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1229,13 +1215,12 @@ void ElaboratorListener::enterGen_scope(const gen_scope* object,
       }
     }
   }
-  instStack_.emplace_back(object,
-                          std::make_tuple(netMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, netMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveGen_scope(const gen_scope* object,
                                         vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1246,12 +1231,11 @@ void ElaboratorListener::pushVar(any* var) {
   ComponentMap funcMap;
   ComponentMap modMap;
   netMap.emplace(var->VpiName(), var);
-  instStack_.emplace_back(var,
-                          std::make_tuple(netMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(var, netMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::popVar(any* var) {
-  if (!instStack_.empty() && (instStack_.back().first == var)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == var)) {
     instStack_.pop_back();
   }
 }
@@ -1267,13 +1251,12 @@ void ElaboratorListener::enterMethod_func_call(const method_func_call* object,
       netMap.emplace(arg->VpiName(), arg);
     }
   }
-  instStack_.emplace_back(object,
-                          std::make_tuple(netMap, paramMap, funcMap, modMap));
+  instStack_.emplace_back(object, netMap, paramMap, funcMap, modMap);
 }
 
 void ElaboratorListener::leaveMethod_func_call(const method_func_call* object,
                                                vpiHandle handle) {
-  if (!instStack_.empty() && (instStack_.back().first == object)) {
+  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }
 }
@@ -1281,6 +1264,26 @@ void ElaboratorListener::leaveMethod_func_call(const method_func_call* object,
 void ElaboratorListener::leaveRef_obj(const ref_obj* object, vpiHandle handle) {
   if (!object->Actual_group())
     ((ref_obj*)object)->Actual_group(bindAny(object->VpiName()));
+}
+
+void ElaboratorListener::leaveBit_select(const bit_select* object,
+                                         vpiHandle handle) {
+  leaveRef_obj(object, handle);
+}
+
+void ElaboratorListener::leaveIndexed_part_select(
+    const indexed_part_select* object, vpiHandle handle) {
+  leaveRef_obj(object, handle);
+}
+
+void ElaboratorListener::leavePart_select(const part_select* object,
+                                          vpiHandle handle) {
+  leaveRef_obj(object, handle);
+}
+
+void ElaboratorListener::leaveVar_select(const var_select* object,
+                                         vpiHandle handle) {
+  leaveRef_obj(object, handle);
 }
 
 }  // namespace UHDM

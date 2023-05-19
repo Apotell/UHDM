@@ -89,6 +89,10 @@ def generate(models):
         if classname in ['net_drivers', 'net_loads']:
             continue
 
+        baseclass_name = model.get('extends', 'BaseClass')
+        baseclass_model = models.get(baseclass_name, {})
+        baseclass_type = baseclass_model.get('type')
+
         vpi_name = config.make_vpi_name(classname)
         if vpi_name not in ignored_objects:
             visitor_case_statements.append(f'      case {vpi_name}: visit_{classname}(obj_h, indent, relation, shallowVisit); break;')
@@ -96,14 +100,14 @@ def generate(models):
         private_visitor_bodies.append(f'  void visit_{classname}(vpiHandle obj_h, int32_t indent, const char *relation, bool shallowVisit) {{')
 
         # Make sure vpiParent is called before the base class visit.
-        if modeltype != 'class_def':
+        if (modeltype != 'class_def') and (baseclass_type != 'obj_def'):
             private_visitor_bodies.extend(_get_implementation(classname, 'vpiParent', '1'))
 
         baseclass = model.get('extends', None)
         if baseclass:
             private_visitor_bodies.append(f'    visit_{baseclass}(obj_h, indent, relation, shallowVisit);')
 
-        if modeltype != 'class_def':
+        if (modeltype != 'class_def') and (baseclass_type != 'obj_def'):
             private_visitor_bodies.extend(_get_vpi_xxx_visitor('string', 'vpiFile', '1'))
         
         type_specified = False
@@ -133,7 +137,7 @@ def generate(models):
     with open(config.get_template_filepath('vpi_visitor.cpp'), 'rt') as strm:
         file_content = strm.read()
 
-    file_content = file_content.replace('<VISITOR_CASE_STATEMENTS>', '\n'.join(visitor_case_statements))
+    file_content = file_content.replace('<VISITOR_CASE_STATEMENTS>', '\n'.join(sorted(visitor_case_statements)))
     file_content = file_content.replace('<PRIVATE_OBJECT_VISITORS>', '\n'.join(private_visitor_bodies))
     file_utils.set_content_if_changed(config.get_output_source_filepath('vpi_visitor.cpp'), file_content)
 
