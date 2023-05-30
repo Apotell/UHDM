@@ -22,9 +22,7 @@ def _generate_module_listeners(models, classname):
 
         if card == '1':
           listeners.append(f'if (auto obj = defMod->{method}()) {{')
-          listeners.append( '  auto* stmt = obj->DeepClone(defMod, context_);')
-          listeners.append( '  stmt->VpiParent(inst);')
-          listeners.append(f'  inst->{method}(stmt);')
+          listeners.append(f'  inst->{method}(obj->DeepClone(inst, context_));')
           listeners.append( '}')
 
         elif method in ['Ref_modules', 'Gen_stmts']:
@@ -45,6 +43,7 @@ def _generate_module_listeners(models, classname):
           listeners.append( '      funcMap.emplace(tf->VpiName(), tf);')
           listeners.append( '    }')
           listeners.append( '    leaveTask_func(obj, nullptr);')
+          listeners.append( '    tf->VpiParent(inst);')
           listeners.append( '    clone_vec->push_back(tf);')
           listeners.append( '  }')
           listeners.append( '}')
