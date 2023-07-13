@@ -41,6 +41,7 @@
 
 namespace UHDM {
 class BaseClass;
+class Cloner;
 class Serializer;
 static inline constexpr std::string_view kEmpty("");
 
@@ -54,20 +55,6 @@ typedef std::set<const BaseClass*> AnySet;
 class ClientData {
  public:
   virtual ~ClientData() = default;
-};
-
-class CloneContext : public RTTI {
-  UHDM_IMPLEMENT_RTTI(CloneContext, RTTI)
-
- public:
-  CloneContext(Serializer* serializer) : m_serializer(serializer) {}
-  virtual ~CloneContext() = default;
-
-  Serializer* const m_serializer = nullptr;
-
- private:
-  CloneContext(const CloneContext& rhs) = delete;
-  CloneContext& operator=(const CloneContext& rhs) = delete;
 };
 
 class CompareContext : public RTTI {
@@ -168,16 +155,14 @@ class BaseClass : public RTTI {
   virtual vpi_property_value_t GetVpiPropertyValue(int32_t property) const;
 
   // Create a deep copy of this object.
-  virtual BaseClass* DeepClone(BaseClass* parent,
-                               CloneContext* context) const = 0;
+  virtual BaseClass* DeepClone(BaseClass* parent, Cloner* cloner) const = 0;
 
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
 
- protected:
-  void DeepCopy(BaseClass* clone, BaseClass* parent,
-                CloneContext* context) const;
+  void DeepCopy(BaseClass* clone, BaseClass* parent, Cloner* cloner) const;
 
+ protected:
   std::string ComputeFullName() const;
 
   void SetSerializer(Serializer* serial) { serializer_ = serial; }
@@ -299,7 +284,6 @@ typedef FactoryT<std::vector<BaseClass*>> VectorOfanyFactory;
 
 }  // namespace UHDM
 
-UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(clonecontext_cast, UHDM::CloneContext)
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(comparecontext_cast, UHDM::CompareContext)
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(any_cast, UHDM::BaseClass)
 

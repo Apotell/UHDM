@@ -29,9 +29,9 @@
 
 namespace UHDM {
 class BaseClass;
-class CloneContext;
+class Cloner;
 
-BaseClass* clone_tree(const BaseClass* root, CloneContext* context);
+
 
 };  // namespace UHDM
 

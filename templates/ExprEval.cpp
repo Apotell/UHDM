@@ -23,11 +23,12 @@
  */
 
 #include <string.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
+#include <uhdm/VpiListener.h>
 
 #include <algorithm>
 #include <bitset>
@@ -832,10 +833,10 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       index++;
     }
     index = 0;
-    ElaboratorContext elaboratorContext(&s, false, m_muteError);
+    Elaborator elaborator(&s, false, m_muteError);
     for (auto opi : tmp) {
       if (defaultOp && (opi == nullptr)) {
-        opi = clone_tree((any *)defaultOp, &elaboratorContext);
+        opi = clone_tree((any *)defaultOp, &elaborator);
         if (opi != nullptr) {
           opi->VpiParent(const_cast<any *>(defaultOp->VpiParent()));
         }
@@ -884,7 +885,7 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       ordered->push_back(opi);
       index++;
     }
-    operation *opres = (operation *)clone_tree((any *)op, &elaboratorContext);
+    operation *opres = (operation *)clone_tree((any *)op, &elaborator);
     opres->VpiParent(const_cast<any *>(op->VpiParent()));
     opres->Operands(ordered);
     if (flatten) {
@@ -2056,8 +2057,8 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
     } else if (ref_obj *ref = any_cast<ref_obj *>(object)) {
       object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
     } else if (constant *cons = any_cast<constant *>(object)) {
-      ElaboratorContext elaboratorContext(&s);
-      object = clone_tree(cons, &elaboratorContext);
+      Elaborator elaborator(&s);
+      object = clone_tree(cons, &elaborator);
       cons = any_cast<constant *>(object);
       if (cons->Typespec() == nullptr) {
         cons->Typespec((typespec *)path->Typespec());
@@ -4774,8 +4775,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
   if (param_assigns) {
     modinst->Param_assigns(s.MakeParam_assignVec());
     for (auto p : *param_assigns) {
-      ElaboratorContext elaboratorContext(&s, false, muteError);
-      any *pp = clone_tree(p, &elaboratorContext);
+      Elaborator elaborator(&s, false, muteError);
+      any *pp = clone_tree(p, &elaborator);
       modinst->Param_assigns()->push_back((param_assign *)pp);
       const typespec *tps = nullptr;
       if (const expr *lhs = any_cast<const expr *>(p->Lhs())) {
@@ -4896,8 +4897,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
           uint64_t si = size(tps, invalidValue, inst, pexpr, true, true);
           if (p->Rhs() && (p->Rhs()->UhdmType() == uhdmconstant)) {
             constant *c = (constant *)p->Rhs();
-            ElaboratorContext elaboratorContext(&s, false, muteError);
-            c = (constant *)clone_tree(c, &elaboratorContext);
+            Elaborator elaborator(&s, false, muteError);
+            c = (constant *)clone_tree(c, &elaborator);
             if (c->VpiConstType() == vpiBinaryConst) {
               std::string_view val = c->VpiValue();
               val.remove_prefix(std::string_view("BIN:").length());

@@ -49,10 +49,8 @@ public:
 
   <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return uhdm<CLASSNAME>; }
 
-protected:
-  void DeepCopy(<CLASSNAME>* clone,
-                BaseClass* parent,
-                CloneContext* context) const;
+public:
+  void DeepCopy(<CLASSNAME>* clone, BaseClass* parent, Cloner* cloner) const;
 
 private:
 <MEMBERS>

@@ -146,7 +146,8 @@ add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 set(uhdm-GENERATED_SRC
     ${GENDIR}/src/BaseClass.cpp
     ${GENDIR}/src/clone_tree.cpp
-    ${GENDIR}/src/ElaboratorListener.cpp
+    ${GENDIR}/src/Cloner.cpp
+    ${GENDIR}/src/Elaborator.cpp
     ${GENDIR}/src/ExprEval.cpp
     ${GENDIR}/src/NumUtils.cpp
     ${GENDIR}/src/Serializer.cpp

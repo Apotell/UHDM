@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -30,9 +30,10 @@
     <Compile Include="capnp.py" />
     <Compile Include="classes.py" />
     <Compile Include="class_hierarchy.py" />
+    <Compile Include="Cloner.py" />
     <Compile Include="config.py" />
     <Compile Include="containers_h.py" />
-    <Compile Include="ElaboratorListener_cpp.py" />
+    <Compile Include="Elaborator_cpp.py" />
     <Compile Include="file_utils.py" />
     <Compile Include="generate.py" />
     <Compile Include="loader.py" />

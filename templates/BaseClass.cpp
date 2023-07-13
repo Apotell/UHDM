@@ -87,13 +87,8 @@ BaseClass::vpi_property_value_t BaseClass::GetVpiPropertyValue(
   return vpi_property_value_t();
 }
 
-BaseClass* BaseClass::DeepClone(BaseClass* parent,
-                                CloneContext* context) const {
-  return nullptr;
-}
-
 void BaseClass::DeepCopy(BaseClass* clone, BaseClass* parent,
-                         CloneContext* context) const {
+                         Cloner* cloner) const {
   clone->VpiParent(parent);
 }
 

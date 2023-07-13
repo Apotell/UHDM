@@ -29,7 +29,7 @@
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/ExprEval.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
@@ -103,10 +103,9 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {

@@ -24,7 +24,7 @@
  * Created on Jan 3, 2022, 9:03 PM
  */
 #include <string.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
 #include <uhdm/Serializer.h>
@@ -46,8 +46,8 @@ const any* UhdmAdjuster::resize(const any* object, int32_t maxsize,
   if (type == uhdmconstant) {
     constant* c = (constant*)result;
     if (c->VpiSize() < maxsize) {
-      ElaboratorContext elaboratorContext(serializer_);
-      c = (constant*)clone_tree(c, &elaboratorContext);
+      Elaborator elaborator(serializer_);
+      c = (constant*)clone_tree(c, &elaborator);
       int32_t constType = c->VpiConstType();
       const typespec* tps = c->Typespec();
       bool is_signed = false;
@@ -214,7 +214,7 @@ void UhdmAdjuster::leaveConstant(const constant* object, vpiHandle handle) {
     int32_t size = object->VpiSize();
     bool invalidValue = false;
     ExprEval eval;
-    ElaboratorContext elaboratorContext(serializer_);
+    Elaborator elaborator(serializer_);
     if (parent) {
       if (parent->UhdmType() == uhdmoperation) {
         operation* op = (operation*)parent;
@@ -233,7 +233,7 @@ void UhdmAdjuster::leaveConstant(const constant* object, vpiHandle handle) {
           i++;
         }
         if (size != object->VpiSize()) {
-          constant* newc = (constant*)clone_tree(object, &elaboratorContext);
+          constant* newc = (constant*)clone_tree(object, &elaborator);
           newc->VpiSize(size);
           int64_t val = eval.get_value(invalidValue, object);
           if (val == 1) {
@@ -269,7 +269,7 @@ void UhdmAdjuster::leaveConstant(const constant* object, vpiHandle handle) {
           }
         }
         if (size != object->VpiSize()) {
-          constant* newc = (constant*)clone_tree(object, &elaboratorContext);
+          constant* newc = (constant*)clone_tree(object, &elaborator);
           newc->VpiSize(size);
           int64_t val = eval.get_value(invalidValue, object);
           if (val == 1) {

@@ -30,7 +30,7 @@
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
@@ -205,10 +205,11 @@ TEST(FullElabTest, ElaborationRoundtrip) {
             "port 4\n"
             "ref_obj 4\n");
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  vpi_show_ids(true);
+
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {

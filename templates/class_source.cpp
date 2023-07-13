@@ -24,7 +24,7 @@
  */
 
 #include <uhdm/<CLASSNAME>.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 <INCLUDES>
 
 

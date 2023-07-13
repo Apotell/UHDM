@@ -33,7 +33,7 @@
 #include <unistd.h>
 #endif
 
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/VpiListener.h>
 #include <uhdm/uhdm-version.h>
 #include <uhdm/uhdm.h>
@@ -144,10 +144,9 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   if (elab) {
-    ElaboratorContext *elaboratorContext =
-        new ElaboratorContext(&serializer, false);
-    elaboratorContext->m_elaborator.listenDesigns(restoredDesigns);
-    delete elaboratorContext;
+    Elaborator *elaborator = new Elaborator(&serializer, false);
+    elaborator->elaborate(restoredDesigns);
+    delete elaborator;
 
     std::cout << uhdmFile << ": Restored design Post-Elab: " << std::endl;
     visit_designs(restoredDesigns, std::cout);

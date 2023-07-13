@@ -123,12 +123,10 @@ def _get_DeepClone_implementation(model, models):
     classname = model.get('name')
     modeltype = model.get('type')
     Classname = classname[0].upper() + classname[1:]
-    includes = set(['ElaboratorListener'])
+    includes = set()
     content = []
-    content.append(f'void {classname}::DeepCopy({classname}* clone, BaseClass* parent, CloneContext* context) const {{')
-    content.append( '  [[maybe_unused]] ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-    if modeltype != 'class_def':
-        content.append(f'  elaboratorContext->m_elaborator.enter{Classname}(clone, nullptr);')
+    content.append(f'void {classname}::DeepCopy({classname}* clone, BaseClass* parent, Cloner* cloner) const {{')
+    content.append( '  [[maybe_unused]] Elaborator* const elaborator = cloner_cast<Elaborator*>(cloner);')
 
     if classname in ['bit_select']:
         includes.add('ExprEval')
@@ -137,25 +135,25 @@ def _get_DeepClone_implementation(model, models):
         content.append( '  if (any* val = eval.reduceExpr(VpiIndex(), invalidValue, parent, parent, true)) {')
         content.append( '    if (!invalidValue) {')
         content.append(f'      std::string indexName = eval.prettyPrint(val);')
-        content.append( '      if (any* indexVal = elaboratorContext->m_elaborator.bindAny(indexName)) {')
+        content.append( '      if (any* indexVal = elaborator->bindAny(indexName)) {')
         content.append(f'        val = eval.reduceExpr(indexVal, invalidValue, parent, parent, true);')
         content.append(f'        if (!invalidValue) indexName = eval.prettyPrint(val);')
         content.append( '      }')
         content.append( '      const std::string_view name(VpiName());')
         content.append( '      std::string fullIndexName(name);')
         content.append( '      fullIndexName.append("[").append(indexName).append("]");')
-        content.append(f'      clone->Actual_group(elaboratorContext->m_elaborator.bindAny(fullIndexName));')
-        content.append(f'      if (!clone->Actual_group()) clone->Actual_group(elaboratorContext->m_elaborator.bindAny(name));')
+        content.append(f'      clone->Actual_group(elaborator->bindAny(fullIndexName));')
+        content.append(f'      if (!clone->Actual_group()) clone->Actual_group(elaborator->bindAny(name));')
         content.append(f'      if (!clone->Actual_group()) clone->Actual_group((any*) Actual_group());')
         content.append( '    }')
         content.append( '  }')
 
-    content.append(f'  basetype_t::DeepCopy(clone, parent, context);')
+    content.append(f'  basetype_t::DeepCopy(clone, parent, cloner);')
     vpi_name = config.make_vpi_name(classname)
 
     if 'Select' in vpi_name:
         includes.add('net')
-        content.append('  if (any* n = elaboratorContext->m_elaborator.bindNet(VpiName())) {')
+        content.append('  if (any* n = elaborator->bindNet(VpiName())) {')
         content.append('    if (net* nn = any_cast<net*>(n))')
         content.append('      clone->VpiFullName(nn->VpiFullName());')
         content.append('  }')
@@ -176,13 +174,13 @@ def _get_DeepClone_implementation(model, models):
             # Unary relations
             if card == '1':
                 if (classname in ['ref_obj', 'ref_var']) and (method == 'Actual_group'):
-                    includes.add('ElaboratorListener')
-                    content.append(f'  if (!clone->{method}()) clone->{method}(elaboratorContext->m_elaborator.bindAny(VpiName()));')
+                    includes.add('Elaborator')
+                    content.append(f'  if (!clone->{method}()) clone->{method}(elaborator->bindAny(VpiName()));')
                     content.append(f'  if (!clone->{method}()) clone->{method}((any*) {method}());')
 
                 elif (classname == 'udp') and (method == 'Udp_defn'):
-                    includes.add('ElaboratorListener')
-                    content.append(f'  if (!clone->{method}()) clone->{method}((udp_defn*) elaboratorContext->m_elaborator.bindAny(VpiDefName()));')
+                    includes.add('Elaborator')
+                    content.append(f'  if (!clone->{method}()) clone->{method}((udp_defn*) elaborator->bindAny(VpiDefName()));')
                     content.append(f'  if (!clone->{method}()) clone->{method}((udp_defn*) {method}());')
 
                 elif method in ['Task', 'Function']:
@@ -196,7 +194,7 @@ def _get_DeepClone_implementation(model, models):
                         content.append( '  const class_var* prefix = nullptr;')
                         content.append( '  if (ref) prefix = any_cast<const class_var*>(ref->Actual_group());')
                         prefix = 'prefix'
-                    content.append(f'  elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, {prefix});')
+                    content.append(f'  elaborator->scheduleTaskFuncBinding(clone, {prefix});')
 
                 elif (classname == 'disable') and (method == 'VpiExpr'):
                     includes.add('expr')
@@ -204,9 +202,9 @@ def _get_DeepClone_implementation(model, models):
 
                 elif (classname == 'ports') and (method == 'High_conn'):
                     content.append(f'  if (auto obj = {method}()) {{')
-                    content.append( '    elaboratorContext->m_elaborator.ignoreLastInstance(true); ')
-                    content.append(f'    clone->{method}(obj->DeepClone(clone, context));')
-                    content.append( '    elaboratorContext->m_elaborator.ignoreLastInstance(false);')
+                    content.append( '    elaborator->ignoreLastInstance(true); ')
+                    content.append(f'    clone->{method}(static_cast<{cast}*>(cloner->cloneAny(obj, clone)));')
+                    content.append( '    elaborator->ignoreLastInstance(false);')
                     content.append( '  }')
 
                 elif (classname == 'int_typespec') and (method == 'Cast_to_expr'):
@@ -233,27 +231,28 @@ def _get_DeepClone_implementation(model, models):
 
                 elif method == 'Typespec':
                     includes.add('typespec')
-                    content.append( '  if (elaboratorContext->m_elaborator.uniquifyTypespec()) {')
-                    content.append(f'    if (auto obj = {method}()) clone->{method}(obj->DeepClone(clone, context));')
+                    content.append( '  if (elaborator->uniquifyTypespec()) {')
+                    content.append(f'    if (auto obj = {method}()) clone->{method}(static_cast<{cast}*>(cloner->cloneAny(obj, clone)));')
                     content.append( '  } else {')
                     content.append(f'    if (auto obj = {method}()) clone->{method}((typespec*) obj);')
                     content.append( '  }')
 
                 else:
-                    content.append(f'  if (auto obj = {method}()) clone->{method}(obj->DeepClone(clone, context));')
+                    content.append(f'  if (auto obj = {method}()) clone->{method}(static_cast<{cast}*>(cloner->cloneAny(obj, clone)));')
 
             elif (classname == 'module_inst') and (method == 'Ref_modules'):
                 pass # No cloning
 
             elif method == 'Typespecs':
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
+                content.append(f'    auto clone_vec = cloner->m_serializer->Make{Cast}Vec();')
+                content.append( '    clone_vec->reserve(vec->size());')
                 content.append(f'    clone->{method}(clone_vec);')
                 content.append( '    for (auto obj : *vec) {')
-                content.append( '      if (elaboratorContext->m_elaborator.uniquifyTypespec()) {')
-                content.append( '        clone_vec->push_back(obj->DeepClone(clone, context));')
+                content.append( '      if (elaborator->uniquifyTypespec()) {')
+                content.append(f'        clone_vec->emplace_back(static_cast<{cast}*>(cloner->cloneAny(obj, clone)));')
                 content.append( '      } else {')
-                content.append( '        clone_vec->push_back(obj);')
+                content.append( '        clone_vec->emplace_back(obj);')
                 content.append( '      }')
                 content.append( '    }')
                 content.append( '  }')
@@ -261,7 +260,8 @@ def _get_DeepClone_implementation(model, models):
             elif (classname == 'class_defn') and (method == 'Deriveds'):
                 # Don't deep clone
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
+                content.append(f'    auto clone_vec = cloner->m_serializer->Make{Cast}Vec();')
+                content.append( '    clone_vec->reserve(vec->size());')
                 content.append(f'    clone->{method}(clone_vec);')
                 content.append( '    clone_vec->insert(clone_vec->cend(), vec->cbegin(), vec->cend());')
                 content.append( '  }')
@@ -269,57 +269,45 @@ def _get_DeepClone_implementation(model, models):
             else:
                 # N-ary relations
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
+                content.append(f'    auto clone_vec = cloner->m_serializer->Make{Cast}Vec();')
+                content.append( '    clone_vec->reserve(vec->size());')
                 content.append(f'    clone->{method}(clone_vec);')
                 content.append( '    for (auto obj : *vec) {')
-                content.append( '      clone_vec->push_back(obj->DeepClone(clone, context));')
+                content.append(f'      clone_vec->emplace_back(static_cast<{cast}*>(cloner->cloneAny(obj, clone)));')
                 content.append( '    }')
                 content.append( '  }')
-    if modeltype != 'class_def':
-        content.append(f'  elaboratorContext->m_elaborator.leave{Classname}(clone, nullptr);')
 
     content.append('}')
     content.append('')
 
-    if '_call' in classname or classname in [ 'function', 'task', 'constant', 'tagged_pattern', 'gen_scope_array', 'hier_path', 'cont_assign' ]:
-        return content, includes  # Use hardcoded implementations of DeepClone
-
     if modeltype == 'obj_def':
         # DeepClone() not implemented for class_def; just declare to narrow the covariant return type.
-        content.append(f'{classname}* {classname}::DeepClone(BaseClass* parent, CloneContext* context) const {{')
-
-        if classname in ['begin', 'named_begin', 'fork', 'named_fork']:
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-            content.append(f'  elaboratorContext->m_elaborator.enter{Classname}(this, nullptr);')
+        content.append(f'{classname}* {classname}::DeepClone(BaseClass* parent, Cloner* cloner) const {{')
 
         if 'Net' in vpi_name:
-            includes.add('ElaboratorListener')
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaboratorContext->m_elaborator.bindNet(VpiName()));')
+            includes.add('Elaborator')
+            content.append( '  Elaborator* const elaborator = cloner_cast<Elaborator>(cloner);')
+            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaborator->bindNet(VpiName()));')
             content.append( '  if (clone != nullptr) {')
             content.append(f'    return clone;')
             content.append( '  }')
-            content.append(f'  clone = context->m_serializer->Make{Classname}();')
+            content.append(f'  clone = cloner->m_serializer->Make{Classname}();')
 
         elif 'Parameter' in vpi_name:
-            includes.add('ElaboratorListener')
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaboratorContext->m_elaborator.bindParam(VpiName()));')
+            includes.add('Elaborator')
+            content.append( '  Elaborator* const elaborator = cloner_cast<Elaborator>(cloner);')
+            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaborator->bindParam(VpiName()));')
             content.append( '  if (clone == nullptr) {')
-            content.append(f'    clone = context->m_serializer->Make{Classname}();')
+            content.append(f'    clone = cloner->m_serializer->Make{Classname}();')
             content.append( '  }')
 
         else:
-            content.append(f'  {classname}* const clone = context->m_serializer->Make{Classname}();')
+            content.append(f'  {classname}* const clone = cloner->m_serializer->Make{Classname}();')
 
         content.append('  const uint32_t id = clone->UhdmId();')
         content.append('  *clone = *this;')
         content.append('  clone->UhdmId(id);')
-        content.append('  DeepCopy(clone, parent, context);')
-
-        if classname in ['begin', 'named_begin', 'fork', 'named_fork']:
-            content.append(f'  elaboratorContext->m_elaborator.leave{Classname}(this, nullptr);')
-
+        content.append('  DeepCopy(clone, parent, cloner);')
         content.append('  return clone;')
         content.append('}')
         content.append('')
@@ -705,10 +693,9 @@ def _generate_one_class(model, models, templates):
 
     if modeltype == 'class_def':
         # DeepClone() not implemented for class_def; just declare to narrow the covariant return type.
-        declarations.append(f'  virtual {classname}* DeepClone(BaseClass* parent, CloneContext* context) const override = 0;')
+        declarations.append(f'  virtual {classname}* DeepClone(BaseClass* parent, Cloner* cloner) const override = 0;')
     else:
-        return_type = 'tf_call' if '_call' in classname else classname
-        declarations.append(f'  virtual {return_type}* DeepClone(BaseClass* parent, CloneContext* context) const override;')
+        declarations.append(f'  virtual {classname}* DeepClone(BaseClass* parent, Cloner* cloner) const override;')
 
     declarations.append('  virtual const BaseClass* GetByVpiName(std::string_view name) const override;')
     declarations.append('  virtual std::tuple<const BaseClass*, UHDM_OBJECT_TYPE, const std::vector<const BaseClass*>*> GetByVpiType(int32_t type) const override;')

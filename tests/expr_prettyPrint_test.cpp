@@ -5,7 +5,7 @@
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/ExprEval.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
@@ -91,10 +91,9 @@ TEST(exprVal, prettyPrint_MinusOp) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {
@@ -194,10 +193,9 @@ TEST(exprVal, prettyPrint_ConditionOp) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {
@@ -287,10 +285,9 @@ TEST(exprVal, prettyPrint_functionCall) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {
@@ -398,10 +395,9 @@ TEST(exprVal, prettyPrint_select) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {
@@ -500,10 +496,9 @@ TEST(exprVal, prettyPrint_array) {
   }
   EXPECT_FALSE(elaborated);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(designs);
+  delete elaborator;
 
   elaborated = false;
   for (auto design : designs) {
