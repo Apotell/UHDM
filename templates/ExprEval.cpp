@@ -2024,8 +2024,10 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const expr *expr,
       type = vpiUIntConst;
       sv = v->VpiValue();
     }
-  } else {
+  }
+  if (sv.empty()) {
     invalidValue = true;
+    return result;
   }
   if (!invalidValue) {
     switch (type) {
