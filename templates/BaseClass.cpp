@@ -125,6 +125,11 @@ std::string BaseClass::ComputeFullName() const {
                      (parent_type == UHDM_OBJECT_TYPE::uhdmtask_call) ||
                      (parent_type == UHDM_OBJECT_TYPE::uhdmsys_func_call) ||
                      (parent_type == UHDM_OBJECT_TYPE::uhdmsys_task_call);
+    if ((parent_type == UHDM_OBJECT_TYPE::uhdmpackage) && !names.empty() && !name.empty()) {
+      std::string scopeName(name);
+      scopeName.append("::");
+      if (names.back().find(scopeName) == 0) skip_name = true;
+    }
     if (child != nullptr) {
       UHDM_OBJECT_TYPE child_type = child->UhdmType();
       if ((child_type == UHDM_OBJECT_TYPE::uhdmbit_select) && (parent_type == UHDM_OBJECT_TYPE::uhdmport)) {
@@ -148,7 +153,9 @@ std::string BaseClass::ComputeFullName() const {
     parent = parent->VpiParent();
   }
   std::string fullName;
-  if (!names.empty()) {
+  if (names.size() == 1) {
+    fullName = names[0];
+  } else if (!names.empty()) {
     size_t index = names.size() - 1;
     while (1) {
       fullName += names[index];

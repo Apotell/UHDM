@@ -16,6 +16,7 @@ expr_sequence_inst_named_event_group.yaml
 event_control.yaml
 repeat_control.yaml
 parameters.yaml
+gen_stmts.yaml
 instance_item.yaml
 scope.yaml
 begin.yaml

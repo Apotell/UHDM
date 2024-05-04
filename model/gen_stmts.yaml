@@ -1,4 +1,4 @@
-# Copyright 2019-2020 Alain Dargelas
+# Copyright 2019 Alain Dargelas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "gen_region" formal description
-# This model is not in the standard, it enables modeling generate region statements
-# in the non-elaborate tree
-
-- obj_def: gen_region
-  - extends: gen_scope
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-
+# Universal Hardware Data Model (UHDM) "parameters" formal description
+ 
+- group_def: gen_stmts
+  - obj_ref: gen_case
+  - obj_ref: gen_if
+  - obj_ref: gen_if_else
+  - obj_ref: gen_for
+  - obj_ref: gen_region

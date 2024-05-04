@@ -24,6 +24,7 @@
  */
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmListener.h>
+#include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 
 #include <algorithm>
@@ -32,8 +33,6 @@
 #include <map>
 #include <string>
 #include <vector>
-
-#include <uhdm/uhdm.h>
 
 namespace UHDM {
 
@@ -47,13 +46,15 @@ void Serializer::GarbageCollect() {
     listener->listenDesign(d);
   }
 
-  const AnySet visited(listener->getVisited().begin(), listener->getVisited().end());
+  const AnySet visited(listener->getVisited().begin(),
+                       listener->getVisited().end());
   delete listener;
 
 <FACTORY_GC>
 }
 
-void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg, const any* object1, const any* object2) {
+void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
+                         const any* object1, const any* object2) {
   std::cerr << errorMsg << std::endl;
 }
 
@@ -69,7 +70,8 @@ SymbolId Serializer::GetSymbolId(std::string_view symbol) const {
   return symbolMaker.GetId(symbol);
 }
 
-vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type, const void* object) {
+vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type,
+                                     const void* object) {
   return uhdm_handleMaker.Make(type, object);
 }
 
@@ -133,14 +135,133 @@ bool Serializer::Erase(const BaseClass* p) {
   }
 }
 
-Serializer::~Serializer() {
-  Purge();
-}
+Serializer::~Serializer() { Purge(); }
 
 void Serializer::Purge() {
   anyVectMaker.Purge();
   symbolMaker.Purge();
   uhdm_handleMaker.Purge();
 <FACTORY_PURGE>
+}
+
+#ifndef SWIG
+void Serializer::PushScope(scope* s) { m_scopeStack.emplace_back(s); }
+bool Serializer::PopScope(scope* s) {
+  if (!m_scopeStack.empty() && (m_scopeStack.back() == s)) {
+    m_scopeStack.pop_back();
+    return true;
+  }
+  return false;
+}
+
+ScopedScope::ScopedScope(scope* s) : m_scope(s) {
+  m_scope->GetSerializer()->PushScope(s);
+}
+
+ScopedScope::~ScopedScope() { m_scope->GetSerializer()->PopScope(m_scope); }
+#endif
+
+bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
+#define PARENT_SETTER(type, typedObject, getset, maker)          \
+  if (scope* const parentScope = serializer->TopScope()) {       \
+    if ((this != parentScope) && (VpiParent() != parentScope)) { \
+      auto* collection = parentScope->getset();                  \
+      if (collection == nullptr) {                               \
+        collection = serializer->maker();                        \
+        parentScope->getset(collection);                         \
+      }                                                          \
+      collection->emplace_back(typedObject);                     \
+      VpiParent(parentScope);                                    \
+    }                                                            \
+  }
+
+  if (this == parent) return false;
+  if (VpiParent() == parent) return true;
+
+  if ((VpiParent() == nullptr) || force) {
+    BaseClass* const obj = this;
+    Serializer* const serializer = GetSerializer();
+    if (property_decl* const objPropertyDecl = any_cast<property_decl>(obj)) {
+      PARENT_SETTER(property_decl, objPropertyDecl, Property_decls,
+                    MakeProperty_declVec);
+    } else if (sequence_decl* const objSequenceDecl =
+                   any_cast<sequence_decl>(obj)) {
+      PARENT_SETTER(sequence_decl, objSequenceDecl, Sequence_decls,
+                    MakeSequence_declVec);
+    } else if (concurrent_assertions* const objConcurrentAssertions =
+                   any_cast<concurrent_assertions>(obj)) {
+      PARENT_SETTER(concurrent_assertions, objConcurrentAssertions,
+                    Concurrent_assertions, MakeConcurrent_assertionsVec);
+    } else if (named_event* const objNamedEvent = any_cast<named_event>(obj)) {
+      PARENT_SETTER(named_event, objNamedEvent, Named_events,
+                    MakeNamed_eventVec);
+    } else if (named_event_array* const objNamedEventArray =
+                   any_cast<named_event_array>(obj)) {
+      PARENT_SETTER(named_event_array, objNamedEventArray, Named_event_arrays,
+                    MakeNamed_event_arrayVec);
+    } else if (variables* const objVariables = any_cast<variables>(obj)) {
+      if (scope* const parentScope = serializer->TopScope()) {
+        if ((this != parentScope) && (VpiParent() != parentScope)) {
+          auto* collection1 = parentScope->Variables();
+          if (collection1 == nullptr) {
+            collection1 = serializer->MakeVariablesVec();
+            parentScope->Variables(collection1);
+          }
+          collection1->emplace_back(objVariables);
+
+          if (logic_var* const objLogicVar =
+                  any_cast<logic_var>(objVariables)) {
+            auto* collection2 = parentScope->Logic_vars();
+            if (collection2 == nullptr) {
+              collection2 = serializer->MakeLogic_varVec();
+              parentScope->Logic_vars(collection2);
+            }
+            collection2->emplace_back(objLogicVar);
+          }
+
+          if (array_var* const objArrayVar =
+                  any_cast<array_var>(objVariables)) {
+            auto* collection3 = parentScope->Array_vars();
+            if (collection3 == nullptr) {
+              collection3 = serializer->MakeArray_varVec();
+              parentScope->Array_vars(collection3);
+            }
+            collection3->emplace_back(objArrayVar);
+          }
+
+          VpiParent(parentScope);
+        }
+      }
+    } else if (virtual_interface_var* const objVirtualInterfaceVar =
+                   any_cast<virtual_interface_var>(obj)) {
+      PARENT_SETTER(virtual_interface_var, objVirtualInterfaceVar,
+                    Virtual_interface_vars, MakeVirtual_interface_varVec);
+    } else if (parameter* const objParameter = any_cast<parameter>(obj)) {
+      PARENT_SETTER(parameter, objParameter, Parameters, MakeAnyVec);
+    } else if (param_assign* const objParamAssign =
+                   any_cast<param_assign>(obj)) {
+      PARENT_SETTER(param_assign, objParamAssign, Param_assigns,
+                    MakeParam_assignVec);
+    } else if (scope* const objScope = any_cast<scope>(obj)) {
+      VpiParent(parent);
+      if (scope* const parentScope = any_cast<scope>(parent)) {
+        auto* collection = parentScope->Scopes();
+        if (collection == nullptr) {
+          collection = serializer->MakeScopeVec();
+          parentScope->Scopes(collection);
+        }
+        collection->emplace_back(objScope);
+      }
+    } else if (typespec* const objTypespec = any_cast<typespec>(obj)) {
+      PARENT_SETTER(typespec, objTypespec, Typespecs, MakeTypespecVec);
+    } else if (let_decl* const objLetdecl = any_cast<let_decl>(obj)) {
+      PARENT_SETTER(let_decl, objLetdecl, Let_decls, MakeLet_declVec);
+    } else {
+      obj->VpiParent(parent);
+    }
+  }
+
+#undef PARENT_SETTER
+  return true;
 }
 }  // namespace UHDM

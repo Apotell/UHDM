@@ -120,6 +120,15 @@ class BaseClass : public RTTI {
     return true;
   }
 
+  // VpiParent(...) vs. SetVpiParent(...)
+  // The former unconditionally sets the parent to input value
+  // Latter, however, does special handling for a number of cases to ensure strict
+  // restrictions like typespec's parent should always be a scope and the typespec
+  // should be included in the Typespecs container of the scope.
+  // The implementation of this function is in Serializer.cpp since it requires access
+  // to a number of other types.
+  bool SetVpiParent(BaseClass* data, bool force = false);
+
   std::string_view VpiFile() const;
   bool VpiFile(std::string_view data);
 
