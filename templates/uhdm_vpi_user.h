@@ -45,12 +45,6 @@
 #define  vpiEndLineNo        3016
 #define  vpiEndColumnNo      3017
 
-#define  vpiRefFile          3018
-#define  vpiRefLineNo        3019
-#define  vpiRefColumnNo      3020
-#define  vpiRefEndLineNo     3021
-#define  vpiRefEndColumnNo   3022
-
 // Include file details
 #define vpiIncludeFileInfo   3023
 #define vpiIncludedFile      3024

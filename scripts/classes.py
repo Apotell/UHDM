@@ -482,11 +482,6 @@ def _get_Compare_implementation(model):
         'vpiFullName',
         'vpiIncludedFile',
         'vpiLineNo',
-        'vpiRefColumnNo',
-        'vpiRefEndColumnNo',
-        'vpiRefEndLineNo',
-        'vpiRefFile',
-        'vpiRefLineNo',
     ]
 
     classname = model['name']
