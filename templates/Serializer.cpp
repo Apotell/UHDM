@@ -162,26 +162,29 @@ ScopedScope::~ScopedScope() { m_scope->GetSerializer()->PopScope(m_scope); }
 #endif
 
 bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
-#define PARENT_SETTER(type, typedObject, getset, maker)          \
-  if (scope* const parentScope = serializer->TopScope()) {       \
-    if ((this != parentScope) && (VpiParent() != parentScope)) { \
-      auto* collection = parentScope->getset();                  \
-      if (collection == nullptr) {                               \
-        collection = serializer->maker();                        \
-        parentScope->getset(collection);                         \
-      }                                                          \
-      collection->emplace_back(typedObject);                     \
-      VpiParent(parentScope);                                    \
-    }                                                            \
+#define PARENT_SETTER(type, typedObject, getset, maker)           \
+  if ((parentScope != nullptr) && (VpiParent() != parentScope)) { \
+    auto* collection = parentScope->getset();                     \
+    if (collection == nullptr) {                                  \
+      collection = serializer->maker();                           \
+      parentScope->getset(collection);                            \
+    }                                                             \
+    collection->emplace_back(typedObject);                        \
+    VpiParent(parentScope);                                       \
   }
 
   if (this == parent) return false;
   if (VpiParent() == parent) return true;
 
+  Serializer* const serializer = GetSerializer();
+  scope* parentScope = any_cast<scope>(parent);
+  if (parentScope == nullptr) parentScope = serializer->TopScope();
+  if (this == parentScope) return false;
+
   if ((VpiParent() == nullptr) || force) {
     BaseClass* const obj = this;
-    Serializer* const serializer = GetSerializer();
-    if (property_decl* const objPropertyDecl = any_cast<property_decl>(obj)) {
+    if (property_decl* const objPropertyDecl =
+                   any_cast<property_decl>(obj)) {
       PARENT_SETTER(property_decl, objPropertyDecl, Property_decls,
                     MakeProperty_declVec);
     } else if (sequence_decl* const objSequenceDecl =
@@ -200,37 +203,35 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
       PARENT_SETTER(named_event_array, objNamedEventArray, Named_event_arrays,
                     MakeNamed_event_arrayVec);
     } else if (variables* const objVariables = any_cast<variables>(obj)) {
-      if (scope* const parentScope = serializer->TopScope()) {
-        if ((this != parentScope) && (VpiParent() != parentScope)) {
-          auto* collection1 = parentScope->Variables();
-          if (collection1 == nullptr) {
-            collection1 = serializer->MakeVariablesVec();
-            parentScope->Variables(collection1);
-          }
-          collection1->emplace_back(objVariables);
-
-          if (logic_var* const objLogicVar =
-                  any_cast<logic_var>(objVariables)) {
-            auto* collection2 = parentScope->Logic_vars();
-            if (collection2 == nullptr) {
-              collection2 = serializer->MakeLogic_varVec();
-              parentScope->Logic_vars(collection2);
-            }
-            collection2->emplace_back(objLogicVar);
-          }
-
-          if (array_var* const objArrayVar =
-                  any_cast<array_var>(objVariables)) {
-            auto* collection3 = parentScope->Array_vars();
-            if (collection3 == nullptr) {
-              collection3 = serializer->MakeArray_varVec();
-              parentScope->Array_vars(collection3);
-            }
-            collection3->emplace_back(objArrayVar);
-          }
-
-          VpiParent(parentScope);
+      if ((parentScope != nullptr) && (VpiParent() != parentScope)) {
+        auto* collection1 = parentScope->Variables();
+        if (collection1 == nullptr) {
+          collection1 = serializer->MakeVariablesVec();
+          parentScope->Variables(collection1);
         }
+        collection1->emplace_back(objVariables);
+
+        if (logic_var* const objLogicVar =
+                any_cast<logic_var>(objVariables)) {
+          auto* collection2 = parentScope->Logic_vars();
+          if (collection2 == nullptr) {
+            collection2 = serializer->MakeLogic_varVec();
+            parentScope->Logic_vars(collection2);
+          }
+          collection2->emplace_back(objLogicVar);
+        }
+
+        if (array_var* const objArrayVar =
+                any_cast<array_var>(objVariables)) {
+          auto* collection3 = parentScope->Array_vars();
+          if (collection3 == nullptr) {
+            collection3 = serializer->MakeArray_varVec();
+            parentScope->Array_vars(collection3);
+          }
+          collection3->emplace_back(objArrayVar);
+        }
+
+        VpiParent(parentScope);
       }
     } else if (virtual_interface_var* const objVirtualInterfaceVar =
                    any_cast<virtual_interface_var>(obj)) {
@@ -244,7 +245,7 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
                     MakeParam_assignVec);
     } else if (scope* const objScope = any_cast<scope>(obj)) {
       VpiParent(parent);
-      if (scope* const parentScope = any_cast<scope>(parent)) {
+      if (parentScope != nullptr) {
         auto* collection = parentScope->Scopes();
         if (collection == nullptr) {
           collection = serializer->MakeScopeVec();
@@ -257,7 +258,7 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
     } else if (let_decl* const objLetdecl = any_cast<let_decl>(obj)) {
       PARENT_SETTER(let_decl, objLetdecl, Let_decls, MakeLet_declVec);
     } else {
-      obj->VpiParent(parent);
+      VpiParent(parent);
     }
   }
 
