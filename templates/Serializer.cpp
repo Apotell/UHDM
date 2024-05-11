@@ -145,8 +145,8 @@ void Serializer::Purge() {
 }
 
 #ifndef SWIG
-void Serializer::PushScope(scope* s) { m_scopeStack.emplace_back(s); }
-bool Serializer::PopScope(scope* s) {
+void Serializer::PushScope(any* s) { m_scopeStack.emplace_back(s); }
+bool Serializer::PopScope(any* s) {
   if (!m_scopeStack.empty() && (m_scopeStack.back() == s)) {
     m_scopeStack.pop_back();
     return true;
@@ -154,115 +154,131 @@ bool Serializer::PopScope(scope* s) {
   return false;
 }
 
-ScopedScope::ScopedScope(scope* s) : m_scope(s) {
-  m_scope->GetSerializer()->PushScope(s);
+ScopedScope::ScopedScope(any* s) : m_any(s) {
+  m_any->GetSerializer()->PushScope(s);
 }
 
-ScopedScope::~ScopedScope() { m_scope->GetSerializer()->PopScope(m_scope); }
+ScopedScope::~ScopedScope() { m_any->GetSerializer()->PopScope(m_any); }
 #endif
 
 bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
-#define PARENT_SETTER(type, typedObject, getset, maker)           \
-  if ((parentScope != nullptr) && (VpiParent() != parentScope)) { \
-    auto* collection = parentScope->getset();                     \
-    if (collection == nullptr) {                                  \
-      collection = serializer->maker();                           \
-      parentScope->getset(collection);                            \
-    }                                                             \
-    collection->emplace_back(typedObject);                        \
-    VpiParent(parentScope);                                       \
-  }
+#define COLLECT(parentObject, typedObject, getset, maker) \
+  auto* collection = parentObject->getset();              \
+  if (collection == nullptr) {                            \
+    collection = serializer->maker();                     \
+    parentObject->getset(collection);                     \
+  }                                                       \
+  collection->emplace_back(typedObject);
 
   if (this == parent) return false;
   if (VpiParent() == parent) return true;
+  if ((VpiParent() != nullptr) && !force) return false;
 
   Serializer* const serializer = GetSerializer();
-  scope* parentScope = any_cast<scope>(parent);
-  if (parentScope == nullptr) parentScope = serializer->TopScope();
-  if (this == parentScope) return false;
+  scope* parentAsScope = any_cast<scope>(parent);
+  design* parentAsDesign = any_cast<design>(parent);
 
-  if ((VpiParent() == nullptr) || force) {
-    BaseClass* const obj = this;
-    if (property_decl* const objPropertyDecl =
-                   any_cast<property_decl>(obj)) {
-      PARENT_SETTER(property_decl, objPropertyDecl, Property_decls,
-                    MakeProperty_declVec);
-    } else if (sequence_decl* const objSequenceDecl =
-                   any_cast<sequence_decl>(obj)) {
-      PARENT_SETTER(sequence_decl, objSequenceDecl, Sequence_decls,
-                    MakeSequence_declVec);
-    } else if (concurrent_assertions* const objConcurrentAssertions =
-                   any_cast<concurrent_assertions>(obj)) {
-      PARENT_SETTER(concurrent_assertions, objConcurrentAssertions,
-                    Concurrent_assertions, MakeConcurrent_assertionsVec);
-    } else if (named_event* const objNamedEvent = any_cast<named_event>(obj)) {
-      PARENT_SETTER(named_event, objNamedEvent, Named_events,
-                    MakeNamed_eventVec);
-    } else if (named_event_array* const objNamedEventArray =
-                   any_cast<named_event_array>(obj)) {
-      PARENT_SETTER(named_event_array, objNamedEventArray, Named_event_arrays,
-                    MakeNamed_event_arrayVec);
-    } else if (variables* const objVariables = any_cast<variables>(obj)) {
-      if ((parentScope != nullptr) && (VpiParent() != parentScope)) {
-        auto* collection1 = parentScope->Variables();
-        if (collection1 == nullptr) {
-          collection1 = serializer->MakeVariablesVec();
-          parentScope->Variables(collection1);
-        }
-        collection1->emplace_back(objVariables);
-
-        if (logic_var* const objLogicVar =
-                any_cast<logic_var>(objVariables)) {
-          auto* collection2 = parentScope->Logic_vars();
-          if (collection2 == nullptr) {
-            collection2 = serializer->MakeLogic_varVec();
-            parentScope->Logic_vars(collection2);
-          }
-          collection2->emplace_back(objLogicVar);
-        }
-
-        if (array_var* const objArrayVar =
-                any_cast<array_var>(objVariables)) {
-          auto* collection3 = parentScope->Array_vars();
-          if (collection3 == nullptr) {
-            collection3 = serializer->MakeArray_varVec();
-            parentScope->Array_vars(collection3);
-          }
-          collection3->emplace_back(objArrayVar);
-        }
-
-        VpiParent(parentScope);
-      }
-    } else if (virtual_interface_var* const objVirtualInterfaceVar =
-                   any_cast<virtual_interface_var>(obj)) {
-      PARENT_SETTER(virtual_interface_var, objVirtualInterfaceVar,
-                    Virtual_interface_vars, MakeVirtual_interface_varVec);
-    } else if (parameter* const objParameter = any_cast<parameter>(obj)) {
-      PARENT_SETTER(parameter, objParameter, Parameters, MakeAnyVec);
-    } else if (param_assign* const objParamAssign =
-                   any_cast<param_assign>(obj)) {
-      PARENT_SETTER(param_assign, objParamAssign, Param_assigns,
-                    MakeParam_assignVec);
-    } else if (scope* const objScope = any_cast<scope>(obj)) {
-      VpiParent(parent);
-      if (parentScope != nullptr) {
-        auto* collection = parentScope->Scopes();
-        if (collection == nullptr) {
-          collection = serializer->MakeScopeVec();
-          parentScope->Scopes(collection);
-        }
-        collection->emplace_back(objScope);
-      }
-    } else if (typespec* const objTypespec = any_cast<typespec>(obj)) {
-      PARENT_SETTER(typespec, objTypespec, Typespecs, MakeTypespecVec);
-    } else if (let_decl* const objLetdecl = any_cast<let_decl>(obj)) {
-      PARENT_SETTER(let_decl, objLetdecl, Let_decls, MakeLet_declVec);
-    } else {
-      VpiParent(parent);
+  any* goodParent = nullptr;
+  if (parentAsScope != nullptr) {
+    goodParent = parentAsScope;
+  } else if (parentAsDesign != nullptr) {
+    goodParent = parentAsDesign;
+  } else if (any* const stackTop = serializer->TopScope()) {
+    parentAsScope = any_cast<scope>(stackTop);
+    parentAsDesign = any_cast<design>(stackTop);
+    if (parentAsScope != nullptr) {
+      goodParent = parentAsScope;
+    } else if (parentAsDesign != nullptr) {
+      goodParent = parentAsDesign;
     }
   }
+  if (goodParent == nullptr) return false;
+  if (this == goodParent) return false;
+  if (VpiParent() == goodParent) return true;
 
-#undef PARENT_SETTER
-  return true;
+  if (property_decl* const objPropertyDecl = any_cast<property_decl>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objPropertyDecl, Property_decls,
+              MakeProperty_declVec);
+    }
+  } else if (sequence_decl* const objSequenceDecl =
+                 any_cast<sequence_decl>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objSequenceDecl, Sequence_decls,
+              MakeSequence_declVec);
+    }
+  } else if (concurrent_assertions* const objConcurrentAssertions =
+                 any_cast<concurrent_assertions>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objConcurrentAssertions, Concurrent_assertions,
+              MakeConcurrent_assertionsVec);
+    }
+  } else if (named_event* const objNamedEvent = any_cast<named_event>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objNamedEvent, Named_events, MakeNamed_eventVec);
+    }
+  } else if (named_event_array* const objNamedEventArray =
+                 any_cast<named_event_array>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objNamedEventArray, Named_event_arrays,
+              MakeNamed_event_arrayVec);
+    }
+  } else if (variables* const objVariables = any_cast<variables>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objVariables, Variables, MakeVariablesVec);
+      if (logic_var* const objLogicVar = any_cast<logic_var>(objVariables)) {
+        COLLECT(parentAsScope, objLogicVar, Logic_vars, MakeLogic_varVec);
+      }
+      if (array_var* const objArrayVar = any_cast<array_var>(objVariables)) {
+        COLLECT(parentAsScope, objArrayVar, Array_vars, MakeArray_varVec);
+      }
+    }
+  } else if (virtual_interface_var* const objVirtualInterfaceVar =
+                 any_cast<virtual_interface_var>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objVirtualInterfaceVar, Virtual_interface_vars,
+              MakeVirtual_interface_varVec);
+    }
+  } else if (parameter* const objParameter = any_cast<parameter>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objParameter, Parameters, MakeAnyVec);
+    } else if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objParameter, Parameters, MakeAnyVec);
+    }
+  } else if (param_assign* const objParamAssign =
+                 any_cast<param_assign>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objParamAssign, Param_assigns,
+              MakeParam_assignVec);
+    } else if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objParamAssign, Param_assigns,
+              MakeParam_assignVec);
+    }
+  } else if (scope* const objScope = any_cast<scope>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objScope, Scopes, MakeScopeVec);
+    }
+  } else if (typespec* const objTypespec = any_cast<typespec>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objTypespec, Typespecs, MakeTypespecVec);
+    } else if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objTypespec, Typespecs, MakeTypespecVec);
+    }
+  } else if (let_decl* const objLetdecl = any_cast<let_decl>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objLetdecl, Let_decls, MakeLet_declVec);
+    } else if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objLetdecl, Let_decls, MakeLet_declVec);
+    }
+  } else if (task_func* const objTaskFunc = any_cast<task_func>(this)) {
+    if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objTaskFunc, Task_funcs, MakeTask_funcVec);
+    }
+  } else {
+    goodParent = parent;
+  }
+
+#undef COLLECT
+  return VpiParent(goodParent);
 }
 }  // namespace UHDM

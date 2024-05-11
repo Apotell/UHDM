@@ -137,9 +137,9 @@ class Serializer final {
   bool Erase(const BaseClass* p);
 
 #ifndef SWIG
-  void PushScope(scope* s);
-  bool PopScope(scope* s);
-  scope* TopScope() const {
+  void PushScope(any* s);
+  bool PopScope(any* s);
+  any* TopScope() const {
     return m_scopeStack.empty() ? nullptr : m_scopeStack.back();
   }
 
@@ -164,7 +164,7 @@ class Serializer final {
   SymbolFactory symbolMaker;
   uhdm_handleFactory uhdm_handleMaker;
 
-  using ScopeStack = std::vector<scope *>;
+  using ScopeStack = std::vector<any *>;
   ScopeStack m_scopeStack;
 <FACTORY_DATA_MEMBERS>
 #endif
@@ -173,11 +173,11 @@ class Serializer final {
 #ifndef SWIG
 class ScopedScope final {
  public:
-  ScopedScope(scope* s);
+  ScopedScope(any* s);
   ~ScopedScope();
 
  private:
-  scope* const m_scope = nullptr;
+  any* const m_any = nullptr;
 };
 #endif
 };  // namespace UHDM
