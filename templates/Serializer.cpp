@@ -192,7 +192,7 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
       goodParent = parentAsDesign;
     }
   }
-  if (goodParent == nullptr) return false;
+  if (goodParent == nullptr) goodParent = parent;
   if (this == goodParent) return false;
   if (VpiParent() == goodParent) return true;
 
