@@ -177,19 +177,25 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
   Serializer* const serializer = GetSerializer();
   scope* parentAsScope = any_cast<scope>(parent);
   design* parentAsDesign = any_cast<design>(parent);
+  udp_defn* parentAsUdpDefn = any_cast<udp_defn>(parent);
 
   any* goodParent = nullptr;
   if (parentAsScope != nullptr) {
     goodParent = parentAsScope;
   } else if (parentAsDesign != nullptr) {
     goodParent = parentAsDesign;
+  } else if (parentAsUdpDefn != nullptr) {
+    goodParent = parentAsUdpDefn;
   } else if (any* const stackTop = serializer->TopScope()) {
     parentAsScope = any_cast<scope>(stackTop);
     parentAsDesign = any_cast<design>(stackTop);
+    parentAsUdpDefn = any_cast<udp_defn>(stackTop);
     if (parentAsScope != nullptr) {
       goodParent = parentAsScope;
     } else if (parentAsDesign != nullptr) {
       goodParent = parentAsDesign;
+    } else if (parentAsUdpDefn != nullptr) {
+      goodParent = parentAsUdpDefn;
     }
   }
   if (goodParent == nullptr) goodParent = parent;
@@ -273,6 +279,14 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
   } else if (task_func* const objTaskFunc = any_cast<task_func>(this)) {
     if (parentAsDesign != nullptr) {
       COLLECT(parentAsDesign, objTaskFunc, Task_funcs, MakeTask_funcVec);
+    }
+  } else if (io_decl* const objIoDecl = any_cast<io_decl>(this)) {
+    if (parentAsUdpDefn != nullptr) {
+      COLLECT(parentAsUdpDefn, objIoDecl, Io_decls, MakeIo_declVec);
+    }
+  } else if (table_entry* const objTableEntry = any_cast<table_entry>(this)) {
+    if (parentAsUdpDefn != nullptr) {
+      COLLECT(parentAsUdpDefn, objTableEntry, Table_entrys, MakeTable_entryVec);
     }
   } else {
     goodParent = parent;
