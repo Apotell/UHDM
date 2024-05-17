@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "include_file_info" formal description
+# Universal Hardware Data Model (UHDM) "preproc_macro_definition" formal description
 
-- obj_def: include_file_info
-  - property: included_file
-    name: included file
-    vpi: vpiIncludedFile
+- obj_def: preproc_macro_definition
+  - property: name
+    name: name
+    vpi: vpiName
     type: string
     card: 1

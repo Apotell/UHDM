@@ -122,6 +122,7 @@ def _main():
             config.get_template_filepath('ElaboratorListener.h'): config.get_output_header_filepath('ElaboratorListener.h'),
             config.get_template_filepath('ExprEval.h'): config.get_output_header_filepath('ExprEval.h'),
             config.get_template_filepath('ExprEval.cpp'): config.get_output_source_filepath('ExprEval.cpp'),
+            config.get_template_filepath('models_impl.cpp'): config.get_output_source_filepath('models_impl.cpp'),
             config.get_template_filepath('NumUtils.h'): config.get_output_header_filepath('NumUtils.h'),
             config.get_template_filepath('NumUtils.cpp'): config.get_output_source_filepath('NumUtils.cpp'),
             config.get_template_filepath('UhdmLint.h'): config.get_output_header_filepath('UhdmLint.h'),

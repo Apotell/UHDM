@@ -193,4 +193,8 @@ int32_t BaseClass::Compare(const BaseClass* const other,
   return r;
 }
 
+void BaseClass::Swap(BaseClass* what, BaseClass* with) {
+  if (VpiParent() == what) VpiParent(with);
+}
+
 }  // namespace UHDM

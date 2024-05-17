@@ -524,7 +524,7 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
   if ((objectType == vpiModule) || (objectType == vpiProgram) ||
       (objectType == vpiClassDefn) || (objectType == vpiPackage) ||
       (objectType == vpiInterface) || (objectType == vpiUdp) ||
-      (objectType == vpiIncludeFileInfo)) {
+      (objectType == vpiSourceFile)) {
     if (const char* s = vpi_get_str(vpiFile, obj_h)) {
       m_out << ", file:" << s;  // fileName
     }

@@ -116,6 +116,20 @@ class BaseClass : public RTTI {
                                    : vpiParent_->template Cast<const T*>();
   }
   bool VpiParent(BaseClass* data) {
+    // if (vpiParent_ != data) {
+    //   // Allow changing only from/to nullptr
+    //   if (((vpiParent_ == nullptr) && (data != nullptr)) ||
+    //       ((vpiParent_ != nullptr) && (data == nullptr))) {
+    //     BaseClass* const oldParent = vpiParent_;
+    //     vpiParent_ = nullptr;
+    //     if (vpiParent_ != nullptr) oldParent->OnChildRemoved(this);
+    // 
+    //     vpiParent_ = data;
+    //     if (vpiParent_ != nullptr) vpiParent_->OnChildAdded(this);
+    //     return true;
+    //   }
+    //   return false;
+    // }
     vpiParent_ = data;
     return true;
   }
@@ -183,6 +197,8 @@ class BaseClass : public RTTI {
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
 
+  virtual void Swap(BaseClass* what, BaseClass* with);
+
  protected:
   void DeepCopy(BaseClass* clone, BaseClass* parent,
                 CloneContext* context) const;
@@ -190,6 +206,9 @@ class BaseClass : public RTTI {
   std::string ComputeFullName() const;
 
   void SetSerializer(Serializer* serial) { serializer_ = serial; }
+
+  virtual void OnChildAdded(BaseClass* child) {}
+  virtual void OnChildRemoved(BaseClass* child) {}
 
   static int32_t SafeCompare(const BaseClass* lhs, const BaseClass* rhs,
                              CompareContext* context) {

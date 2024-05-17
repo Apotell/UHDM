@@ -48,6 +48,7 @@ def _get_declarations(type, vpi, card, real_type=''):
             content.append(f'  {virtual}bool {Vpi_}({type}* data){final} {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
     elif card == 'any':
         content.append(f'  VectorOf{type}* {Vpi_}() const {{ return {vpi}_; }}')
+        content.append(f'  VectorOf{type}* {Vpi_}(bool createIfNull);')
         content.append(f'  bool {Vpi_}(VectorOf{type}* data) {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
 
     return '\n'.join(content)
@@ -56,42 +57,47 @@ def _get_declarations(type, vpi, card, real_type=''):
 def _get_implementations(classname, type, vpi, card):
     includes = set()
     content = []
-    if card != '1':
-        return content, includes
-
-    if type in ['string', 'value', 'delay']:
-        type = 'std::string'
-
-    if type != 'std::string':
-        return content, includes
-
-    if vpi == 'uhdmType':
-        type = 'UHDM_OBJECT_TYPE'
 
     Vpi_ = vpi[:1].upper() + vpi[1:]
 
-    if vpi == 'vpiFullName':
-        content.append(f'std::string_view {classname}::{Vpi_}() const {{')
-        content.append(f'  if (!{vpi}_) {{')
-        content.append( '    const std::string fullName = ComputeFullName();')
-        content.append( '    if (!fullName.empty()) {')
-        content.append(f'      const_cast<{classname}*>(this)->VpiFullName(fullName);')
-        content.append( '    }')
-        content.append( '  }')
-        content.append(f'  return serializer_->GetSymbol({vpi}_);')
-        content.append( '}')
-    else:
-        content.append(f'std::string_view {classname}::{Vpi_}() const {{')
-        content.append(f'  return {vpi}_ ? serializer_->GetSymbol({vpi}_) : kEmpty;')
+    if card == '1':
+        if type in ['string', 'value', 'delay']:
+            type = 'std::string'
+
+        if type != 'std::string':
+            return content, includes
+
+        if vpi == 'uhdmType':
+            type = 'UHDM_OBJECT_TYPE'
+
+        if vpi == 'vpiFullName':
+            content.append(f'std::string_view {classname}::{Vpi_}() const {{')
+            content.append(f'  if (!{vpi}_) {{')
+            content.append( '    const std::string fullName = ComputeFullName();')
+            content.append( '    if (!fullName.empty()) {')
+            content.append(f'      const_cast<{classname}*>(this)->VpiFullName(fullName);')
+            content.append( '    }')
+            content.append( '  }')
+            content.append(f'  return serializer_->GetSymbol({vpi}_);')
+            content.append( '}')
+        else:
+            content.append(f'std::string_view {classname}::{Vpi_}() const {{')
+            content.append(f'  return {vpi}_ ? serializer_->GetSymbol({vpi}_) : kEmpty;')
+            content.append(f'}}')
+
+        content.append('')
+        content.append(f'bool {classname}::{Vpi_}(std::string_view data) {{')
+        content.append(f'  {vpi}_ = serializer_->MakeSymbol(data);')
+        content.append(f'  return true;')
         content.append(f'}}')
+      
+    elif card == 'any':
+        content.append(f'VectorOf{type}* {classname}::{Vpi_}(bool createIfNull) {{')
+        content.append(f'  if ({vpi}_ == nullptr) {vpi}_ = serializer_->Make{type[:1].upper() + type[1:]}Vec();')
+        content.append(f'  return {vpi}_;')
+        content.append( '}')
 
     content.append('')
-    content.append(f'bool {classname}::{Vpi_}(std::string_view data) {{')
-    content.append(f'  {vpi}_ = serializer_->MakeSymbol(data);')
-    content.append(f'  return true;')
-    content.append(f'}}')
-    content.append('')
-
     return content, includes
 
 
@@ -579,6 +585,61 @@ def _get_Compare_implementation(model):
     return content, includes
 
 
+def _get_Swap_implementation(model):
+    classname = model['name']
+    modeltype = model['type']
+
+    includes = set()
+    content = [
+        f'void {classname}::Swap(BaseClass *what, BaseClass* with) {{',
+         '  basetype_t::Swap(what, with);',
+         ''
+    ]
+
+    for key, value in model.allitems():
+        if key not in ['property', 'obj_ref', 'class_ref', 'class', 'group_ref']:
+            continue
+
+        vpi = value.get('vpi')
+
+        type = value.get('type')
+        if type in ['value', 'delay']:
+            continue
+
+        name = value.get('name')
+        card = value.get('card')
+
+        if key == 'group_ref':
+            type = 'any'
+            
+        if card == '1': 
+            if type not in ['string', 'uint32_t', 'int32_t', 'bool']:
+                if type != 'any':
+                    includes.add(type)
+
+                Name = name[:1].upper() + name[1:]
+                content.append(f'  if (auto withT = with->Cast<{type}>()) if (auto p = {Name}()) {{')
+                content.append(f'    if (p == what) {Name}(withT); else p->Swap(what, with);')
+                content.append( '  }')
+        else:
+            if not name.endswith('s'):
+                name += 's'
+
+            Name = name[:1].upper() + name[1:]
+            if type != 'any':
+                includes.add(type)
+            content.append(f'  if (auto c = {Name}()) if (auto withT = with->Cast<{type}>()) {{')
+            content.append( '    for (auto &p : *c) if (p == what) p = withT; else p->Swap(what, with);')
+            content.append( '  }')
+
+    content.extend([
+        '}',
+        ''
+    ])
+
+    return content, includes
+
+
 _cached_members = {}
 def _get_group_members_recursively(model, models):
     global _cached_members
@@ -630,6 +691,14 @@ def _generate_group_checker(model, models, templates):
 
     return True
 
+
+def _is_subclass_of(models, class_name, base_class):
+    while class_name and (class_name != base_class):
+        model = models[class_name]
+        class_name = model.get('extends')
+
+    return class_name == base_class
+  
 
 def _generate_one_class(model, models, templates):
     header_file_content = templates['class_header.h']
@@ -710,6 +779,11 @@ def _generate_one_class(model, models, templates):
     declarations.append('  virtual std::tuple<const BaseClass*, UHDM_OBJECT_TYPE, const std::vector<const BaseClass*>*> GetByVpiType(int32_t type) const override;')
     declarations.append('  virtual vpi_property_value_t GetVpiPropertyValue(int32_t property) const override;')
     declarations.append('  virtual int32_t Compare(const BaseClass* other, CompareContext* context) const override;')
+    declarations.append('  virtual void Swap(BaseClass* what, BaseClass* with) override;')
+
+    if _is_subclass_of(models, classname, 'scope') or (classname in ['design', 'udp_defn']):
+        declarations.append('  virtual void OnChildAdded(BaseClass* child) override;')
+        declarations.append('  virtual void OnChildRemoved(BaseClass* child) override;')
 
     func_body, func_includes = _get_GetByVpiName_implementation(model)
     implementations.extend(func_body)
@@ -723,6 +797,10 @@ def _generate_one_class(model, models, templates):
     includes.update(func_includes)
 
     func_body, func_includes = _get_Compare_implementation(model)
+    implementations.extend(func_body)
+    includes.update(func_includes)
+
+    func_body, func_includes = _get_Swap_implementation(model)
     implementations.extend(func_body)
     includes.update(func_includes)
 
@@ -771,6 +849,9 @@ def generate(models):
             _generate_one_class(model, models, templates)
 
         content.append(f'#include "{classname}.cpp"')
+
+    content = sorted(content)
+    content.append('#include "models_impl.cpp"')
 
     file_utils.set_content_if_changed(config.get_output_source_filepath('classes.cpp'), '\n'.join(content))
     return True
