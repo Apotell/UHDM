@@ -229,16 +229,6 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
       COLLECT(parentAsScope, objNamedEventArray, Named_event_arrays,
               MakeNamed_event_arrayVec);
     }
-  } else if (variables* const objVariables = any_cast<variables>(this)) {
-    if (parentAsScope != nullptr) {
-      COLLECT(parentAsScope, objVariables, Variables, MakeVariablesVec);
-      if (logic_var* const objLogicVar = any_cast<logic_var>(objVariables)) {
-        COLLECT(parentAsScope, objLogicVar, Logic_vars, MakeLogic_varVec);
-      }
-      if (array_var* const objArrayVar = any_cast<array_var>(objVariables)) {
-        COLLECT(parentAsScope, objArrayVar, Array_vars, MakeArray_varVec);
-      }
-    }
   } else if (virtual_interface_var* const objVirtualInterfaceVar =
                  any_cast<virtual_interface_var>(this)) {
     if (parentAsScope != nullptr) {
@@ -276,10 +266,6 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
     } else if (parentAsDesign != nullptr) {
       COLLECT(parentAsDesign, objLetdecl, Let_decls, MakeLet_declVec);
     }
-  } else if (task_func* const objTaskFunc = any_cast<task_func>(this)) {
-    if (parentAsDesign != nullptr) {
-      COLLECT(parentAsDesign, objTaskFunc, Task_funcs, MakeTask_funcVec);
-    }
   } else if (io_decl* const objIoDecl = any_cast<io_decl>(this)) {
     if (parentAsUdpDefn != nullptr) {
       COLLECT(parentAsUdpDefn, objIoDecl, Io_decls, MakeIo_declVec);
@@ -290,6 +276,22 @@ bool BaseClass::SetVpiParent(any* parent, bool force /* = false */) {
     }
   } else {
     goodParent = parent;
+  }
+  if (variables* const objVariables = any_cast<variables>(this)) {
+    if (parentAsScope != nullptr) {
+      COLLECT(parentAsScope, objVariables, Variables, MakeVariablesVec);
+      if (logic_var* const objLogicVar = any_cast<logic_var>(objVariables)) {
+        COLLECT(parentAsScope, objLogicVar, Logic_vars, MakeLogic_varVec);
+      }
+      if (array_var* const objArrayVar = any_cast<array_var>(objVariables)) {
+        COLLECT(parentAsScope, objArrayVar, Array_vars, MakeArray_varVec);
+      }
+    }
+  }
+   if (task_func* const objTaskFunc = any_cast<task_func>(this)) {
+    if (parentAsDesign != nullptr) {
+      COLLECT(parentAsDesign, objTaskFunc, Task_funcs, MakeTask_funcVec);
+    }
   }
 
 #undef COLLECT
