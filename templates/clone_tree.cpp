@@ -1225,62 +1225,6 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmnamed_begin: {
-                named_begin* begin = (named_begin*)actual;
-                if (!found && begin->Variables()) {
-                  for (auto m : *begin->Variables()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
-                      found = true;
-                      previous = m;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(m);
-                      }
-                      break;
-                    }
-                  }
-                }
-                if (!found && begin->Array_vars()) {
-                  for (auto m : *begin->Array_vars()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
-                      found = true;
-                      previous = m;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(m);
-                      }
-                      break;
-                    }
-                  }
-                }
-                break;
-              }
-              case UHDM_OBJECT_TYPE::uhdmnamed_fork: {
-                named_fork* begin = (named_fork*)actual;
-                if (!found && begin->Variables()) {
-                  for (auto m : *begin->Variables()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
-                      found = true;
-                      previous = m;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(m);
-                      }
-                      break;
-                    }
-                  }
-                }
-                if (!found && begin->Array_vars()) {
-                  for (auto m : *begin->Array_vars()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
-                      found = true;
-                      previous = m;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(m);
-                      }
-                      break;
-                    }
-                  }
-                }
-                break;
-              }
               default:
                 break;
             }

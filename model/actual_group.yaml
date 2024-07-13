@@ -39,6 +39,4 @@
   - class_ref: scope
   - obj_ref: property_decl
   - obj_ref: sequence_decl
-
-
-
+  - obj_ref: port

@@ -89,20 +89,6 @@ void begin::OnChildRemoved(BaseClass* child) {
   basetype_t::OnChildRemoved(child);
 }
 
-void named_begin::OnChildAdded(BaseClass* child) {
-  basetype_t::OnChildAdded(child);
-}
-void named_begin::OnChildRemoved(BaseClass* child) {
-  basetype_t::OnChildRemoved(child);
-}
-
-void named_fork::OnChildAdded(BaseClass* child) {
-  basetype_t::OnChildAdded(child);
-}
-void named_fork::OnChildRemoved(BaseClass* child) {
-  basetype_t::OnChildRemoved(child);
-}
-
 void fork_stmt::OnChildAdded(BaseClass* child) {
   basetype_t::OnChildAdded(child);
 }

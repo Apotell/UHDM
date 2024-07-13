@@ -20,8 +20,6 @@ gen_stmts.yaml
 instance_item.yaml
 scope.yaml
 begin.yaml
-named_begin.yaml
-named_fork.yaml
 fork_stmt.yaml
 for_stmt.yaml
 if_stmt.yaml
@@ -145,6 +143,9 @@ var_bit.yaml
 task_func.yaml
 task.yaml
 function.yaml
+task_func_decl.yaml
+task_decl.yaml
+function_decl.yaml
 modport.yaml
 interface_tf_decl.yaml
 cont_assign.yaml

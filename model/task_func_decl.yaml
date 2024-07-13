@@ -14,8 +14,17 @@
 
 # Universal Hardware Data Model (UHDM) "task func" formal description
  
-- class_def: task_func
-  - extends: scope
+- class_def: task_func_decl
+  - property: name
+    name: name
+    vpi: vpiName
+    type: string
+    card: 1
+  - property: full_name
+    name: full name
+    vpi: vpiFullName
+    type: string
+    card: 1
   - property: method
     name: method
     vpi: vpiMethod
@@ -81,21 +90,16 @@
     vpi: vpiClassDefn
     type: clocking_block
     card: 1
-  - class_ref: task_func_decl
-    name: task func decl
-    vpi: vpiTaskFuncDecl
-    type: task_func_decl
-    card: any
+  - class_ref: task_func
+    name: task func
+    vpi: vpiTaskFunc
+    type: task_func
+    card: 1
   - obj_ref: io_decl
     name: io decl
     vpi: vpiIODecl
     type: io_decl
     card: any
-  - group_ref: stmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
   - class_ref: instance
     name: instance
     vpi: vpiInstance

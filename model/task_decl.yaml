@@ -12,22 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "named fork" formal description
+# Universal Hardware Data Model (UHDM) "task" formal description
  
-- obj_def: named_fork
-  - extends: scope
-  - property: join_type
-    name: join type
-    vpi: vpiJoinType
-    type: int32_t
-    card: 1
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+- obj_def: task_decl
+  - extends: task_func_decl
+

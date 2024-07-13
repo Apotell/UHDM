@@ -5072,26 +5072,6 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       }
       break;
     }
-    case UHDM_OBJECT_TYPE::uhdmnamed_begin: {
-      named_begin *st = (named_begin *)stmt;
-      if (st->Variables()) {
-        for (auto var : *st->Variables()) {
-          if (const ref_typespec *rt = var->Typespec()) {
-            local_vars.emplace(var->VpiName(), rt->Actual_typespec());
-          }
-        }
-      }
-      if (st->Stmts()) {
-        for (auto bst : *st->Stmts()) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), bst, local_vars, muteError);
-          if (continue_flag || break_flag || return_flag) {
-            return;
-          }
-        }
-      }
-      break;
-    }
     case UHDM_OBJECT_TYPE::uhdmassignment: {
       assignment *st = (assignment *)stmt;
       const std::string_view lhs = st->Lhs()->VpiName();
@@ -5406,24 +5386,6 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
     switch (stt) {
       case UHDM_OBJECT_TYPE::uhdmbegin: {
         begin *st = (begin *)the_stmt;
-        bool continue_flag = false;
-        bool break_flag = false;
-        for (auto stmt : *st->Stmts()) {
-          evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, modinst, stmt, vars, muteError);
-          if (return_flag) break;
-          if (continue_flag || break_flag) {
-            if (muteError == false && m_muteError == false) {
-              const std::string errMsg(inst->VpiName());
-              s.GetErrorHandler()(ErrorType::UHDM_UNSUPPORTED_STMT, errMsg,
-                                  stmt, nullptr);
-            }
-          }
-        }
-        break;
-      }
-      case UHDM_OBJECT_TYPE::uhdmnamed_begin: {
-        named_begin *st = (named_begin *)the_stmt;
         bool continue_flag = false;
         bool break_flag = false;
         for (auto stmt : *st->Stmts()) {
