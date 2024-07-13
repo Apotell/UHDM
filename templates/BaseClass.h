@@ -115,33 +115,7 @@ class BaseClass : public RTTI {
     return (vpiParent_ == nullptr) ? nullptr
                                    : vpiParent_->template Cast<const T*>();
   }
-  bool VpiParent(BaseClass* data) {
-    // if (vpiParent_ != data) {
-    //   // Allow changing only from/to nullptr
-    //   if (((vpiParent_ == nullptr) && (data != nullptr)) ||
-    //       ((vpiParent_ != nullptr) && (data == nullptr))) {
-    //     BaseClass* const oldParent = vpiParent_;
-    //     vpiParent_ = nullptr;
-    //     if (vpiParent_ != nullptr) oldParent->OnChildRemoved(this);
-    // 
-    //     vpiParent_ = data;
-    //     if (vpiParent_ != nullptr) vpiParent_->OnChildAdded(this);
-    //     return true;
-    //   }
-    //   return false;
-    // }
-    vpiParent_ = data;
-    return true;
-  }
-
-  // VpiParent(...) vs. SetVpiParent(...)
-  // The former unconditionally sets the parent to input value
-  // Latter, however, does special handling for a number of cases to ensure strict
-  // restrictions like typespec's parent should always be a scope and the typespec
-  // should be included in the Typespecs container of the scope.
-  // The implementation of this function is in Serializer.cpp since it requires access
-  // to a number of other types.
-  bool SetVpiParent(BaseClass* data, bool force = false);
+  virtual bool VpiParent(BaseClass* data, bool force = false);
 
   std::string_view VpiFile() const;
   bool VpiFile(std::string_view data);

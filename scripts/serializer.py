@@ -170,8 +170,8 @@ def generate(models):
     with open(config.get_template_filepath('Serializer.cpp'), 'rt') as strm:
         file_content = strm.read()
 
-    file_content = file_content.replace('<CAPNP_ID>', '\n'.join(save_ids))
-    file_content = file_content.replace('<FACTORY_GC>', '\n'.join(factory_gc))
+    file_content = file_content.replace('<CAPNP_ID>', '\n'.join(sorted(save_ids)))
+    file_content = file_content.replace('<FACTORY_GC>', '\n'.join(sorted(factory_gc)))
     file_content = file_content.replace('<UHDM_NAME_MAP>', '\n'.join(uhdm_name_map))
     file_content = file_content.replace('<FACTORY_PURGE>', '\n'.join(sorted(factory_purge)))
     file_content = file_content.replace('<FACTORY_STATS>', '\n'.join(sorted(factory_stats)))
@@ -182,7 +182,7 @@ def generate(models):
     with open(config.get_template_filepath('Serializer_save.cpp'), 'rt') as strm:
         file_content = strm.read()
 
-    file_content = file_content.replace('<CAPNP_SAVE>', '\n'.join(save_objects))
+    file_content = file_content.replace('<CAPNP_SAVE>', '\n'.join(sorted(save_objects)))
     file_content = file_content.replace('<CAPNP_SAVE_ADAPTERS>', '\n'.join(saves_adapters))
     file_utils.set_content_if_changed(config.get_output_source_filepath('Serializer_save.cpp'), file_content)
 

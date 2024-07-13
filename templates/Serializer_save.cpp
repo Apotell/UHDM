@@ -105,7 +105,7 @@ void Serializer::Save(const std::string& filepath) {
 
   const IdMap idMap = AllObjects();
   SaveAdapter adapter;
-  <CAPNP_SAVE>
+<CAPNP_SAVE>
 
   // Save the symbols after all save function have been invoked, some symbols are made doing so (VpiFullName)
   // This is not ideal.

@@ -1,5 +1,4 @@
 attribute.yaml
-virtual_interface_var.yaml
 let_decl.yaml
 assertion.yaml
 stmt.yaml
@@ -139,6 +138,7 @@ union_var.yaml
 enum_var.yaml
 string_var.yaml
 chandle_var.yaml
+virtual_interface_var.yaml
 var_bit.yaml
 task_func.yaml
 task.yaml

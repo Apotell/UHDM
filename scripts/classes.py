@@ -3,6 +3,188 @@ import os
 import config
 import file_utils
 
+_collector_class_types = {
+    'scope': set([
+        ( 'array_net', 'Instance_items' ),
+        ( 'array_var', 'Array_vars' ),
+        ( 'assert_stmt', 'Instance_items' ),
+        ( 'assume', 'Instance_items' ),
+        ( 'checker_inst', 'Instance_items' ),
+        ( 'class_defn', 'Instance_items' ),
+        ( 'concurrent_assertions', 'Concurrent_assertions' ),
+        ( 'cover', 'Instance_items' ),
+        ( 'immediate_assert', 'Instance_items' ),
+        ( 'immediate_assume', 'Instance_items' ),
+        ( 'immediate_cover', 'Instance_items' ),
+        ( 'let_decl', 'Let_decls' ),
+        ( 'logic_var', 'Logic_vars' ),
+        ( 'named_event', 'Instance_items' ),
+        ( 'named_event', 'Named_events' ),
+        ( 'named_event_array', 'Instance_items' ),
+        ( 'named_event_array', 'Named_event_arrays' ),
+        ( 'net', 'Instance_items' ),
+        ( 'param_assign', 'Param_assigns' ),
+        ( 'parameter', 'Parameters' ),
+        ( 'program', 'Instance_items' ),
+        ( 'program_array', 'Instance_items' ),
+        ( 'property_decl', 'Property_decls' ),
+        ( 'property_inst', 'Instance_items' ),
+        ( 'restrict', 'Instance_items' ),
+        ( 'scope', 'Scopes' ),
+        ( 'sequence_decl', 'Sequence_decls' ),
+        ( 'sequence_inst', 'Instance_items' ),
+        ( 'spec_param', 'Instance_items' ),
+        ( 'task_func', 'Instance_items' ),
+        ( 'type_parameter', 'Parameters' ),
+        ( 'typespec', 'Instance_items' ),
+        ( 'typespec', 'Typespecs' ),
+        ( 'variables', 'Instance_items' ),
+        ( 'variables', 'Variables' ),
+    ]),
+    'udp_defn': set([
+        ( 'io_decl', 'Io_decls' ),
+        ( 'table_entry', 'Table_entrys' ),
+    ]),
+    'design': set([
+        ( 'class_defn', 'AllClasses' ),
+        ( 'interface_inst', 'AllInterfaces' ),
+        ( 'let_decl', 'Let_decls' ),
+        ( 'module_inst', 'AllModules' ),
+        ( 'package', 'AllPackages' ),
+        ( 'param_assign', 'Param_assigns' ),
+        ( 'parameter', 'Parameters' ),
+        ( 'program', 'AllPrograms' ),
+        ( 'task_func', 'Task_funcs' ),
+        ( 'typespec', 'Typespecs' ),
+        ( 'udp_defn', 'AllUdps' ),
+    ]),
+    'class_defn': set([
+        ( 'class_defn', 'Deriveds' ),
+        ( 'class_typespec', 'Class_typespecs' ),
+        ( 'constraint', 'Constraints' ),
+        ( 'task_func', 'Task_funcs' ),
+    ]),
+    'class_obj': set([
+        ( 'constraint', 'Constraints' ),
+        ( 'expr', 'Messages' ),
+        ( 'task_func', 'Task_funcs' ),
+        ( 'thread_obj', 'Threads' ),
+    ]),
+    'instance': set([
+        ( 'array_net', 'Array_nets' ),
+        ( 'class_defn', 'Class_defns' ),
+        ( 'net', 'Nets' ),
+        ( 'program', 'Programs' ),
+        ( 'program_array', 'Program_arrays' ),
+        ( 'spec_param', 'Spec_params' ),
+        ( 'task_func', 'Task_funcs' ),
+    ]),
+    'checker_decl': set([
+        ( 'checker_port', 'Ports' ),
+        ( 'cont_assign', 'Cont_assigns' ),
+        ( 'process_stmt', 'Process' ),
+    ]),
+    'checker_inst': set([
+        ( 'checker_inst_port', 'Ports' )
+    ]),
+    'interface_inst': set([
+        ( 'clocking_block', 'Clocking_blocks' ),
+        ( 'cont_assign', 'Cont_assigns' ),
+        ( 'gen_scope_array', 'Gen_scope_arrays' ),
+        ( 'gen_stmt', 'Gen_stmts' ),
+        ( 'interface_array', 'Interface_arrays' ),
+        ( 'interface_inst', 'Interfaces' ),
+        ( 'interface_tf_decl', 'Interface_tf_decls' ),
+        ( 'mod_path', 'Mod_paths' ),
+        ( 'modport', 'Modports' ),
+        ( 'port', 'Ports' ),
+        ( 'process_stmt', 'Process' ),
+        ( 'tf_call', 'Elab_tasks' ),
+    ]),
+    'module_inst': set([
+        ( 'alias_stmt', 'Alias_stmts' ),
+        ( 'clocking_block', 'Clocking_blocks' ),
+        ( 'cont_assign', 'Cont_assigns' ),
+        ( 'def_param', 'Def_params' ),
+        ( 'gen_scope_array', 'Gen_scope_arrays' ),
+        ( 'gen_stmt', 'Gen_stmts' ),
+        ( 'interface_array', 'Interface_arrays' ),
+        ( 'interface_inst', 'Interfaces' ),
+        ( 'io_decl', 'Io_decls' ),
+        ( 'mod_path', 'Mod_paths' ),
+        ( 'module_array', 'Module_arrays' ),
+        ( 'module_inst', 'Modules' ),
+        ( 'port', 'Ports' ),
+        ( 'primitive', 'Primitives' ),
+        ( 'primitive_array', 'Primitive_arrays' ),
+        ( 'process_stmt', 'Process' ),
+        ( 'ref_module', 'Ref_modules' ),
+        ( 'tchk', 'Tchks' ),
+        ( 'tf_call', 'Elab_tasks' ),
+    ]),
+    'multiclock_sequence_expr': set([
+        ( 'clocked_seq', 'Clocked_seqs' ),
+    ]),
+    'program': set([
+        ( 'clocking_block', 'Clocking_blocks' ),
+        ( 'cont_assign', 'Cont_assigns' ),
+        ( 'gen_scope_array', 'Gen_scope_arrays' ),
+        ( 'interface_array', 'Interface_arrays' ),
+        ( 'interface_inst', 'Interfaces' ),
+        ( 'port', 'Ports' ),
+        ( 'process_stmt', 'Process' ),
+    ]),
+}
+
+_special_parenting_types = set([
+    'alias_stmt',
+    'assertion',
+    'checker_inst',
+    'checker_inst_port',
+    'class_defn',
+    'concurrent_assertions',
+    'constraint',
+    'cont_assign',
+    'def_param',
+    'gen_scope_array',
+    'gen_stmt',
+    'immediate_assert',
+    'immediate_assume',
+    'immediate_cover',
+    'interface_array',
+    'interface_inst',
+    'interface_tf_decl',
+    'io_decl',
+    'let_decl',
+    'modport',
+    'module_array',
+    'module_inst',
+    'named_event',
+    'named_event_array',
+    'nets',
+    'param_assign',
+    'parameter',
+    'ports',
+    'primitive',
+    'primitive_array',
+    'process_stmt',
+    'program',
+    'program_array',
+    'property_decl',
+    'property_inst',
+    'ref_module',
+    'scope',
+    'sequence_decl',
+    'sequence_inst',
+    'spec_param',
+    'table_entry',
+    'task_func',
+    'tchk',
+    'thread_obj',
+    'typespec',
+    'variables',
+])
+
 
 def _get_group_headers(type, real_type):
     return [ f'#include "{real_type}.h"' ] if type == 'any' else []
@@ -15,12 +197,7 @@ def _get_declarations(type, vpi, card, real_type=''):
     if vpi == 'uhdmType':
         type = 'UHDM_OBJECT_TYPE'
 
-    final = ''
-    virtual = ''
-    if vpi in ['uhdmType', 'vpiName', 'vpiDefName']:
-        final = ' final'
-        virtual = 'virtual '
-
+    final = ' final' if vpi in ['uhdmType', 'vpiName', 'vpiDefName'] else ''
     check = ''
     if type == 'any':
         check = f'if (!{real_type}GroupCompliant(data)) return false;\n    '
@@ -29,14 +206,14 @@ def _get_declarations(type, vpi, card, real_type=''):
 
     if card == '1':
         if type == 'std::string':
-            content.append(f'  {virtual}bool {Vpi_}(std::string_view data){final};')
-            content.append(f'  {virtual}std::string_view {Vpi_}() const{final};')
+            content.append(f'  bool {Vpi_}(std::string_view data);')
+            content.append(f'  std::string_view {Vpi_}() const{final};')
         elif type in ['uint32_t', 'int32_t', 'bool']:
-            content.append(f'  {virtual}{type} {Vpi_}() const{final} {{ return {vpi}_; }}')
-            content.append(f'  {virtual}bool {Vpi_}({type} data){final} {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
+            content.append(f'  {type} {Vpi_}() const{final} {{ return {vpi}_; }}')
+            content.append(f'  bool {Vpi_}({type} data) {{\n    {vpi}_ = data;\n    return true;\n  }}')
         else:
-            content.append(f'  {virtual}{type}* {Vpi_}() {final} {{ return {vpi}_; }}')
-            content.append(f'  {virtual}const {type}* {Vpi_}() const{final} {{ return {vpi}_; }}')
+            content.append(f'  {type}* {Vpi_}(){final} {{ return {vpi}_; }}')
+            content.append(f'  const {type}* {Vpi_}() const{final} {{ return {vpi}_; }}')
             content.append( '  template <typename T>')
             content.append(f'  T* {Vpi_}() {{')
             content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<T*>({vpi}_);')
@@ -45,11 +222,11 @@ def _get_declarations(type, vpi, card, real_type=''):
             content.append(f'  const T* {Vpi_}() const {{')
             content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<const T*>({vpi}_);')
             content.append( '  }')
-            content.append(f'  {virtual}bool {Vpi_}({type}* data){final} {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
+            content.append(f'  bool {Vpi_}({type}* data) {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
     elif card == 'any':
         content.append(f'  VectorOf{type}* {Vpi_}() const {{ return {vpi}_; }}')
         content.append(f'  VectorOf{type}* {Vpi_}(bool createIfNull);')
-        content.append(f'  bool {Vpi_}(VectorOf{type}* data) {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
+        content.append(f'  bool {Vpi_}(VectorOf{type}* data) {{\n    {check}if ({vpi}_ == nullptr) {{\n      {vpi}_ = data;\n      return true;\n    }}\n    return false;\n  }}')
 
     return '\n'.join(content)
 
@@ -90,7 +267,7 @@ def _get_implementations(classname, type, vpi, card):
         content.append(f'  {vpi}_ = serializer_->MakeSymbol(data);')
         content.append(f'  return true;')
         content.append(f'}}')
-      
+
     elif card == 'any':
         content.append(f'VectorOf{type}* {classname}::{Vpi_}(bool createIfNull) {{')
         content.append(f'  if ({vpi}_ == nullptr) {vpi}_ = serializer_->Make{type[:1].upper() + type[1:]}Vec();')
@@ -129,7 +306,7 @@ def _get_DeepClone_implementation(model, models):
     classname = model.get('name')
     modeltype = model.get('type')
     Classname = classname[0].upper() + classname[1:]
-    includes = set(['ElaboratorListener'])
+    includes = set()
     content = []
     content.append(f'void {classname}::DeepCopy({classname}* clone, BaseClass* parent, CloneContext* context) const {{')
     content.append( '  [[maybe_unused]] ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
@@ -259,24 +436,21 @@ def _get_DeepClone_implementation(model, models):
             elif method == 'Typespecs':
                 # Don't deep clone
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
-                content.append(f'    clone->{method}(clone_vec);')
+                content.append(f'    auto clone_vec = clone->{method}(true);')
                 content.append( '    clone_vec->insert(clone_vec->cend(), vec->cbegin(), vec->cend());')
                 content.append( '  }')
 
             elif (classname == 'class_defn') and (method == 'Deriveds'):
                 # Don't deep clone
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
-                content.append(f'    clone->{method}(clone_vec);')
+                content.append(f'    auto clone_vec = clone->{method}(true);')
                 content.append( '    clone_vec->insert(clone_vec->cend(), vec->cbegin(), vec->cend());')
                 content.append( '  }')
 
             else:
                 # N-ary relations
                 content.append(f'  if (auto vec = {method}()) {{')
-                content.append(f'    auto clone_vec = context->m_serializer->Make{Cast}Vec();')
-                content.append(f'    clone->{method}(clone_vec);')
+                content.append(f'    auto clone_vec = clone->{method}(true);')
                 content.append( '    for (auto obj : *vec) {')
                 content.append( '      clone_vec->push_back(obj->DeepClone(clone, context));')
                 content.append( '    }')
@@ -611,8 +785,8 @@ def _get_Swap_implementation(model):
 
         if key == 'group_ref':
             type = 'any'
-            
-        if card == '1': 
+
+        if card == '1':
             if type not in ['string', 'uint32_t', 'int32_t', 'bool']:
                 if type != 'any':
                     includes.add(type)
@@ -692,13 +866,60 @@ def _generate_group_checker(model, models, templates):
     return True
 
 
-def _is_subclass_of(models, class_name, base_class):
-    while class_name and (class_name != base_class):
-        model = models[class_name]
-        class_name = model.get('extends')
+def _get_VpiParent_implementation(model):
+    classname = model['name']
+    includes = ['scope', 'design']
 
-    return class_name == base_class
-  
+    content = [
+        f'bool {classname}::VpiParent(BaseClass* data, bool force /* = false */) {{',
+         '  if ((data != nullptr) && (UhdmType() != uhdmbegin) && (data->Cast<scope>() == nullptr) && (data->Cast<design>() == nullptr)) {',
+         '    if (this != serializer_->TopScope()) data = serializer_->TopScope();',
+         '  }',
+        '  return basetype_t::VpiParent(data, force);',
+        '}',
+        ''
+    ]
+
+    return content, includes
+
+
+
+def _get_OnChildXXX_implementation(model):
+    classname = model['name']
+
+    added_contents = [
+        f'void {classname}::OnChildAdded(BaseClass* child) {{',
+         '  basetype_t::OnChildAdded(child);'
+    ]
+    removed_contents = [
+        f'void {classname}::OnChildRemoved(BaseClass* child) {{',
+         '  basetype_t::OnChildRemoved(child);'
+    ]
+
+    includes = set()
+    for (member, Member) in sorted(_collector_class_types[classname]):
+        includes.add(member)
+        added_contents.extend([
+            f'  if ({member} *const childT = child->Cast<{member}>()) {{',
+            f'    {Member}(true)->emplace_back(childT);',
+              '  }'
+        ])
+
+        removed_contents.extend([
+            f'  if ({member} *const childT = child->Cast<{member}>()) {{',
+            f'    if (auto collection = {Member}(false)) {{',
+             '      collection->erase(',
+             '          std::remove(collection->begin(), collection->end(), childT),',
+             '          collection->end());',
+             '    }',
+             '  }'
+        ])
+
+    added_contents.append('}')
+    removed_contents.append('}')
+
+    return (added_contents + [''] + removed_contents), includes
+
 
 def _generate_one_class(model, models, templates):
     header_file_content = templates['class_header.h']
@@ -706,16 +927,23 @@ def _generate_one_class(model, models, templates):
     classname = model['name']
     modeltype = model['type']
     group_headers = set()
-    declarations = []
+    public_declarations = []
+    private_declarations = []
     data_members = []
     implementations = []
     forward_declares = set()
-    includes = set(['Serializer'])
+    includes = set()
     leaf = (modeltype == 'obj_def') and (len(model['subclasses']) == 0)
 
     baseclass_name = model.get('extends', 'BaseClass')
     baseclass_model = models.get(baseclass_name, {})
     baseclass_type = baseclass_model.get('type')
+
+    if classname in _special_parenting_types:
+      public_declarations.extend([
+           '  using basetype_t::VpiParent;',
+          f'  bool VpiParent(BaseClass* data, bool force = false) {"final" if leaf else "override"};',
+      ])
 
     type_specified = False
     for key, value in model.allitems():
@@ -729,10 +957,10 @@ def _generate_one_class(model, models, templates):
 
             if name == 'type':
                 type_specified = True
-                declarations.append(f'  {type} {Vpi}() const {"final" if leaf else "override"} {{ return {value.get("vpiname")}; }}')
+                public_declarations.append(f'  {type} {Vpi}() const {"final" if leaf else "override"} {{ return {value.get("vpiname")}; }}')
             else: # properties are already defined in vpi_user.h, no need to redefine them
                 data_members.extend(_get_data_member(type, vpi, card))
-                declarations.append(_get_declarations(type, vpi, card))
+                public_declarations.append(_get_declarations(type, vpi, card))
                 func_body, func_includes = _get_implementations(classname, type, vpi, card)
                 implementations.extend(func_body)
                 includes.update(func_includes)
@@ -759,31 +987,32 @@ def _generate_one_class(model, models, templates):
 
             group_headers.update(_get_group_headers(type, real_type))
             data_members.extend(_get_data_member(type, name, card))
-            declarations.append(_get_declarations(type, name, card, real_type))
+            public_declarations.append(_get_declarations(type, name, card, real_type))
             func_body, func_includes = _get_implementations(classname, type, name, card)
             implementations.extend(func_body)
             includes.update(func_includes)
 
     if not type_specified and (modeltype == 'obj_def'):
         vpiclasstype = config.make_vpi_name(classname)
-        declarations.append(f'  virtual uint32_t VpiType() const {"final" if leaf else "override"} {{ return {vpiclasstype}; }}')
+        public_declarations.append(f'  uint32_t VpiType() const {"final" if leaf else "override"} {{ return {vpiclasstype}; }}')
 
     if modeltype == 'class_def':
         # DeepClone() not implemented for class_def; just declare to narrow the covariant return type.
-        declarations.append(f'  virtual {classname}* DeepClone(BaseClass* parent, CloneContext* context) const override = 0;')
+        public_declarations.append(f'  {classname}* DeepClone(BaseClass* parent, CloneContext* context) const override = 0;')
     else:
         return_type = 'tf_call' if '_call' in classname else classname
-        declarations.append(f'  virtual {return_type}* DeepClone(BaseClass* parent, CloneContext* context) const override;')
+        public_declarations.append(f'  {return_type}* DeepClone(BaseClass* parent, CloneContext* context) const override;')
 
-    declarations.append('  virtual const BaseClass* GetByVpiName(std::string_view name) const override;')
-    declarations.append('  virtual std::tuple<const BaseClass*, UHDM_OBJECT_TYPE, const std::vector<const BaseClass*>*> GetByVpiType(int32_t type) const override;')
-    declarations.append('  virtual vpi_property_value_t GetVpiPropertyValue(int32_t property) const override;')
-    declarations.append('  virtual int32_t Compare(const BaseClass* other, CompareContext* context) const override;')
-    declarations.append('  virtual void Swap(BaseClass* what, BaseClass* with) override;')
+    public_declarations.append('  const BaseClass* GetByVpiName(std::string_view name) const override;')
+    public_declarations.append('  std::tuple<const BaseClass*, UHDM_OBJECT_TYPE, const std::vector<const BaseClass*>*> GetByVpiType(int32_t type) const override;')
+    public_declarations.append('  vpi_property_value_t GetVpiPropertyValue(int32_t property) const override;')
+    public_declarations.append('  int32_t Compare(const BaseClass* other, CompareContext* context) const override;')
+    public_declarations.append('  void Swap(BaseClass* what, BaseClass* with) override;')
 
-    if _is_subclass_of(models, classname, 'scope') or (classname in ['design', 'udp_defn']):
-        declarations.append('  virtual void OnChildAdded(BaseClass* child) override;')
-        declarations.append('  virtual void OnChildRemoved(BaseClass* child) override;')
+    if classname in _special_parenting_types:
+        func_body, func_includes = _get_VpiParent_implementation(model)
+        implementations.extend(func_body)
+        includes.update(func_includes)
 
     func_body, func_includes = _get_GetByVpiName_implementation(model)
     implementations.extend(func_body)
@@ -804,6 +1033,14 @@ def _generate_one_class(model, models, templates):
     implementations.extend(func_body)
     includes.update(func_includes)
 
+    if classname in _collector_class_types:
+        private_declarations.append('  void OnChildAdded(BaseClass* child) override;')
+        private_declarations.append('  void OnChildRemoved(BaseClass* child) override;')
+
+        func_body, func_includes = _get_OnChildXXX_implementation(model)
+        implementations.extend(func_body)
+        includes.update(func_includes)
+
     includes.update(forward_declares)
 
     is_class_def = modeltype == 'class_def'
@@ -817,7 +1054,8 @@ def _generate_one_class(model, models, templates):
     header_file_content = header_file_content.replace('<EXTENDS>', 'BaseClass')
     header_file_content = header_file_content.replace('<CLASSNAME>', classname)
     header_file_content = header_file_content.replace('<UPPER_CLASSNAME>', classname.upper())
-    header_file_content = header_file_content.replace('<METHODS>', '\n\n'.join(declarations))
+    header_file_content = header_file_content.replace('<PUBLIC_METHODS>', '\n\n'.join(public_declarations))
+    header_file_content = header_file_content.replace('<PRIVATE_METHODS>', '\n\n'.join(private_declarations))
     header_file_content = header_file_content.replace('<MEMBERS>', '\n\n'.join(data_members))
     header_file_content = header_file_content.replace('<GROUP_HEADER_DEPENDENCY>', '\n'.join(sorted(group_headers)))
     header_file_content = header_file_content.replace('<TYPE_FORWARD_DECLARE>', '\n'.join([f'class {type};' for type in sorted(forward_declares)]))
@@ -850,10 +1088,7 @@ def generate(models):
 
         content.append(f'#include "{classname}.cpp"')
 
-    content = sorted(content)
-    content.append('#include "models_impl.cpp"')
-
-    file_utils.set_content_if_changed(config.get_output_source_filepath('classes.cpp'), '\n'.join(content))
+    file_utils.set_content_if_changed(config.get_output_source_filepath('classes.cpp'), '\n'.join(sorted(content)))
     return True
 
 

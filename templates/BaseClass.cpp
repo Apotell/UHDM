@@ -35,6 +35,25 @@ bool BaseClass::VpiFile(std::string_view data) {
   return true;
 }
 
+bool BaseClass::VpiParent(BaseClass* data, bool force /* = false */) {
+  if (vpiParent_ == data) return true;
+  // Allow changing only from/to nullptr
+  if (!force &&
+      !(((vpiParent_ == nullptr) && (data != nullptr)) ||
+        ((vpiParent_ != nullptr) && (data == nullptr))))
+    return false;
+
+  BaseClass* const oldParent = vpiParent_;
+
+  vpiParent_ = nullptr;
+  if (oldParent != nullptr) oldParent->OnChildRemoved(this);
+ 
+  vpiParent_ = data;
+  if (vpiParent_ != nullptr) vpiParent_->OnChildAdded(this);
+
+  return true;
+}
+
 const BaseClass* BaseClass::GetByVpiName(std::string_view name) const {
   return nullptr;
 }
