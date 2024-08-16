@@ -873,7 +873,7 @@ def _get_VpiParent_implementation(model):
     content = [
         f'bool {classname}::VpiParent(BaseClass* data, bool force /* = false */) {{',
          '  if ((data != nullptr) && (UhdmType() != uhdmbegin) && (data->Cast<scope>() == nullptr) && (data->Cast<design>() == nullptr)) {',
-         '    if (this != serializer_->TopScope()) data = serializer_->TopScope();',
+         '    if (this != serializer_->TopScope()) if (BaseClass* const topScope = serializer_->TopScope()) data = topScope;',
          '  }',
         '  return basetype_t::VpiParent(data, force);',
         '}',
