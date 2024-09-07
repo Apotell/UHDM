@@ -40,3 +40,4 @@
   - obj_ref: property_decl
   - obj_ref: sequence_decl
   - obj_ref: port
+  - obj_ref: constraint
