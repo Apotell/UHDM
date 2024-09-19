@@ -164,7 +164,6 @@ _special_parenting_types = set([
     'nets',
     'param_assign',
     'parameter',
-    'ports',
     'primitive',
     'primitive_array',
     'process_stmt',
