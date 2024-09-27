@@ -133,7 +133,8 @@ std::string BaseClass::ComputeFullName() const {
                                               ? actual_parent->UhdmType()
                                               : uhdmunsupported_stmt;
     if (parent_type == UHDM_OBJECT_TYPE::uhdmdesign) break;
-    if ((parent_type == UHDM_OBJECT_TYPE::uhdmpackage) || (parent_type == UHDM_OBJECT_TYPE::uhdmclass_defn))
+    if ((parent_type == UHDM_OBJECT_TYPE::uhdmpackage) ||
+        (parent_type == UHDM_OBJECT_TYPE::uhdmclass_defn))
       column = true;
     std::string_view name =
         parent->VpiName().empty() ? parent->VpiDefName() : parent->VpiName();
@@ -151,17 +152,20 @@ std::string BaseClass::ComputeFullName() const {
     }
     if (child != nullptr) {
       UHDM_OBJECT_TYPE child_type = child->UhdmType();
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmbit_select) && (parent_type == UHDM_OBJECT_TYPE::uhdmport)) {
+      if ((child_type == UHDM_OBJECT_TYPE::uhdmbit_select) &&
+          (parent_type == UHDM_OBJECT_TYPE::uhdmport)) {
         skip_name = true;
       }
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) && (parent_type == UHDM_OBJECT_TYPE::uhdmbit_select)) {
+      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
+          (parent_type == UHDM_OBJECT_TYPE::uhdmbit_select)) {
         skip_name = true;
       }
       if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
           (parent_type == UHDM_OBJECT_TYPE::uhdmindexed_part_select)) {
         skip_name = true;
       }
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) && (parent_type == UHDM_OBJECT_TYPE::uhdmhier_path)) {
+      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
+          (parent_type == UHDM_OBJECT_TYPE::uhdmhier_path)) {
         skip_name = true;
       }
     }
@@ -212,8 +216,17 @@ int32_t BaseClass::Compare(const BaseClass* const other,
   return r;
 }
 
-void BaseClass::Swap(BaseClass* what, BaseClass* with) {
-  if (VpiParent() == what) VpiParent(with);
+void BaseClass::Swap(const BaseClass* what, BaseClass* with) {
+  // Do NOT call VpiParent(with) here because it invokes OnChildXXX
+  // causing edits to containers that are being iterated on the call stack.
+  if (VpiParent() == what) vpiParent_ = with;
+}
+
+void BaseClass::Swap(
+  const std::map<const BaseClass *, BaseClass *> &replacements) {
+  for (auto [what, with] : replacements) {
+    Swap(what, with);
+  }
 }
 
 }  // namespace UHDM

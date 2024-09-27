@@ -171,7 +171,8 @@ class BaseClass : public RTTI {
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
 
-  virtual void Swap(BaseClass* what, BaseClass* with);
+  virtual void Swap(const BaseClass* what, BaseClass* with);
+  void Swap(const std::map<const BaseClass*, BaseClass*>& replacements);
 
  protected:
   void DeepCopy(BaseClass* clone, BaseClass* parent,

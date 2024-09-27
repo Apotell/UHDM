@@ -764,7 +764,7 @@ def _get_Swap_implementation(model):
 
     includes = set()
     content = [
-        f'void {classname}::Swap(BaseClass *what, BaseClass* with) {{',
+        f'void {classname}::Swap(const BaseClass *what, BaseClass* with) {{',
          '  basetype_t::Swap(what, with);',
          ''
     ]
@@ -1006,7 +1006,7 @@ def _generate_one_class(model, models, templates):
     public_declarations.append('  std::tuple<const BaseClass*, UHDM_OBJECT_TYPE, const std::vector<const BaseClass*>*> GetByVpiType(int32_t type) const override;')
     public_declarations.append('  vpi_property_value_t GetVpiPropertyValue(int32_t property) const override;')
     public_declarations.append('  int32_t Compare(const BaseClass* other, CompareContext* context) const override;')
-    public_declarations.append('  void Swap(BaseClass* what, BaseClass* with) override;')
+    public_declarations.append('  void Swap(const BaseClass* what, BaseClass* with) override;')
 
     if classname in _special_parenting_types:
         func_body, func_includes = _get_VpiParent_implementation(model)
