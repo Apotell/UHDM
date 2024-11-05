@@ -90,12 +90,14 @@ extern "C" {
 #define vpiEventTypespec                      698
 #define vpiModuleTypespec                     768 /* !!! NOT Standard !!! */
 #define vpiRefTypespec                        769 /* !!! NOT Standard !!! */
-#define vpiLabel                              770
-#define vpiEndLabel                           771
-#define vpiTaskFuncDecl                       772
-#define vpiFuncDecl                           773
-#define vpiTaskDecl                           774
-#define vpiFunctionDecl                       775
+#define vpiTypedefTypespec                    770 /* !!! NOT Standard !!! */
+
+#define vpiLabel                              791
+#define vpiEndLabel                           792
+#define vpiTaskFuncDecl                       793
+#define vpiFuncDecl                           794
+#define vpiTaskDecl                           795
+#define vpiFunctionDecl                       796
 
 #define vpiClockingBlock                      650
 #define vpiClockingIODecl                     651

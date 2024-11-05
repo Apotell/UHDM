@@ -350,7 +350,8 @@ bool SynthSubset::reportedParent(const any* object) {
 // Apply some rewrite rule for Synlig limitations, namely Synlig handles aliased typespec incorrectly.
 void SynthSubset::leaveRef_typespec(const ref_typespec* object,
                                     vpiHandle handle) {
-  if (const typespec* actual = object->Actual_typespec()) {
+  if (const typedef_typespec* actual =
+          object->Actual_typespec<typedef_typespec>()) {
     if (const ref_typespec* ref_alias = actual->Typedef_alias()) {
       // Make the typespec point to the aliased typespec if they are of the same
       // type:

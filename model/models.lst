@@ -227,6 +227,7 @@ integer_typespec.yaml
 time_typespec.yaml
 enum_typespec.yaml
 string_typespec.yaml
+typedef_typespec.yaml
 chandle_typespec.yaml
 module_typespec.yaml
 struct_typespec.yaml
