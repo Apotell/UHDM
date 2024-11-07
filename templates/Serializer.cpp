@@ -42,7 +42,7 @@ void Serializer::GarbageCollect() {
   if (!m_enableGC) return;
 
   UhdmListener* const listener = new UhdmListener();
-  for (auto d : designMaker.objects_) {
+  for (auto d : designMaker.m_objects) {
     listener->listenDesign(d);
   }
 
@@ -69,6 +69,8 @@ std::string_view Serializer::GetSymbol(SymbolId id) const {
 SymbolId Serializer::GetSymbolId(std::string_view symbol) const {
   return symbolMaker.GetId(symbol);
 }
+
+<OBJECT_ACCESSOR_IMPLEMENTATIONS>
 
 vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type,
                                      const void* object) {

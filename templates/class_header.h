@@ -26,10 +26,10 @@
 #ifndef UHDM_<UPPER_CLASSNAME>_H
 #define UHDM_<UPPER_CLASSNAME>_H
 
+#include <uhdm/containers.h>
 #include <uhdm/sv_vpi_user.h>
 #include <uhdm/uhdm_vpi_user.h>
 
-#include <uhdm/containers.h>
 #include <uhdm/<EXTENDS>.h>
 
 <GROUP_HEADER_DEPENDENCY>
@@ -40,6 +40,8 @@ namespace UHDM {
 
 class <CLASSNAME><FINAL_CLASS> : public <EXTENDS> {
   UHDM_IMPLEMENT_RTTI(<CLASSNAME>, <EXTENDS>)
+  friend class Serializer;
+
 public:
   // Implicit constructor used to initialize all members,
   // comment: <CLASSNAME>();
@@ -49,8 +51,9 @@ public:
 
   <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return UHDM_OBJECT_TYPE::uhdm<CLASSNAME>; }
 
+  void DeepCopy(<CLASSNAME>* clone, BaseClass* parent, Cloner* cloner) const;
+
 protected:
-  void DeepCopy(<CLASSNAME>* clone, BaseClass* parent, CloneContext* context) const;
 <PRIVATE_METHODS>
 
 private:

@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
@@ -77,7 +77,6 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   UHDM::class_typespec* tps = s->MakeClass_typespec();
   UHDM::ref_typespec* rt = s->MakeRef_typespec();
   rt->Actual_typespec(tps);
-  rt->VpiParent(extends);
   extends->Class_typespec(rt);
   tps->Class_defn(parent);
   derived->Extends(extends);
@@ -119,10 +118,9 @@ TEST(ClassesTest, DesignSaveRestoreRoundtrip) {
   EXPECT_EQ(before, restored);
 
   // Elaborate restored designs
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(restoredDesigns);
-  delete elaboratorContext;
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(restoredDesigns);
+  delete elaborator;
 
   const std::string elaborated = designs_to_string(restoredDesigns);
   EXPECT_NE(restored, elaborated);  // Elaboration should've done _something_

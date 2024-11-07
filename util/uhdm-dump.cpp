@@ -33,7 +33,7 @@
 #include <unistd.h>
 #endif
 
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/VpiListener.h>
 #include <uhdm/uhdm-version.h>
 #include <uhdm/uhdm.h>
@@ -77,13 +77,12 @@ static int32_t usage(const char *progname) {
   fprintf(stderr,
           "Options:\n"
           "\t--elab          : Elaborate the restored design.\n"
-          "\t--stats         : Print objects counts (by type).\n"
           "\t--verbose       : print diagnostic messages.\n"
           "\t--version       : print version and exit.\n"
           "\nIf golden file is given to compare, exit code represent if output "
           "matches.\n");
 
-  return 0;
+  return 1;
 }
 
 int32_t main(int32_t argc, char **argv) {
@@ -91,7 +90,6 @@ int32_t main(int32_t argc, char **argv) {
 
   bool elab = false;
   bool verbose = false;
-  bool dumpstats = false;
   std::string uhdmFile;
   std::string goldenFile;
 
@@ -101,8 +99,6 @@ int32_t main(int32_t argc, char **argv) {
     // Also supporting legacy long option with single dash
     if (arg == "-elab" || arg == "--elab") {
       elab = true;
-    } else if (arg == "--stats") {
-      dumpstats = true;
     } else if (arg == "--verbose") {
       verbose = true;
     } else if (arg == "--version") {
@@ -136,14 +132,6 @@ int32_t main(int32_t argc, char **argv) {
     return 1;
   }
 
-  if (dumpstats) {
-    serializer.PrintStats(std::cout, uhdmFile);
-
-    if (!goldenFile.empty()) {
-      serializer.PrintStats(std::cout, goldenFile);
-    }
-  }
-
   std::cout << uhdmFile << ": Restored design Pre-Elab: " << std::endl;
   visit_designs(restoredDesigns, std::cout);
 
@@ -156,10 +144,9 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   if (elab) {
-    ElaboratorContext *elaboratorContext =
-        new ElaboratorContext(&serializer, false);
-    elaboratorContext->m_elaborator.listenDesigns(restoredDesigns);
-    delete elaboratorContext;
+    Elaborator *elaborator = new Elaborator(&serializer, false);
+    elaborator->elaborate(restoredDesigns);
+    delete elaborator;
 
     std::cout << uhdmFile << ": Restored design Post-Elab: " << std::endl;
     visit_designs(restoredDesigns, std::cout);

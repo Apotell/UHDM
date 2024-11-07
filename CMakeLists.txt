@@ -154,9 +154,11 @@ add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 set(uhdm-GENERATED_SRC
     ${GENDIR}/src/BaseClass.cpp
     ${GENDIR}/src/clone_tree.cpp
-    ${GENDIR}/src/ElaboratorListener.cpp
+    ${GENDIR}/src/Cloner.cpp
+    ${GENDIR}/src/Elaborator.cpp
     ${GENDIR}/src/ExprEval.cpp
     ${GENDIR}/src/NumUtils.cpp
+    ${GENDIR}/src/Reducer.cpp
     ${GENDIR}/src/Serializer.cpp
     ${GENDIR}/src/Serializer_restore.cpp
     ${GENDIR}/src/Serializer_save.cpp
@@ -321,11 +323,17 @@ target_link_libraries(uhdm-cmp PRIVATE uhdm)
 add_executable(uhdm-dump ${PROJECT_SOURCE_DIR}/util/uhdm-dump.cpp)
 target_link_libraries(uhdm-dump PRIVATE uhdm)
 
+add_executable(uhdm-elab ${PROJECT_SOURCE_DIR}/util/uhdm-elab.cpp)
+target_link_libraries(uhdm-elab PRIVATE uhdm)
+
 add_executable(uhdm-hier ${PROJECT_SOURCE_DIR}/util/uhdm-hier.cpp)
 target_link_libraries(uhdm-hier PRIVATE uhdm)
 
 add_executable(uhdm-lint ${PROJECT_SOURCE_DIR}/util/uhdm-lint.cpp)
 target_link_libraries(uhdm-lint PRIVATE uhdm)
+
+add_executable(uhdm-reduce ${PROJECT_SOURCE_DIR}/util/uhdm-reduce.cpp)
+target_link_libraries(uhdm-reduce PRIVATE uhdm)
 
 # Installation tester
 # TODO: once we have a cmake package (find_package(uhdm)), this installation
@@ -366,7 +374,7 @@ endif()
 
 # Installation target
 install(
-  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-hier uhdm-lint
+  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-elab uhdm-hier uhdm-lint uhdm-reduce
   EXPORT uhdmTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

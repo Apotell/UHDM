@@ -26,7 +26,7 @@
 #include <string.h>
 #include <uhdm/SynthSubset.h>
 #include <uhdm/ExprEval.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
@@ -493,8 +493,8 @@ void SynthSubset::leaveFor_stmt(const for_stmt* object, vpiHandle handle) {
             exprs->push_back(c);
             item->VpiExprs(exprs);
             items->push_back(item);
-            ElaboratorContext elaboratorContext(serializer_);
-            for_stmt* clone = (for_stmt*)clone_tree(object, &elaboratorContext);
+            Elaborator elaborator(serializer_);
+            for_stmt* clone = (for_stmt*)clone_tree(object, &elaborator);
             clone->VpiParent(item);
             operation* cond_op = any_cast<operation*>(clone->VpiCondition());
             VectorOfany* operands = cond_op->Operands();
@@ -728,9 +728,9 @@ void SynthSubset::leaveArray_var(const array_var* object, vpiHandle handle) {
       }
     } else {
       if (ltps->Ranges() && ltps->Ranges()->size() == 1) {
-        ElaboratorContext elaboratorContext(serializer_);
+        Elaborator elaborator(serializer_);
         logic_typespec* clone =
-            (logic_typespec*)clone_tree(ltps, &elaboratorContext);
+            (logic_typespec*)clone_tree(ltps, &elaborator);
         clone->VpiName("");
         ((ref_typespec*)ref_tps)->Actual_typespec(clone);
         ((array_var*)object)->Typespec((ref_typespec*)ref_tps);

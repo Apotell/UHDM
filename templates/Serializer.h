@@ -124,7 +124,10 @@ class Serializer final {
   std::vector<T*>* Make(FactoryT<std::vector<T*>>* const factory);
 
  public:
-  <FACTORY_FUNCTION_DECLARATIONS> std::vector<any*>* MakeAnyVec() {
+<OBJECT_ACCESSOR_DECLARATIONS>
+
+<FACTORY_FUNCTION_DECLARATIONS>
+  std::vector<any*>* MakeAnyVec() {
     return anyVectMaker.Make();
   }
 
@@ -166,6 +169,7 @@ class Serializer final {
 
   using ScopeStack = std::vector<any *>;
   ScopeStack m_scopeStack;
+
 <FACTORY_DATA_MEMBERS>
 #endif
 };

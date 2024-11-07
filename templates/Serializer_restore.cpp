@@ -83,7 +83,9 @@ BaseClass* Serializer::GetObject(uint32_t objectType, uint32_t index) const {
 
 struct Serializer::RestoreAdapter {
   void operator()(Any::Reader reader, Serializer *const serializer, BaseClass *const obj) const {
-    obj->VpiParent(serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1));
+    // Don't use VpiParent(...) function here because that duplicates in parent
+    // because of calls to OnChildAdded calls.
+    obj->vpiParent_ = serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1);
     obj->VpiFile(serializer->symbolMaker.GetSymbol(SymbolId(reader.getVpiFile(), kUnknownRawSymbol)));
     obj->VpiLineNo(reader.getVpiLineNo());
     obj->VpiColumnNo(reader.getVpiColumnNo());
@@ -130,7 +132,7 @@ const std::vector<vpiHandle> Serializer::Restore(const std::string& filepath) {
   RestoreAdapter adapter;
 <CAPNP_RESTORE_FACTORIES>
 
-   for (auto d : designMaker.objects_) {
+  for (auto d : designMaker.m_objects) {
     vpiHandle designH = uhdm_handleMaker.Make(UHDM_OBJECT_TYPE::uhdmdesign, d);
     designs.push_back(designH);
   }

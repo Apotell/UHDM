@@ -1,537 +1,127 @@
+// -*- mode: c++; c-basic-offset: 2; indent-tabs-mode: nil; -*-
 #include <iostream>
-#include <stack>
-#include <string>
-#include <vector>
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
-#include "uhdm/ExprEval.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
 using namespace UHDM;
 
-std::vector<vpiHandle> build_designs_MinusOp(Serializer* s) {
+static std::vector<vpiHandle> build_designs(Serializer* s) {
   std::vector<vpiHandle> designs;
   // Design building
   design* d = s->MakeDesign();
   d->VpiName("design1");
+  // Module
+  module_inst* m1 = s->MakeModule_inst();
+  m1->VpiTopModule(true);
+  m1->VpiDefName("M1");
+  m1->VpiParent(d);
+  m1->VpiFile("fake1.sv");
+  m1->VpiLineNo(10);
+  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
+  v1->push_back(m1);
+  d->AllModules(v1);
 
-  //-------------------------------------------
-  // Module definition M1 (non elaborated)
-  module_inst* dut = s->MakeModule_inst();
-  {
-    dut->VpiDefName("M1");
-    dut->VpiParent(d);
-    // dut->VpiFile("fake1.sv");
-    // dut->VpiLineNo(10);
-    VectorOfport* vp = s->MakePortVec();
-    dut->Ports(vp);
-    port* p = s->MakePort();
-    vp->push_back(p);
-    p->VpiName("wire_i");
-    p->VpiDirection(vpiInput);
+  VectorOfclass_defn* classes = s->MakeClass_defnVec();
+  m1->Class_defns(classes);
 
-    VectorOftypespec* typespecs = s->MakeTypespecVec();
-    dut->Typespecs(typespecs);
+  /* Base class */
+  class_defn* base = s->MakeClass_defn();
+  base->VpiName("Base");
+  base->VpiParent(m1);
+  classes->push_back(base);
 
-    logic_typespec* tps = s->MakeLogic_typespec();
-    typespecs->emplace_back(tps);
+  parameter* param = s->MakeParameter();
+  param->VpiName("P1");
+  VectorOfany* params = s->MakeAnyVec();
+  params->push_back(param);
+  base->Parameters(params);
 
-    ref_typespec* tps_rt = s->MakeRef_typespec();
-    tps_rt->Actual_typespec(tps);
-    tps_rt->VpiParent(p);
-    p->Typespec(tps_rt);
+  VectorOftask_func* funcs = s->MakeTask_funcVec();
+  base->Task_funcs(funcs);
 
-    VectorOfrange* ranges = s->MakeRangeVec();
-    tps->Ranges(ranges);
-    range* range = s->MakeRange();
-    ranges->push_back(range);
+  function* f1 = s->MakeFunction();
+  f1->VpiName("f1");
+  f1->VpiMethod(true);
+  funcs->push_back(f1);
+  assign_stmt* as = s->MakeAssign_stmt();
+  f1->Stmt(as);
+  ref_obj* lhs = s->MakeRef_obj();
+  lhs->VpiName("a");
+  ref_obj* rhs = s->MakeRef_obj();
+  rhs->VpiName("P1");
+  as->Lhs(lhs);
+  as->Rhs(rhs);
 
-    operation* oper = s->MakeOperation();
-    range->Left_expr(oper);
-    oper->VpiOpType(vpiSubOp);
-    VectorOfany* operands = s->MakeAnyVec();
-    oper->Operands(operands);
+  function* f2 = s->MakeFunction();
+  f2->VpiName("f2");
+  f2->VpiMethod(true);
+  funcs->push_back(f2);
+  method_func_call* fcall = s->MakeMethod_func_call();
+  f2->Stmt(fcall);
+  fcall->VpiName("f1");
 
-    ref_obj* SIZE = s->MakeRef_obj();
-    operands->push_back(SIZE);
-    SIZE->VpiName("SIZE");
-    logic_net* n = s->MakeLogic_net();
-    SIZE->Actual_group(n);
+  /* Child class */
+  class_defn* child = s->MakeClass_defn();
+  child->VpiName("Child");
+  child->VpiParent(m1);
+  classes->push_back(child);
 
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("UINT:1");
-    c1->VpiConstType(vpiIntConst);
-    c1->VpiDecompile("1");
-    operands->push_back(c1);
+  UHDM::class_defn* derived = child;
+  UHDM::class_defn* parent = base;
+  UHDM::extends* extends = s->MakeExtends();
+  UHDM::class_typespec* tps = s->MakeClass_typespec();
+  UHDM::ref_typespec* rt = s->MakeRef_typespec();
+  rt->Actual_typespec(tps);
+  extends->Class_typespec(rt);
+  tps->Class_defn(parent);
+  derived->Extends(extends);
+  UHDM::VectorOfclass_defn* all_derived = s->MakeClass_defnVec();
+  parent->Deriveds(all_derived);
+  all_derived->push_back(derived);
 
-    constant* c2 = s->MakeConstant();
-    c2->VpiValue("UINT:0");
-    c2->VpiConstType(vpiIntConst);
-    c2->VpiDecompile("0");
+  VectorOftask_func* funcs2 = s->MakeTask_funcVec();
+  child->Task_funcs(funcs2);
 
-    range->Right_expr(c2);
-  }
-
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
-  topModules->push_back(dut);
-
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
-  designs.push_back(dh);
-
-  return designs;
-}
-
-TEST(exprVal, prettyPrint_MinusOp) {
-  Serializer serializer;
-  const std::vector<vpiHandle>& designs = build_designs_MinusOp(&serializer);
-  // serializer.Save("expr_MinusOp_test.uhdm");
-  // const std::string before = designs_to_string(designs);
-  // std::cout << before <<std::endl;
-
-  bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_FALSE(elaborated);
-
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
-
-  elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_TRUE(elaborated);
-
-  vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
-
-  ExprEval eval;
-  for (auto m : *d->TopModules()) {
-    for (auto p : *m->Ports()) {
-      const ref_typespec* rt = p->Typespec();
-      const logic_typespec* typespec = rt->Actual_typespec<logic_typespec>();
-      VectorOfrange* ranges = typespec->Ranges();
-      for (auto range : *ranges) {
-        expr* left = (expr*)range->Left_expr();
-        std::string left_str = eval.prettyPrint((any*)left);
-        EXPECT_EQ(left_str, "SIZE - 1");
-
-        expr* right = (expr*)range->Right_expr();
-        std::string right_str = eval.prettyPrint((any*)right);
-        EXPECT_EQ(right_str, "0");
-      }
-    }
-  }
-}
-
-std::vector<vpiHandle> build_designs_ConditionOp(Serializer* s) {
-  std::vector<vpiHandle> designs;
-  // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
-
-  //-------------------------------------------
-  // Module definition M1 (non elaborated)
-  module_inst* dut = s->MakeModule_inst();
-  {
-    dut->VpiDefName("M1");
-    dut->VpiParent(d);
-    dut->Parameters(s->MakeAnyVec());
-
-    VectorOfparam_assign* vpa = s->MakeParam_assignVec();
-
-    param_assign* param = s->MakeParam_assign();
-    vpa->push_back(param);
-    dut->Param_assigns(vpa);
-
-    parameter* p = s->MakeParameter();
-    dut->Parameters()->push_back(p);
-    p->VpiName("a");
-    param->Lhs(p);
-
-    operation* oper = s->MakeOperation();
-    oper->VpiOpType(vpiConditionOp);
-    VectorOfany* operands = s->MakeAnyVec();
-    oper->Operands(operands);
-    ref_obj* b = s->MakeRef_obj();
-    b->VpiName("b");
-    operands->push_back(b);
-
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("UINT:1");
-    c1->VpiConstType(vpiIntConst);
-    c1->VpiDecompile("1");
-    operands->push_back(c1);
-
-    constant* c2 = s->MakeConstant();
-    c2->VpiValue("UINT:3");
-    c2->VpiConstType(vpiIntConst);
-    c2->VpiDecompile("3");
-    operands->push_back(c2);
-    param->Rhs(oper);
-  }
+  function* f3 = s->MakeFunction();
+  f3->VpiName("f3");
+  f3->VpiMethod(true);
+  funcs2->push_back(f3);
+  method_func_call* fcall2 = s->MakeMethod_func_call();
+  f3->Stmt(fcall);
+  fcall2->VpiName("f1");  // parent class function
 
   VectorOfmodule_inst* topModules = s->MakeModule_instVec();
   d->TopModules(topModules);
-  topModules->push_back(dut);
+  topModules->push_back(m1);
 
   vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
   designs.push_back(dh);
-
   return designs;
 }
 
-TEST(exprVal, prettyPrint_ConditionOp) {
+TEST(ClassesTest, DesignSaveRestoreRoundtrip) {
   Serializer serializer;
-  const std::vector<vpiHandle>& designs =
-      build_designs_ConditionOp(&serializer);
-  // serializer.Save("expr_ConditionOp_test.uhdm");
-  // const std::string before = designs_to_string(designs);
-  // std::cout << before <<std::endl;
+  const std::vector<vpiHandle>& designs = build_designs(&serializer);
+  const std::string before = designs_to_string(designs);
 
-  bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_FALSE(elaborated);
+  const std::string filename = testing::TempDir() + "/classes_test.uhdm";
+  serializer.Save(filename);
 
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
+  const std::vector<vpiHandle>& restoredDesigns = serializer.Restore(filename);
+  const std::string restored = designs_to_string(restoredDesigns);
 
-  elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_TRUE(elaborated);
+  EXPECT_EQ(before, restored);
 
-  vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
+  // Elaborate restored designs
+  Elaborator* elaborator = new Elaborator(&serializer, true);
+  elaborator->elaborate(restoredDesigns);
+  delete elaborator;
 
-  ExprEval eval;
-  for (auto m : *d->TopModules()) {
-    for (auto pa : *m->Param_assigns()) {
-      const any* rhs = pa->Rhs();
-      std::string result = eval.prettyPrint((any*)rhs);
-      EXPECT_EQ(result, "b ? 1 : 3");
-    }
-  }
-}
-
-std::vector<vpiHandle> build_designs_functionCall(Serializer* s) {
-  std::vector<vpiHandle> designs;
-  // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
-
-  //-------------------------------------------
-  // Module definition M1 (non elaborated)
-  module_inst* dut = s->MakeModule_inst();
-  {
-    dut->VpiDefName("M1");
-    dut->VpiParent(d);
-    dut->Parameters(s->MakeAnyVec());
-
-    VectorOfparam_assign* vpa = s->MakeParam_assignVec();
-
-    param_assign* param = s->MakeParam_assign();
-    vpa->push_back(param);
-    dut->Param_assigns(vpa);
-
-    parameter* p = s->MakeParameter();
-    dut->Parameters()->push_back(p);
-    p->VpiName("a");
-    param->Lhs(p);
-
-    sys_func_call* sfc = s->MakeSys_func_call();
-    param->Rhs(sfc);
-
-    sfc->VpiName("$sformatf");
-
-    VectorOfany* args = s->MakeAnyVec();
-    sfc->Tf_call_args(args);
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("%d");
-    c1->VpiConstType(vpiStringConst);
-    c1->VpiDecompile("\"%d\"");
-    args->push_back(c1);
-
-    ref_obj* b = s->MakeRef_obj();
-    b->VpiName("b");
-    args->push_back(b);
-    logic_net* n = s->MakeLogic_net();
-    b->Actual_group(n);
-  }
-
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
-  topModules->push_back(dut);
-
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
-  designs.push_back(dh);
-
-  return designs;
-}
-
-TEST(exprVal, prettyPrint_functionCall) {
-  Serializer serializer;
-  const std::vector<vpiHandle>& designs =
-      build_designs_functionCall(&serializer);
-  // serializer.Save("expr_functionCall_test.uhdm");
-  // const std::string before = designs_to_string(designs);
-  // std::cout << before <<std::endl;
-
-  bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_FALSE(elaborated);
-
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
-
-  elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_TRUE(elaborated);
-
-  vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
-
-  ExprEval eval;
-  for (auto m : *d->TopModules()) {
-    for (auto pa : *m->Param_assigns()) {
-      const any* rhs = pa->Rhs();
-      std::string result = eval.prettyPrint((any*)rhs);
-      std::string expected_result = "$sformatf(\"%d\",b)";
-      std::cout << expected_result << std::endl;
-
-      EXPECT_EQ(expected_result, result);
-    }
-  }
-}
-
-std::vector<vpiHandle> build_designs_select(Serializer* s) {
-  std::vector<vpiHandle> designs;
-  // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
-
-  //-------------------------------------------
-  // Module definition M1 (non elaborated)
-  module_inst* dut = s->MakeModule_inst();
-  {
-    dut->VpiDefName("M1");
-    dut->VpiParent(d);
-    dut->Parameters(s->MakeAnyVec());
-
-    VectorOfparam_assign* vpa = s->MakeParam_assignVec();
-
-    param_assign* param = s->MakeParam_assign();
-    vpa->push_back(param);
-    dut->Param_assigns(vpa);
-
-    parameter* p = s->MakeParameter();
-    dut->Parameters()->push_back(p);
-    p->VpiName("a");
-    param->Lhs(p);
-
-    var_select* vs = s->MakeVar_select();
-    param->Rhs(vs);
-
-    vs->VpiName("b");
-    VectorOfexpr* exprs = s->MakeExprVec();
-    vs->Exprs(exprs);
-
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("UINT:3");
-    c1->VpiConstType(vpiIntConst);
-    c1->VpiDecompile("3");
-    exprs->push_back(c1);
-
-    constant* c2 = s->MakeConstant();
-    c2->VpiValue("UINT:2");
-    c2->VpiConstType(vpiIntConst);
-    c2->VpiDecompile("2");
-    exprs->push_back(c2);
-
-    part_select* ps = s->MakePart_select();
-    exprs->push_back(ps);
-    ps->VpiConstantSelect(true);
-
-    constant* c3 = s->MakeConstant();
-    c3->VpiValue("UINT:1");
-    c3->VpiConstType(vpiIntConst);
-    c3->VpiDecompile("1");
-    ps->Left_range(c3);
-
-    constant* c4 = s->MakeConstant();
-    c4->VpiValue("UINT:0");
-    c4->VpiConstType(vpiIntConst);
-    c4->VpiDecompile("0");
-    ps->Right_range(c4);
-  }
-
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
-  topModules->push_back(dut);
-
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
-  designs.push_back(dh);
-
-  return designs;
-}
-
-TEST(exprVal, prettyPrint_select) {
-  Serializer serializer;
-  const std::vector<vpiHandle>& designs = build_designs_select(&serializer);
-  // serializer.Save("expr_select_test.uhdm");
-  // const std::string before = designs_to_string(designs);
-  // std::cout << before <<std::endl;
-
-  bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_FALSE(elaborated);
-
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
-
-  elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_TRUE(elaborated);
-
-  vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
-
-  ExprEval eval;
-  for (auto m : *d->TopModules()) {
-    for (auto pa : *m->Param_assigns()) {
-      const any* rhs = pa->Rhs();
-      std::string result = eval.prettyPrint((any*)rhs);
-      std::string expected_result = "b[3][2][1:0]";
-      std::cout << expected_result << std::endl;
-
-      EXPECT_EQ(expected_result, result);
-    }
-  }
-}
-
-std::vector<vpiHandle> build_designs_AssignmentPatternOp(Serializer* s) {
-  std::vector<vpiHandle> designs;
-  // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
-
-  //-------------------------------------------
-  // Module definition M1 (non elaborated)
-  module_inst* dut = s->MakeModule_inst();
-  {
-    dut->VpiDefName("M1");
-    dut->VpiParent(d);
-    dut->Parameters(s->MakeAnyVec());
-
-    VectorOfparam_assign* vpa = s->MakeParam_assignVec();
-
-    param_assign* param = s->MakeParam_assign();
-    vpa->push_back(param);
-    dut->Param_assigns(vpa);
-
-    parameter* p = s->MakeParameter();
-    dut->Parameters()->push_back(p);
-    p->VpiName("a");
-    param->Lhs(p);
-
-    operation* op = s->MakeOperation();
-    param->Rhs(op);
-
-    op->VpiOpType(vpiAssignmentPatternOp);
-    VectorOfany* operands = s->MakeAnyVec();
-    op->Operands(operands);
-
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("UINT:1");
-    c1->VpiConstType(vpiIntConst);
-    c1->VpiDecompile("1");
-    operands->push_back(c1);
-
-    constant* c2 = s->MakeConstant();
-    c2->VpiValue("UINT:2");
-    c2->VpiConstType(vpiIntConst);
-    c2->VpiDecompile("2");
-    operands->push_back(c2);
-
-    constant* c3 = s->MakeConstant();
-    c3->VpiValue("UINT:3");
-    c3->VpiConstType(vpiIntConst);
-    c3->VpiDecompile("3");
-    operands->push_back(c3);
-  }
-
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
-  topModules->push_back(dut);
-
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
-  designs.push_back(dh);
-
-  return designs;
-}
-
-TEST(exprVal, prettyPrint_array) {
-  Serializer serializer;
-  const std::vector<vpiHandle>& designs =
-      build_designs_AssignmentPatternOp(&serializer);
-  // serializer.Save("expr_AssignmentPatternOp_test.uhdm");
-  // const std::string before = designs_to_string(designs);
-  // std::cout << before <<std::endl;
-
-  bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_FALSE(elaborated);
-
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(designs);
-  delete elaboratorContext;
-
-  elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
-  }
-  EXPECT_TRUE(elaborated);
-
-  vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
-
-  ExprEval eval;
-  for (auto m : *d->TopModules()) {
-    for (auto pa : *m->Param_assigns()) {
-      const any* rhs = pa->Rhs();
-      std::string result = eval.prettyPrint((any*)rhs);
-      std::string expected_result = "'{1,2,3}";
-      std::cout << expected_result << std::endl;
-
-      EXPECT_EQ(expected_result, result);
-    }
-  }
+  const std::string elaborated = designs_to_string(restoredDesigns);
+  EXPECT_NE(restored, elaborated);  // Elaboration should've done _something_
 }

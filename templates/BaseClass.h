@@ -41,6 +41,7 @@
 
 namespace UHDM {
 class BaseClass;
+class Cloner;
 class Serializer;
 static inline constexpr std::string_view kEmpty("");
 
@@ -54,20 +55,6 @@ typedef std::set<const BaseClass*> AnySet;
 class ClientData {
  public:
   virtual ~ClientData() = default;
-};
-
-class CloneContext : public RTTI {
-  UHDM_IMPLEMENT_RTTI(CloneContext, RTTI)
-
- public:
-  CloneContext(Serializer* serializer) : m_serializer(serializer) {}
-  virtual ~CloneContext() = default;
-
-  Serializer* const m_serializer = nullptr;
-
- private:
-  CloneContext(const CloneContext& rhs) = delete;
-  CloneContext& operator=(const CloneContext& rhs) = delete;
 };
 
 class CompareContext : public RTTI {
@@ -165,8 +152,7 @@ class BaseClass : public RTTI {
   virtual vpi_property_value_t GetVpiPropertyValue(int32_t property) const;
 
   // Create a deep copy of this object.
-  virtual BaseClass* DeepClone(BaseClass* parent,
-                               CloneContext* context) const = 0;
+  virtual BaseClass* DeepClone(BaseClass* parent, Cloner* cloner) const = 0;
 
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
@@ -174,10 +160,9 @@ class BaseClass : public RTTI {
   virtual void Swap(const BaseClass* what, BaseClass* with);
   void Swap(const std::map<const BaseClass*, BaseClass*>& replacements);
 
- protected:
-  void DeepCopy(BaseClass* clone, BaseClass* parent,
-                CloneContext* context) const;
+  void DeepCopy(BaseClass* clone, BaseClass* parent, Cloner* cloner) const;
 
+ protected:
   std::string ComputeFullName() const;
 
   void SetSerializer(Serializer* serial) { serializer_ = serial; }
@@ -252,16 +237,16 @@ class FactoryT final {
  public:
   T* Make() {
     T* obj = new T;
-    objects_.push_back(obj);
+    m_objects.emplace_back(obj);
     return obj;
   }
 
   bool Erase(const T* obj) {
-    for (typename objects_t::const_iterator itr = objects_.begin();
-         itr != objects_.end(); ++itr) {
+    for (typename objects_t::const_iterator itr = m_objects.begin();
+         itr != m_objects.end(); ++itr) {
       if ((*itr) == obj) {
         delete obj;
-        objects_.erase(itr);
+        m_objects.erase(itr);
         return true;
       }
     }
@@ -270,31 +255,31 @@ class FactoryT final {
 
   void EraseIfNotIn(const AnySet &container) {
     objects_t keepers;
-    for (typename objects_t::reference obj : objects_) {
+    for (typename objects_t::reference obj : m_objects) {
       if (container.find(obj) == container.end()) {
         delete obj;
       } else {
         keepers.emplace_back(obj);
       }
     }
-    keepers.swap(objects_);
+    keepers.swap(m_objects);
   }
 
   void MapToIndex(std::map<const BaseClass*, uint32_t>& table, uint32_t index = 1) const {
-    for (typename objects_t::const_reference obj : objects_) {
+    for (typename objects_t::const_reference obj : m_objects) {
       table.emplace(obj, index++);
     }
   }
 
   void Purge() {
-    for (typename objects_t::reference obj : objects_) {
+    for (typename objects_t::reference obj : m_objects) {
       delete obj;
     }
-    objects_.clear();
+    m_objects.clear();
   }
 
  private:
-  objects_t objects_;
+  objects_t m_objects;
 };
 
 typedef FactoryT<std::vector<BaseClass*>> VectorOfBaseClassFactory;
@@ -302,7 +287,6 @@ typedef FactoryT<std::vector<BaseClass*>> VectorOfanyFactory;
 
 }  // namespace UHDM
 
-UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(clonecontext_cast, UHDM::CloneContext)
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(comparecontext_cast, UHDM::CompareContext)
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(any_cast, UHDM::BaseClass)
 

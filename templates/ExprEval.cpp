@@ -23,11 +23,12 @@
  */
 
 #include <string.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
+#include <uhdm/VpiListener.h>
 
 #include <algorithm>
 #include <bitset>
@@ -860,10 +861,10 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       index++;
     }
     index = 0;
-    ElaboratorContext elaboratorContext(&s, false, m_muteError);
+    Elaborator elaborator(&s, false, m_muteError);
     for (auto opi : tmp) {
       if (defaultOp && (opi == nullptr)) {
-        opi = clone_tree((any *)defaultOp, &elaboratorContext);
+        opi = clone_tree((any *)defaultOp, &elaborator);
         if (opi != nullptr) {
           opi->VpiParent(const_cast<any *>(defaultOp->VpiParent()));
         }
@@ -912,7 +913,7 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       ordered->push_back(opi);
       index++;
     }
-    operation *opres = (operation *)clone_tree((any *)op, &elaboratorContext);
+    operation *opres = (operation *)clone_tree((any *)op, &elaborator);
     opres->VpiParent(const_cast<any *>(op->VpiParent()));
     opres->Operands(ordered);
     if (flatten) {
@@ -1256,7 +1257,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
   VectorOfrange *ranges = nullptr;
   UHDM_OBJECT_TYPE ttps = ts->UhdmType();
   if (ttps == uhdmref_typespec) {
-    ref_typespec* rtps = (ref_typespec*) ts;
+    ref_typespec *rtps = (ref_typespec *)ts;
     ts = rtps->Actual_typespec();
     ttps = ts->UhdmType();
   }
@@ -1351,7 +1352,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_net *lts = (logic_net *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -1364,7 +1366,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_var *lts = (logic_var *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -2211,12 +2214,12 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
     } else if (ref_obj *ref = any_cast<ref_obj *>(object)) {
       object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
     } else if (constant *cons = any_cast<constant *>(object)) {
-      ElaboratorContext elaboratorContext(&s);
-      object = clone_tree(cons, &elaboratorContext);
+      Elaborator elaborator(&s);
+      object = clone_tree(cons, &elaborator);
       cons = any_cast<constant *>(object);
       if (cons->Typespec() == nullptr) {
         ref_typespec *rt =
-            (ref_typespec *)clone_tree(path->Typespec(), &elaboratorContext);
+            (ref_typespec *)clone_tree(path->Typespec(), &elaborator);
         rt->VpiParent(cons);
         cons->Typespec(rt);
       }
@@ -2570,12 +2573,12 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         }
         tmp->Ranges(tmpR);
         return tmp;
-      } 
+      }
     } else if (const array_typespec *ltps =
                    any_cast<const array_typespec *>(object)) {
       if (const ref_typespec *rt = ltps->Elem_typespec()) {
         return (typespec *)rt->Actual_typespec();
-      } 
+      }
     } else if (const packed_array_typespec *ltps =
                    any_cast<const packed_array_typespec *>(object)) {
       if (const ref_typespec *rt = ltps->Elem_typespec()) {
@@ -4323,10 +4326,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                           oprt->Actual_typespec<array_typespec>()) {
                     if (const ref_typespec *ert = atps->Elem_typespec()) {
                       if (const typespec *ertts = ert->Actual_typespec()) {
-                        ElaboratorContext elaboratorContext(&s, false,
-                                                            muteError);
+                        Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            (ref_typespec *)clone_tree(ert, &elaboratorContext);
+                            (ref_typespec *)clone_tree(ert, &elaborator);
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
                         celrt->VpiParent((any *)result);
                         ((operation *)result)->Typespec(celrt);
@@ -4337,10 +4339,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                                      packed_array_typespec>()) {
                     if (const ref_typespec *ert = patps->Elem_typespec()) {
                       if (const typespec *ertts = ert->Actual_typespec()) {
-                        ElaboratorContext elaboratorContext(&s, false,
-                                                            muteError);
+                        Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            (ref_typespec *)clone_tree(ert, &elaboratorContext);
+                            (ref_typespec *)clone_tree(ert, &elaborator);
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
                         celrt->VpiParent((any *)result);
                         ((operation *)result)->Typespec(celrt);
@@ -4947,16 +4948,16 @@ bool ExprEval::setValueInInstance(
       }
       if ((c->VpiSize() == -1) && (c->VpiConstType() == vpiBinaryConst)) {
         bool tmpInvalidValue = false;
-        uint64_t size = ExprEval::size(lhsexp, tmpInvalidValue, inst,
-                                       scope_exp, true, true);
+        uint64_t size = ExprEval::size(lhsexp, tmpInvalidValue, inst, scope_exp,
+                                       true, true);
         if (tmpInvalidValue) {
           std::map<std::string, const typespec *>::iterator itr =
               local_vars.find(std::string(lhs));
           if (itr != local_vars.end()) {
             if (const typespec *tps = itr->second) {
               tmpInvalidValue = false;
-              size = ExprEval::size(tps, tmpInvalidValue, inst, scope_exp,
-                                    true, true);
+              size = ExprEval::size(tps, tmpInvalidValue, inst, scope_exp, true,
+                                    true);
             }
           }
         }
@@ -5310,8 +5311,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
   if (param_assigns) {
     modinst->Param_assigns(s.MakeParam_assignVec());
     for (auto p : *param_assigns) {
-      ElaboratorContext elaboratorContext(&s, false, muteError);
-      any *pp = clone_tree(p, &elaboratorContext);
+      Elaborator elaborator(&s, false, muteError);
+      any *pp = clone_tree(p, &elaborator);
       modinst->Param_assigns()->push_back((param_assign *)pp);
       const typespec *tps = nullptr;
       if (const expr *lhs = any_cast<const expr *>(p->Lhs())) {
@@ -5453,8 +5454,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
           if (p->Rhs() &&
               (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
             constant *c = (constant *)p->Rhs();
-            ElaboratorContext elaboratorContext(&s, false, muteError);
-            c = (constant *)clone_tree(c, &elaboratorContext);
+            Elaborator elaborator(&s, false, muteError);
+            c = (constant *)clone_tree(c, &elaborator);
             if (c->VpiConstType() == vpiBinaryConst) {
               std::string_view val = c->VpiValue();
               val.remove_prefix(std::string_view("BIN:").length());
