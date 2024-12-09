@@ -17,7 +17,7 @@
 # in the non-elaborate tree
 
 - obj_def: gen_region
-  - extends: gen_stmt
+  - extends: gen_scope
   - group_ref: vpiStmt
     name: stmt
     vpi: vpiStmt

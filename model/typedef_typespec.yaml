@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "include_file_info" formal description
-
-- obj_def: include_file_info
-  - property: included_file
-    name: included file
-    vpi: vpiIncludedFile
-    type: string
+# Universal Hardware Data Model (UHDM) "typedef_typespec" formal description
+ 
+- obj_def: typedef_typespec
+  - extends: typespec
+  - class_ref: typedef_alias
+    name: typedef alias
+    vpi: vpiTypedefAlias
+    type: ref_typespec
     card: 1

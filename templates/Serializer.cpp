@@ -24,6 +24,7 @@
  */
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmListener.h>
+#include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 
 #include <algorithm>
@@ -32,8 +33,6 @@
 #include <map>
 #include <string>
 #include <vector>
-
-#include <uhdm/uhdm.h>
 
 namespace UHDM {
 
@@ -47,13 +46,15 @@ void Serializer::GarbageCollect() {
     listener->listenDesign(d);
   }
 
-  const AnySet visited(listener->getVisited().begin(), listener->getVisited().end());
+  const AnySet visited(listener->getVisited().begin(),
+                       listener->getVisited().end());
   delete listener;
 
 <FACTORY_GC>
 }
 
-void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg, const any* object1, const any* object2) {
+void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
+                         const any* object1, const any* object2) {
   std::cerr << errorMsg << std::endl;
 }
 
@@ -69,7 +70,8 @@ SymbolId Serializer::GetSymbolId(std::string_view symbol) const {
   return symbolMaker.GetId(symbol);
 }
 
-vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type, const void* object) {
+vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type,
+                                     const void* object) {
   return uhdm_handleMaker.Make(type, object);
 }
 
@@ -133,9 +135,7 @@ bool Serializer::Erase(const BaseClass* p) {
   }
 }
 
-Serializer::~Serializer() {
-  Purge();
-}
+Serializer::~Serializer() { Purge(); }
 
 void Serializer::Purge() {
   anyVectMaker.Purge();
@@ -143,4 +143,21 @@ void Serializer::Purge() {
   uhdm_handleMaker.Purge();
 <FACTORY_PURGE>
 }
+
+#ifndef SWIG
+void Serializer::PushScope(any* s) { m_scopeStack.emplace_back(s); }
+bool Serializer::PopScope(any* s) {
+  if (!m_scopeStack.empty() && (m_scopeStack.back() == s)) {
+    m_scopeStack.pop_back();
+    return true;
+  }
+  return false;
+}
+
+ScopedScope::ScopedScope(any* s) : m_any(s) {
+  m_any->GetSerializer()->PushScope(s);
+}
+
+ScopedScope::~ScopedScope() { m_any->GetSerializer()->PopScope(m_any); }
+#endif
 }  // namespace UHDM

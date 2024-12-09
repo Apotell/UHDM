@@ -115,10 +115,7 @@ class BaseClass : public RTTI {
     return (vpiParent_ == nullptr) ? nullptr
                                    : vpiParent_->template Cast<const T*>();
   }
-  bool VpiParent(BaseClass* data) {
-    vpiParent_ = data;
-    return true;
-  }
+  virtual bool VpiParent(BaseClass* data, bool force = false);
 
   std::string_view VpiFile() const;
   bool VpiFile(std::string_view data);
@@ -174,6 +171,9 @@ class BaseClass : public RTTI {
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
 
+  virtual void Swap(const BaseClass* what, BaseClass* with);
+  void Swap(const std::map<const BaseClass*, BaseClass*>& replacements);
+
  protected:
   void DeepCopy(BaseClass* clone, BaseClass* parent,
                 CloneContext* context) const;
@@ -181,6 +181,9 @@ class BaseClass : public RTTI {
   std::string ComputeFullName() const;
 
   void SetSerializer(Serializer* serial) { serializer_ = serial; }
+
+  virtual void OnChildAdded(BaseClass* child) {}
+  virtual void OnChildRemoved(BaseClass* child) {}
 
   static int32_t SafeCompare(const BaseClass* lhs, const BaseClass* rhs,
                              CompareContext* context) {

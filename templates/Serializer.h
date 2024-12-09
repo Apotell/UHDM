@@ -42,6 +42,8 @@
 #define UHDM_MAX_BIT_WIDTH (1024 * 1024)
 
 namespace UHDM {
+class ScopedScope;
+
 enum ErrorType {
   UHDM_UNSUPPORTED_EXPR = 700,
   UHDM_UNSUPPORTED_STMT = 701,
@@ -134,7 +136,16 @@ class Serializer final {
 
   bool Erase(const BaseClass* p);
 
- private:
+#ifndef SWIG
+  void PushScope(any* s);
+  bool PopScope(any* s);
+  any* TopScope() const {
+    return m_scopeStack.empty() ? nullptr : m_scopeStack.back();
+  }
+
+  friend class ScopedScope;
+#endif
+
   struct SaveAdapter;
   friend struct SaveAdapter;
 
@@ -152,9 +163,23 @@ class Serializer final {
   VectorOfanyFactory anyVectMaker;
   SymbolFactory symbolMaker;
   uhdm_handleFactory uhdm_handleMaker;
+
+  using ScopeStack = std::vector<any *>;
+  ScopeStack m_scopeStack;
 <FACTORY_DATA_MEMBERS>
 #endif
 };
+
+#ifndef SWIG
+class ScopedScope final {
+ public:
+  ScopedScope(any* s);
+  ~ScopedScope();
+
+ private:
+  any* const m_any = nullptr;
+};
+#endif
 };  // namespace UHDM
 
 #endif

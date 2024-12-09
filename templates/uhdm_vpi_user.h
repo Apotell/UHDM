@@ -45,15 +45,10 @@
 #define  vpiEndLineNo        3016
 #define  vpiEndColumnNo      3017
 
-#define  vpiRefFile          3018
-#define  vpiRefLineNo        3019
-#define  vpiRefColumnNo      3020
-#define  vpiRefEndLineNo     3021
-#define  vpiRefEndColumnNo   3022
-
-// Include file details
-#define vpiIncludeFileInfo   3023
-#define vpiIncludedFile      3024
+// Include and source file details
+#define vpiSourceFiles       3018
+#define vpiSourceFile        3019
+#define vpiIncludes          3020
 
 // Tags used to model unsupported nodes
 #define vpiUnsupportedStmt   4000
@@ -79,4 +74,11 @@
 #define vpiGenFor           5015 // Handle to for-generate for folded (Non-elaborated) model
 #define vpiGenCase          5016 // Handle to case-generate for folded (Non-elaborated) model
 #define vpiGenRegion        5017 // Handle to generate region for folded (Non-elaborated) model
+
+// Preprocessor directives
+#define vpiPreprocMacroDefinitions  6000
+#define vpiPreprocMacroDefinition   6001
+#define vpiPreprocMacroInstances    6002
+#define vpiPreprocMacroInstance     6003
+
 #endif  // UHDM_VPI_USER_H

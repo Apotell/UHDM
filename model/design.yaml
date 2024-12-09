@@ -30,9 +30,9 @@
     vpi: vpiType
     type: uint32_t
     card: 1
-  - obj_ref: include_file_infos
-    vpi: vpiIncludeFileInfo
-    type: include_file_info
+  - obj_ref: source_files
+    vpi: vpiSourceFiles
+    type: source_file
     card: any
   - class: allPackages
     type: package

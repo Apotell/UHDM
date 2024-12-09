@@ -1,4 +1,4 @@
-# Copyright 2019 Alain Dargelas
+# Copyright 2019-2020 Alain Dargelas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "begin" formal description
- 
-- obj_def: begin
-  - extends: scope
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
+# Universal Hardware Data Model (UHDM) "preproc_macro_instance" formal description
+
+- obj_def: preproc_macro_instance
+  - property: name
+    name: name
+    vpi: vpiName
     type: string
     card: 1
+  - obj_ref: preproc_macro_definition
+    name: Preproc Macro Definition
+    vpi: vpiPreprocMacroDefinition
+    type: preproc_macro_definition
+    card: 1
+  - obj_ref: preproc_macro_instance
+    name: Preproc Macro Instances
+    vpi: vpiPreprocMacroInstances
+    type: preproc_macro_instance
+    card: any

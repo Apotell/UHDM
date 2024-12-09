@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "named begin" formal description
+# Universal Hardware Data Model (UHDM) "parameters" formal description
  
-- obj_def: named_begin
-  - extends: scope
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+- group_def: gen_stmts
+  - obj_ref: gen_case
+  - obj_ref: gen_if
+  - obj_ref: gen_if_else
+  - obj_ref: gen_for
+  - obj_ref: gen_region

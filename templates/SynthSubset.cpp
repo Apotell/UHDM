@@ -190,7 +190,6 @@ void SynthSubset::leaveAny(const any* object, vpiHandle handle) {
     case UHDM_OBJECT_TYPE::uhdmconstr_foreach:
     case UHDM_OBJECT_TYPE::uhdmsoft_disable:
     case UHDM_OBJECT_TYPE::uhdmfork_stmt:
-    case UHDM_OBJECT_TYPE::uhdmnamed_fork:
     case UHDM_OBJECT_TYPE::uhdmevent_stmt:
     case UHDM_OBJECT_TYPE::uhdmevent_typespec:
       reportError(object);
@@ -217,9 +216,6 @@ void SynthSubset::leaveTask(const task* topobject, vpiHandle handle) {
         if (type == UHDM_OBJECT_TYPE::uhdmbegin) {
           begin* b = (begin*)stmt;
           stmts = b->Stmts();
-        } else if (type == UHDM_OBJECT_TYPE::uhdmnamed_begin) {
-          named_begin* b = (named_begin*)stmt;
-          stmts = b->Stmts();
         }
         if (stmts) {
           for (auto st : *stmts) {
@@ -235,7 +231,6 @@ void SynthSubset::leaveTask(const task* topobject, vpiHandle handle) {
               case UHDM_OBJECT_TYPE::uhdmrelease:
               case UHDM_OBJECT_TYPE::uhdmsoft_disable:
               case UHDM_OBJECT_TYPE::uhdmfork_stmt:
-              case UHDM_OBJECT_TYPE::uhdmnamed_fork:
               case UHDM_OBJECT_TYPE::uhdmevent_stmt: {
                 reportError(top);
                 break;
@@ -303,11 +298,6 @@ void SynthSubset::leaveSys_func_call(const sys_func_call* object,
         if (st->Stmts()) {
           m_scheduledFilteredObjects.emplace_back(st->Stmts(), object);
         }
-      } else if (parent->UhdmType() == uhdmnamed_begin) {
-        named_begin* st = (named_begin*) parent;
-        if (st->Stmts()) {
-          m_scheduledFilteredObjects.emplace_back(st->Stmts(), object);
-        }
       }
     }
   }
@@ -360,7 +350,8 @@ bool SynthSubset::reportedParent(const any* object) {
 // Apply some rewrite rule for Synlig limitations, namely Synlig handles aliased typespec incorrectly.
 void SynthSubset::leaveRef_typespec(const ref_typespec* object,
                                     vpiHandle handle) {
-  if (const typespec* actual = object->Actual_typespec()) {
+  if (const typedef_typespec* actual =
+          object->Actual_typespec<typedef_typespec>()) {
     if (const ref_typespec* ref_alias = actual->Typedef_alias()) {
       // Make the typespec point to the aliased typespec if they are of the same
       // type:
@@ -403,9 +394,6 @@ void SynthSubset::leaveFor_stmt(const for_stmt* object, vpiHandle handle) {
         if (const any* stmt = object->VpiStmt()) {
           if (stmt->UhdmType() == uhdmbegin) {
             begin* st = (begin*)stmt;
-            stlist = st->Stmts();
-          } else if (stmt->UhdmType() == uhdmnamed_begin) {
-            named_begin* st = (named_begin*)stmt;
             stlist = st->Stmts();
           }
           if (stlist) {
@@ -467,8 +455,6 @@ void SynthSubset::leaveFor_stmt(const for_stmt* object, vpiHandle handle) {
           VectorOfany* stmts = nullptr;
           if (parent->UhdmType() == uhdmbegin) {
             stmts = any_cast<begin*>(parent)->Stmts();
-          } else if (parent->UhdmType() == uhdmnamed_begin) {
-            stmts = any_cast<named_begin*>(parent)->Stmts();
           }
           if (stmts) {
             // Substitute the for loop with a case stmt
@@ -637,8 +623,6 @@ void SynthSubset::leaveAlways(const always* object, vpiHandle handle) {
             if (const UHDM::scope* st = any_cast<scope*>(ec->Stmt())) {
               if (st->UhdmType() == uhdmbegin) {
                 stmts = any_cast<begin*>(st)->Stmts();
-              } else if (st->UhdmType() == uhdmnamed_begin) {
-                stmts = any_cast<named_begin*>(st)->Stmts();
               }
             } else if (const UHDM::any* st = any_cast<any*>(ec->Stmt())) {
               stmts = serializer_->MakeAnyVec();

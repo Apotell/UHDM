@@ -36,6 +36,11 @@
     vpi: vpiMethod
     type: task_func
     card: any
+  - class_ref: task_func_decl
+    name: task func decl
+    vpi: vpiTaskFuncDecl
+    type: task_func_decl
+    card: any
   - obj_ref: constraint
     name: constraint
     vpi: vpiConstraint
