@@ -34,7 +34,15 @@ bool <GROUPNAME>GroupCompliant(const any* item) {
   }
   UHDM_OBJECT_TYPE uhdmtype = item->UhdmType();
   if (<CHECKTYPE>) {
-    item->GetSerializer()->GetErrorHandler()(ErrorType::UHDM_WRONG_OBJECT_TYPE, "Internal Error: adding wrong object type (" + UhdmName(uhdmtype) + ") in a <GROUPNAME> group!", item, nullptr);
+    std::string message;
+    message
+      .append("Internal Error(")
+      .append(std::to_string(item->UhdmId()))
+      .append(") : adding wrong object type (")
+      .append(UhdmName(uhdmtype))
+      .append(") in a <GROUPNAME> group!");
+    item->GetSerializer()->GetErrorHandler()(ErrorType::UHDM_WRONG_OBJECT_TYPE,
+                                             message, item, nullptr);
     return false;
   }
   return true;

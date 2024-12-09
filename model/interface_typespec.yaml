@@ -31,4 +31,8 @@
     vpi: vpiParamAssign
     type: param_assign
     card: any
-
+  - obj_ref: interface_inst
+    name: interface instance
+    vpi: vpiInterface
+    type: interface_inst
+    card: 1

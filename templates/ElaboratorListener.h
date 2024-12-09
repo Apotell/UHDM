@@ -121,14 +121,8 @@ class ElaboratorListener final : public VpiListener {
   void enterBegin(const begin* object, vpiHandle handle) final;
   void leaveBegin(const begin* object, vpiHandle handle) final;
 
-  void enterNamed_begin(const named_begin* object, vpiHandle handle) final;
-  void leaveNamed_begin(const named_begin* object, vpiHandle handle) final;
-
   void enterFork_stmt(const fork_stmt* object, vpiHandle handle) final;
   void leaveFork_stmt(const fork_stmt* object, vpiHandle handle) final;
-
-  void enterNamed_fork(const named_fork* object, vpiHandle handle) final;
-  void leaveNamed_fork(const named_fork* object, vpiHandle handle) final;
 
   void enterMethod_func_call(const method_func_call* object,
                              vpiHandle handle) final;

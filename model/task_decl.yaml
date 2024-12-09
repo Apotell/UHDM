@@ -12,17 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "begin" formal description
+# Universal Hardware Data Model (UHDM) "task" formal description
  
-- obj_def: begin
-  - extends: scope
-  - group_ref: stmts
-    name: stmts
-    vpi: vpiStmt
-    type: stmt
-    card: any
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+- obj_def: task_decl
+  - extends: task_func_decl
+

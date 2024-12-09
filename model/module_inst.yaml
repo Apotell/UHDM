@@ -143,9 +143,10 @@
     vpi: vpiRefModule
     type: ref_module
     card: any
-  - class_ref: gen_stmts
+  - group_ref: gen_stmts
+    name: gen_stmts
     vpi: vpiGenStmt
-    type: gen_stmt
+    type: gen_stmts
     card: any
   - property: endlabel
     name: endlabel

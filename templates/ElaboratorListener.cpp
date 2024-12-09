@@ -1219,42 +1219,6 @@ void ElaboratorListener::leaveBegin(const begin* object, vpiHandle handle) {
   }
 }
 
-void ElaboratorListener::enterNamed_begin(const named_begin* object,
-                                          vpiHandle handle) {
-  ComponentMap varMap;
-  if (!instStack_.empty()) {
-    ComponentMap& modMap = std::get<4>(instStack_.back());
-    if (!object->VpiName().empty()) {
-      modMap.emplace(object->VpiName(), object);
-    }
-  }
-  if (object->Array_vars()) {
-    for (variables* var : *object->Array_vars()) {
-      if (!var->VpiName().empty()) {
-        varMap.emplace(var->VpiName(), var);
-      }
-    }
-  }
-  if (object->Variables()) {
-    for (variables* var : *object->Variables()) {
-      if (!var->VpiName().empty()) {
-        varMap.emplace(var->VpiName(), var);
-      }
-    }
-  }
-
-  ComponentMap paramMap;
-  ComponentMap funcMap;
-  ComponentMap modMap;
-  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
-}
-void ElaboratorListener::leaveNamed_begin(const named_begin* object,
-                                          vpiHandle handle) {
-  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
-    instStack_.pop_back();
-  }
-}
-
 void ElaboratorListener::enterFork_stmt(const fork_stmt* object,
                                         vpiHandle handle) {
   ComponentMap varMap;
@@ -1280,43 +1244,6 @@ void ElaboratorListener::enterFork_stmt(const fork_stmt* object,
 }
 void ElaboratorListener::leaveFork_stmt(const fork_stmt* object,
                                         vpiHandle handle) {
-  if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
-    instStack_.pop_back();
-  }
-}
-
-void ElaboratorListener::enterNamed_fork(const named_fork* object,
-                                         vpiHandle handle) {
-  ComponentMap varMap;
-  if (!instStack_.empty()) {
-    ComponentMap& modMap = std::get<4>(instStack_.back());
-    if (!object->VpiName().empty()) {
-      modMap.emplace(object->VpiName(), object);
-    }
-  }
-  if (object->Array_vars()) {
-    for (variables* var : *object->Array_vars()) {
-      if (!var->VpiName().empty()) {
-        varMap.emplace(var->VpiName(), var);
-      }
-    }
-  }
-  if (object->Variables()) {
-    for (variables* var : *object->Variables()) {
-      if (!var->VpiName().empty()) {
-        varMap.emplace(var->VpiName(), var);
-      }
-    }
-  }
-
-  ComponentMap paramMap;
-  ComponentMap funcMap;
-  ComponentMap modMap;
-  instStack_.emplace_back(object, varMap, paramMap, funcMap, modMap);
-}
-
-void ElaboratorListener::leaveNamed_fork(const named_fork* object,
-                                         vpiHandle handle) {
   if (!instStack_.empty() && (std::get<0>(instStack_.back()) == object)) {
     instStack_.pop_back();
   }

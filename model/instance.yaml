@@ -104,7 +104,7 @@
   - obj_ref: program_arrays
     name: program array
     vpi: vpiProgramArray
-    type: program
+    type: program_array
     card: any
   - obj_ref: class_defn
     name: class defn

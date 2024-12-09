@@ -27,6 +27,7 @@
 #include <uhdm/ElaboratorListener.h>
 <INCLUDES>
 
+#include <algorithm>
 
 namespace UHDM {
 <METHODS>

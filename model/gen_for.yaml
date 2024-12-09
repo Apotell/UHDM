@@ -17,7 +17,7 @@
 # in the non-elaborate tree
 
 - obj_def: gen_for
-  - extends: gen_stmt
+  - extends: gen_scope
   - property: type
     name: vpiFor
     vpi: vpiType
@@ -58,4 +58,3 @@
     vpi: vpiStmt
     type: stmt
     card: 1
-    
