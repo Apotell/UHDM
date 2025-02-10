@@ -15,12 +15,15 @@ def _get_implementation(classname, vpi, card):
             # Prevent loop in Standard VPI
             shallow_visit = 'true'
 
-        if ('func_call' in classname) and (vpi == 'vpiFunction'):
+        if (classname == 'func_call') and (vpi == 'vpiFunction'):
             # Prevent stepping inside functions while processing calls (func_call, method_func_call) to them
             shallow_visit = 'true'
 
-        if ('task_call' in classname) and (vpi == 'vpiTask'):
+        if (classname == 'task_call') and (vpi == 'vpiTask'):
             # Prevent stepping inside tasks while processing calls (task_call, method_task_call) to them
+            shallow_visit = 'true'
+
+        if (classname == 'preproc_macro_instance') and (vpi == 'preproc_macro_definition'):
             shallow_visit = 'true'
 
         if classname in ['ref_obj', 'ref_typespec']:

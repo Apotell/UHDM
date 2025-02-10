@@ -27,6 +27,6 @@
     card: 1
   - obj_ref: preproc_macro_instance
     name: Preproc Macro Instances
-    vpi: vpiPreprocMacroInstances
+    vpi: vpiPreprocMacroInstance
     type: preproc_macro_instance
     card: any

@@ -13,34 +13,41 @@
 using namespace UHDM;
 using testing::ElementsAre;
 
-class MyUhdmListener : public UhdmListener {
+class MyUhdmListener final : public UhdmListener {
  protected:
   void enterModule_inst(const module_inst* object) override {
-    if (visited.find(object) != visited.end()) return;
     CollectLine("Module", object);
     stack_.push(object);
   }
 
   void leaveModule_inst(const module_inst* object) override {
-    if (visited.find(object) != visited.end()) return;
+    ASSERT_EQ(stack_.top(), object);
+    stack_.pop();
+  }
+
+  void enterPackage(const package* object) override {
+    CollectLine("Package", object);
+    stack_.push(object);
+  }
+
+  void leavePackage(const package* object) override {
     ASSERT_EQ(stack_.top(), object);
     stack_.pop();
   }
 
   void enterProgram(const program* object) override {
-    if (visited.find(object) != visited.end()) return;
     CollectLine("Program", object);
     stack_.push(object);
   }
 
   void leaveProgram(const program* object) override {
-    if (visited.find(object) != visited.end()) return;
     ASSERT_EQ(stack_.top(), object);
     stack_.pop();
   }
 
  public:
   void CollectLine(const std::string& prefix, const BaseClass* object) {
+    if (visited.find(object) != visited.end()) return;
     std::string parentName;
     if (object->VpiParent() != nullptr)
       parentName = object->VpiParent()->VpiName();
@@ -67,6 +74,7 @@ static design* buildModuleProg(Serializer* s) {
   // Design building
   design* d = s->MakeDesign();
   d->VpiName("design1");
+
   // Module
   module_inst* m1 = s->MakeModule_inst();
   m1->VpiTopModule(true);
@@ -93,30 +101,16 @@ static design* buildModuleProg(Serializer* s) {
   m4->VpiParent(m3);
   m4->Instance(m3);
 
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
-  v1->push_back(m1);
-  d->AllModules(v1);
-
-  VectorOfmodule_inst* v2 = s->MakeModule_instVec();
-  v2->push_back(m2);
-  v2->push_back(m3);
-  m1->Modules(v2);
-
   // Package
   package* p1 = s->MakePackage();
   p1->VpiName("P1");
   p1->VpiDefName("P0");
-  VectorOfpackage* v3 = s->MakePackageVec();
-  v3->push_back(p1);
-  d->AllPackages(v3);
+  p1->VpiParent(d);
 
   // Instance items, illustrates the use of groups
   program* pr1 = s->MakeProgram();
   pr1->VpiDefName("PR1");
-  pr1->VpiParent(m1);
-  VectorOfany* inst_items = s->MakeAnyVec();
-  inst_items->push_back(pr1);
-  m1->Instance_items(inst_items);
+  pr1->VpiParent(d);
 
   return d;
 }
@@ -128,14 +122,13 @@ TEST(UhdmListenerTest, ProgramModule) {
   std::unique_ptr<MyUhdmListener> listener(new MyUhdmListener());
   listener->listenDesign(design);
   const std::vector<std::string> expected = {
+      "Package: P1/P0 parent: design1",
+      "Program: /PR1 parent: design1",
       "Module: /M1 parent: design1",
-      "Program: /PR1 parent: -",
       "Module: u1/M2 parent: -",
       "Module: u2/M3 parent: -",
+      "Module: u3/M4 parent: u2",
   };
   EXPECT_EQ(listener->collected(), expected);
-
-  // m4 is never visited since though it's parented (back edge),
-  // it isn't connected to the graph with a forward edge.
-  EXPECT_FALSE(listener->didVisitAll(serializer));
+  EXPECT_TRUE(listener->didVisitAll(serializer));
 }

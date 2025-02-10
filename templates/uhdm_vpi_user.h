@@ -49,36 +49,43 @@
 #define vpiSourceFiles       3018
 #define vpiSourceFile        3019
 #define vpiIncludes          3020
+#define vpiModules           3021
+#define vpiModuleArrays      3022
 
 // Tags used to model unsupported nodes
-#define vpiUnsupportedStmt   4000
-#define vpiUnsupportedExpr   4001
-#define vpiUnsupportedTypespec 4002
+#define vpiUnsupportedStmt        4000
+#define vpiUnsupportedExpr        4001
+#define vpiUnsupportedTypespec    4002
 
 // Objects/properties not in the Standard
-#define vpiHierPath         5000 // Represents a hierarchical path
-#define vpiReordered        5001 // Boolean for operations (pattern assign, concat) that has been reordered
-#define vpiElaborated       5002 // Boolean indicating UHDM has been elaborated/uniquified
-#define vpiRefVar           5003 // "variables" type reference object required for late binding during elaboration
-#define vpiOverriden        5004 // Boolean indicating a param_assign is overriden (not default value)
-#define vpiFlattened        5005 // Boolean indicating an operation (pattern assign) has already been flattened
-#define vpiCheckerDecl      5006 // Handle to checker_def
-#define vpiCheckerInst      5007 // Handle to checker_inst
-#define vpiCheckerPort      5008 // Handle to checker_port
-#define vpiCheckerInstPort  5009 // Handle to checker_inst_port
-#define vpiArrayExpr        5010 // Handle to array_expr
-#define vpiRefModule        5011 // Handle to module ref for folded (Non-elaborated) model
-#define vpiGenStmt          5012 // Handle to generate stmt for folded (Non-elaborated) model
-#define vpiGenIf            5013 // Handle to if-generate for folded (Non-elaborated) model
-#define vpiGenIfElse        5014 // Handle to if-else-generate for folded (Non-elaborated) model
-#define vpiGenFor           5015 // Handle to for-generate for folded (Non-elaborated) model
-#define vpiGenCase          5016 // Handle to case-generate for folded (Non-elaborated) model
-#define vpiGenRegion        5017 // Handle to generate region for folded (Non-elaborated) model
+#define vpiHierPath               5000 // Represents a hierarchical path
+#define vpiReordered              5001 // Boolean for operations (pattern assign, concat) that has been reordered
+#define vpiElaborated             5002 // Boolean indicating UHDM has been elaborated/uniquified
+#define vpiRefVar                 5003 // "variables" type reference object required for late binding during elaboration
+#define vpiOverriden              5004 // Boolean indicating a param_assign is overriden (not default value)
+#define vpiFlattened              5005 // Boolean indicating an operation (pattern assign) has already been flattened
+#define vpiCheckerDecl            5006 // Handle to checker_def
+#define vpiCheckerInst            5007 // Handle to checker_inst
+#define vpiCheckerPort            5008 // Handle to checker_port
+#define vpiCheckerInstPort        5009 // Handle to checker_inst_port
+#define vpiArrayExpr              5010 // Handle to array_expr
+#define vpiRefModule              5011 // Handle to module ref for folded (Non-elaborated) model
+#define vpiGenStmt                5012 // Handle to generate stmt for folded (Non-elaborated) model
+#define vpiGenIf                  5013 // Handle to if-generate for folded (Non-elaborated) model
+#define vpiGenIfElse              5014 // Handle to if-else-generate for folded (Non-elaborated) model
+#define vpiGenFor                 5015 // Handle to for-generate for folded (Non-elaborated) model
+#define vpiGenCase                5016 // Handle to case-generate for folded (Non-elaborated) model
+#define vpiGenRegion              5017 // Handle to generate region for folded (Non-elaborated) model
+#define vpiModuleTypespec         5018 /* !!! NOT Standard !!! */
+#define vpiRefTypespec            5019 /* !!! NOT Standard !!! */
+#define vpiTypedefTypespec        5020 /* !!! NOT Standard !!! */
+#define vpiImportTypespecItem     5021 /* !!! NOT Standard !!! */
 
 // Preprocessor directives
-#define vpiPreprocMacroDefinitions  6000
-#define vpiPreprocMacroDefinition   6001
-#define vpiPreprocMacroInstances    6002
-#define vpiPreprocMacroInstance     6003
+#define vpiPreprocMacroDefinition   6000
+#define vpiPreprocMacroInstance     6001
+#define vpiNameStartColumn          6002
+#define vpiBodyStartColumn          6003
+#define vpiTokens                   6004
 
 #endif  // UHDM_VPI_USER_H

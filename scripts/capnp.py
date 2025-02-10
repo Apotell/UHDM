@@ -10,15 +10,19 @@ import file_utils
 
 def _get_schema(type, vpi, card):
     mapping = {
-      'string': 'UInt64',
-      'unsigned int': 'UInt64',
-      'uint32_t': 'UInt64',
-      'int': 'Int64',
-      'int32_t': 'Int64',
+      'string': 'UInt32',
+      'unsigned': 'UInt32',
+      'unsigned int': 'UInt32',
+      'uint16_t': 'UInt16',
+      'uint32_t': 'UInt32',
+      'int': 'Int32',
+      'int16_t': 'Int16',
+      'int32_t': 'Int32',
       'any': 'Int64',
       'bool': 'Bool',
       'value': 'UInt64',
       'delay': 'UInt64',
+      'symbol': 'UInt32',
     }
 
     type = mapping.get(type, type)
@@ -33,9 +37,9 @@ def _get_schema(type, vpi, card):
 def generate(models):
     model_schemas = [
       'struct Any {',
-      '  uhdmId @0 : UInt64;',
+      '  uhdmId @0 : UInt32;',
       '  vpiParent @1 : ObjIndexType;',
-      '  vpiFile @2 : UInt64;',
+      '  vpiFile @2 : UInt32;',
       '  vpiLineNo @3 : UInt32;',
       '  vpiEndLineNo @4 : UInt32;',
       '  vpiColumnNo @5 : UInt16;',
@@ -96,7 +100,7 @@ def generate(models):
         model_schemas.append('')
 
     root_schema = []
-    root_schema_index = 4
+    root_schema_index = 3
     for Classname in sorted(classnames):
         root_schema.append(f'  factory{Classname} @{root_schema_index} : List({Classname});')
         root_schema_index += 1

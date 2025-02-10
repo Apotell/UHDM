@@ -16,14 +16,9 @@
 
 - obj_def: import_typespec
   - extends: typespec
-  - property: type
-    name: uhdmimport_typespec
-    vpi: vpiType
-    type: uint32_t
-    card: 1
   - obj_ref: item
     name: item
-    vpi: vpiImportTypespec
+    vpi: vpiImportTypespecItem
     type: constant
     card: 1
 

@@ -75,6 +75,10 @@ vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type,
   return uhdm_handleMaker.Make(type, object);
 }
 
+VectorOfsymbol* Serializer::MakeSymbolVec() {
+  return symbolVectMaker.Make();
+}
+
 Serializer::IdMap Serializer::AllObjects() const {
   IdMap idMap;
 <CAPNP_ID>
@@ -141,6 +145,7 @@ void Serializer::Purge() {
   anyVectMaker.Purge();
   symbolMaker.Purge();
   uhdm_handleMaker.Purge();
+  symbolVectMaker.Purge();
 <FACTORY_PURGE>
 }
 

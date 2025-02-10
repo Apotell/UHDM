@@ -19,7 +19,7 @@ using namespace UHDM;
 using testing::ElementsAre;
 using testing::HasSubstr;
 
-class MyVpiListener : public VpiListener {
+class MyVpiListener final : public VpiListener {
  protected:
   void enterModule_inst(const module_inst* object, vpiHandle handle) override {
     CollectLine("Module", object);
@@ -27,6 +27,16 @@ class MyVpiListener : public VpiListener {
   }
 
   void leaveModule_inst(const module_inst* object, vpiHandle handle) override {
+    ASSERT_EQ(stack_.top(), object);
+    stack_.pop();
+  }
+
+  void enterPackage(const package* object, vpiHandle handle) override {
+    CollectLine("Package", object);
+    stack_.push(object);
+  }
+
+  void leavePackage(const package* object, vpiHandle handle) override {
     ASSERT_EQ(stack_.top(), object);
     stack_.pop();
   }
@@ -43,6 +53,7 @@ class MyVpiListener : public VpiListener {
 
  public:
   void CollectLine(const std::string& prefix, const BaseClass* object) {
+    if (visited.find(object) != visited.cend()) return;
     vpiHandle parentHandle = NewVpiHandle(object->VpiParent());
     const char* const parentName = vpi_get_str(vpiName, parentHandle);
     vpi_free_object(parentHandle);
@@ -68,6 +79,7 @@ static std::vector<vpiHandle> buildModuleProg(Serializer* s) {
   // Design building
   design* d = s->MakeDesign();
   d->VpiName("design1");
+
   // Module
   module_inst* m1 = s->MakeModule_inst();
   m1->VpiTopModule(true);
@@ -94,30 +106,16 @@ static std::vector<vpiHandle> buildModuleProg(Serializer* s) {
   m4->VpiParent(m3);
   m4->Instance(m3);
 
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
-  v1->push_back(m1);
-  d->AllModules(v1);
-
-  VectorOfmodule_inst* v2 = s->MakeModule_instVec();
-  v2->push_back(m2);
-  v2->push_back(m3);
-  m1->Modules(v2);
-
   // Package
   package* p1 = s->MakePackage();
   p1->VpiName("P1");
   p1->VpiDefName("P0");
-  VectorOfpackage* v3 = s->MakePackageVec();
-  v3->push_back(p1);
-  d->AllPackages(v3);
+  p1->VpiParent(d);
 
   // Instance items, illustrates the use of groups
   program* pr1 = s->MakeProgram();
   pr1->VpiDefName("PR1");
-  pr1->VpiParent(m1);
-  VectorOfany* inst_items = s->MakeAnyVec();
-  inst_items->push_back(pr1);
-  m1->Instance_items(inst_items);
+  pr1->VpiParent(d);
 
   return {s->MakeUhdmHandle(uhdmdesign, d)};
 }
@@ -129,10 +127,12 @@ TEST(VpiListenerTest, ProgramModule) {
   std::unique_ptr<MyVpiListener> listener(new MyVpiListener());
   listener->listenDesigns(design);
   const std::vector<std::string> expected = {
+      "Package: P1/P0 parent: design1",
+      "Program: /PR1 parent: design1",
       "Module: /M1 parent: design1",
-      "Program: /PR1 parent: -",
       "Module: u1/M2 parent: -",
       "Module: u2/M3 parent: -",
+      "Module: u3/M4 parent: u2",
   };
   EXPECT_EQ(listener->collected(), expected);
 }

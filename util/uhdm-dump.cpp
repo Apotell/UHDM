@@ -145,6 +145,7 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   std::cout << uhdmFile << ": Restored design Pre-Elab: " << std::endl;
+  vpi_show_ids(true);
   visit_designs(restoredDesigns, std::cout);
 
   if (!goldenFile.empty()) {

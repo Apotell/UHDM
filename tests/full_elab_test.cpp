@@ -70,38 +70,34 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     m2->VpiFile("fake2.sv");
     m2->VpiLineNo(20);
     m2->VpiParent(d);
+
     // M2 Ports
-    VectorOfport* vp = s->MakePortVec();
     port* p = s->MakePort();
     p->VpiName("i1");
     p->VpiDirection(vpiInput);
-    vp->push_back(p);
+    p->VpiParent(m2);
     p = s->MakePort();
     p->VpiName("o1");
     p->VpiDirection(vpiOutput);
-    vp->push_back(p);
-    m2->Ports(vp);
+    p->VpiParent(m2);
+
     // M2 Nets
-    VectorOfnet* vn = s->MakeNetVec();
     logic_net* n = s->MakeLogic_net();
     n->VpiName("i1");
-    vn->push_back(n);
+    n->VpiParent(m2);
     n = s->MakeLogic_net();
     n->VpiName("o1");
-    vn->push_back(n);
-    m2->Nets(vn);
+    n->VpiParent(m2);
 
     // M2 continuous assignment
-    VectorOfcont_assign* assigns = s->MakeCont_assignVec();
     cont_assign* cassign = s->MakeCont_assign();
-    assigns->push_back(cassign);
+    cassign->VpiParent(m2);
     ref_obj* lhs = s->MakeRef_obj();
     ref_obj* rhs = s->MakeRef_obj();
     lhs->VpiName("o1");
     rhs->VpiName("i1");
     cassign->Lhs(lhs);
     cassign->Rhs(rhs);
-    m2->Cont_assigns(assigns);
   }
 
   //-------------------------------------------
@@ -124,33 +120,32 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     m4->VpiDefName("M2");         // Points to the module def (by name)
     m4->VpiName("inst1");         // Instance name
     m4->VpiFullName("M1.inst1");  // Instance full name
-    VectorOfport* inst_vp = s->MakePortVec();  // Create elaborated ports
-    m4->Ports(inst_vp);
     port* p1 = s->MakePort();
     p1->VpiName("i1");
-    inst_vp->push_back(p1);
+    p1->VpiParent(m4);
     port* p2 = s->MakePort();
     p2->VpiName("o1");
-    inst_vp->push_back(p2);
+    p2->VpiParent(m4);
+
     // M2 Nets
-    VectorOfnet* vn = s->MakeNetVec();  // Create elaborated nets
     logic_net* n = s->MakeLogic_net();
     n->VpiName("i1");
     n->VpiFullName("M1.inst.i1");
     ref_obj* low_conn = s->MakeRef_obj();
     low_conn->Actual_group(n);
     low_conn->VpiName("i1");
+    low_conn->VpiParent(p1);
     p1->Low_conn(low_conn);
-    vn->push_back(n);
+    n->VpiParent(m4);
     n = s->MakeLogic_net();
     n->VpiName("o1");
     n->VpiFullName("M1.inst.o1");
     low_conn = s->MakeRef_obj();
     low_conn->Actual_group(n);
     low_conn->VpiName("o1");
+    low_conn->VpiParent(p2);
     p2->Low_conn(low_conn);
-    vn->push_back(n);
-    m4->Nets(vn);
+    n->VpiParent(m4);
   }
 
   // Create parent-child relation in between the 2 modules in the instance tree
@@ -161,12 +156,12 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
   // Create both non-elaborated and elaborated lists
   VectorOfmodule_inst* allModules = s->MakeModule_instVec();
   d->AllModules(allModules);
-  allModules->push_back(m1);
-  allModules->push_back(m2);
+  allModules->emplace_back(m1);
+  allModules->emplace_back(m2);
 
   VectorOfmodule_inst* topModules = s->MakeModule_instVec();
   d->TopModules(topModules);
-  topModules->push_back(
+  topModules->emplace_back(
       m3);  // Only m3 goes there as it is the top level module
 
   vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);

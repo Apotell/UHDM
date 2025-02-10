@@ -13,6 +13,7 @@ _collector_class_types = {
         ( 'class_defn', 'Instance_items' ),
         ( 'concurrent_assertions', 'Concurrent_assertions' ),
         ( 'cover', 'Instance_items' ),
+        ( 'gen_var', 'Gen_vars' ),
         ( 'immediate_assert', 'Instance_items' ),
         ( 'immediate_assume', 'Instance_items' ),
         ( 'immediate_cover', 'Instance_items' ),
@@ -40,6 +41,7 @@ _collector_class_types = {
         ( 'typespec', 'Typespecs' ),
         ( 'variables', 'Instance_items' ),
         ( 'variables', 'Variables' ),
+        ( 'virtual_interface_var', 'Virtual_interface_vars' ),
     ]),
     'udp_defn': set([
         ( 'io_decl', 'Io_decls' ),
@@ -207,7 +209,7 @@ def _get_declarations(type, vpi, card, real_type=''):
         if type == 'std::string':
             content.append(f'  bool {Vpi_}(std::string_view data);')
             content.append(f'  std::string_view {Vpi_}() const{final};')
-        elif type in ['uint32_t', 'int32_t', 'bool']:
+        elif type in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'bool']:
             content.append(f'  {type} {Vpi_}() const{final} {{ return {vpi}_; }}')
             content.append(f'  bool {Vpi_}({type} data) {{\n    {vpi}_ = data;\n    return true;\n  }}')
         else:
@@ -215,11 +217,11 @@ def _get_declarations(type, vpi, card, real_type=''):
             content.append(f'  const {type}* {Vpi_}() const{final} {{ return {vpi}_; }}')
             content.append( '  template <typename T>')
             content.append(f'  T* {Vpi_}() {{')
-            content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<T*>({vpi}_);')
+            content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<T>({vpi}_);')
             content.append( '  }')
             content.append( '  template <typename T>')
             content.append(f'  const T* {Vpi_}() const {{')
-            content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<const T*>({vpi}_);')
+            content.append(f'    return ({vpi}_ == nullptr) ? nullptr : any_cast<T>({vpi}_);')
             content.append( '  }')
             content.append(f'  bool {Vpi_}({type}* data) {{\n    {check}{vpi}_ = data;\n    return true;\n  }}')
     elif card == 'any':
@@ -231,7 +233,6 @@ def _get_declarations(type, vpi, card, real_type=''):
 
 
 def _get_implementations(classname, type, vpi, card):
-    includes = set()
     content = []
 
     Vpi_ = vpi[:1].upper() + vpi[1:]
@@ -241,7 +242,7 @@ def _get_implementations(classname, type, vpi, card):
             type = 'std::string'
 
         if type != 'std::string':
-            return content, includes
+            return content
 
         if vpi == 'uhdmType':
             type = 'UHDM_OBJECT_TYPE'
@@ -274,7 +275,7 @@ def _get_implementations(classname, type, vpi, card):
         content.append( '}')
 
     content.append('')
-    return content, includes
+    return content
 
 
 def _get_data_member(type, vpi, card):
@@ -286,7 +287,7 @@ def _get_data_member(type, vpi, card):
     if card == '1':
         pointer = ''
         default_assignment = 'false' if type == 'bool' else '0'
-        if type not in ['uint32_t', 'int32_t', 'bool', 'std::string']:
+        if type not in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'bool', 'std::string', 'symbol']:
             pointer = '*'
             default_assignment = 'nullptr'
 
@@ -308,7 +309,7 @@ def _get_DeepClone_implementation(model, models):
     includes = set()
     content = []
     content.append(f'void {classname}::DeepCopy({classname}* clone, BaseClass* parent, CloneContext* context) const {{')
-    content.append( '  [[maybe_unused]] ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
+    content.append( '  [[maybe_unused]] ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext>(context);')
     if modeltype != 'class_def':
         content.append(f'  elaboratorContext->m_elaborator.enter{Classname}(clone, nullptr);')
 
@@ -338,7 +339,7 @@ def _get_DeepClone_implementation(model, models):
     if 'Select' in vpi_name:
         includes.add('net')
         content.append('  if (any* n = elaboratorContext->m_elaborator.bindNet(VpiName())) {')
-        content.append('    if (net* nn = any_cast<net*>(n))')
+        content.append('    if (net* nn = any_cast<net>(n))')
         content.append('      clone->VpiFullName(nn->VpiFullName());')
         content.append('  }')
 
@@ -383,9 +384,9 @@ def _get_DeepClone_implementation(model, models):
                         includes.add('ref_obj')
                         includes.add('class_var')
                         includes.add(method.lower())
-                        content.append(f'  const ref_obj* ref = any_cast<const ref_obj*> (clone->Prefix());')
+                        content.append(f'  const ref_obj* ref = any_cast<ref_obj> (clone->Prefix());')
                         content.append( '  const class_var* prefix = nullptr;')
-                        content.append( '  if (ref) prefix = any_cast<const class_var*>(ref->Actual_group());')
+                        content.append( '  if (ref) prefix = any_cast<class_var>(ref->Actual_group());')
                         prefix = 'prefix'
                     content.append(f'  elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, {prefix});')
 
@@ -415,7 +416,7 @@ def _get_DeepClone_implementation(model, models):
                 elif method == 'Instance':
                     includes.add('instance')
                     content.append(f'  if (auto obj = {method}()) clone->{method}((instance*) obj);')
-                    content.append( '  if (instance* inst = any_cast<instance*>(parent))')
+                    content.append( '  if (instance* inst = any_cast<instance>(parent))')
                     content.append( '    clone->Instance(inst);')
 
                 elif method == 'Module_inst':
@@ -423,7 +424,7 @@ def _get_DeepClone_implementation(model, models):
                     content.append(f'  if (auto obj = {method}()) clone->{method}((module_inst*) obj);')
 
                 elif method == 'Interface_inst':
-                    includes.add('module_inst')
+                    includes.add('interface_inst')
                     content.append(f'  if (auto obj = {method}()) clone->{method}((interface_inst*) obj);')
 
                 else:
@@ -451,7 +452,7 @@ def _get_DeepClone_implementation(model, models):
                 content.append(f'  if (auto vec = {method}()) {{')
                 content.append(f'    auto clone_vec = clone->{method}(true);')
                 content.append( '    for (auto obj : *vec) {')
-                content.append( '      clone_vec->push_back(obj->DeepClone(clone, context));')
+                content.append( '      clone_vec->emplace_back(obj->DeepClone(clone, context));')
                 content.append( '    }')
                 content.append( '  }')
 
@@ -469,13 +470,13 @@ def _get_DeepClone_implementation(model, models):
         content.append(f'{classname}* {classname}::DeepClone(BaseClass* parent, CloneContext* context) const {{')
 
         if classname in ['begin', 'named_begin', 'fork', 'named_fork']:
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
+            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext>(context);')
             content.append(f'  elaboratorContext->m_elaborator.enter{Classname}(this, nullptr);')
 
         if 'Net' in vpi_name:
             includes.add('ElaboratorListener')
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaboratorContext->m_elaborator.bindNet(VpiName()));')
+            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext>(context);')
+            content.append(f'  {classname}* clone = any_cast<{classname}>(elaboratorContext->m_elaborator.bindNet(VpiName()));')
             content.append( '  if (clone != nullptr) {')
             content.append(f'    return clone;')
             content.append( '  }')
@@ -483,8 +484,8 @@ def _get_DeepClone_implementation(model, models):
 
         elif 'Parameter' in vpi_name:
             includes.add('ElaboratorListener')
-            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
-            content.append(f'  {classname}* clone = any_cast<{classname}*>(elaboratorContext->m_elaborator.bindParam(VpiName()));')
+            content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext>(context);')
+            content.append(f'  {classname}* clone = any_cast<{classname}>(elaboratorContext->m_elaborator.bindParam(VpiName()));')
             content.append( '  if (clone == nullptr) {')
             content.append(f'    clone = context->m_serializer->Make{Classname}();')
             content.append( '  }')
@@ -527,8 +528,9 @@ def _get_GetByVpiName_implementation(model):
                 content.append(f'    return {name}_;')
                 content.append( '  }')
             else:
-                if key != 'group_ref':
-                    includes.add(value.get('type'))
+                type = value.get('type')
+                if key != 'group_ref' and type != 'symbol':
+                    includes.add(type)
 
                 content.append(f'  if ({name}_ != nullptr) {{')
                 content.append(f'    for (const BaseClass *ref : *{name}_) {{')
@@ -719,7 +721,7 @@ def _get_Compare_implementation(model):
                    '  }',
                 ])
 
-            elif type in ['uint32_t', 'int32_t']:
+            elif type in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t']:
                 content.extend([
                   f'  if ((r = lhs->{Vpi_}() - rhs->{Vpi_}()) != 0) {{',
                    '    context->m_failedLhs = lhs;',
@@ -737,16 +739,21 @@ def _get_Compare_implementation(model):
                    '  }',
                 ])
 
+            elif type == 'symbol':
+                content.append(f'  if ((r = SafeCompare(lhs->{Vpi_}(), rhs->{Vpi_}(), context)) != 0) return r;')
+
             else:
-                Name = name[:1].upper() + name[1:]
                 includes.add(type)
+                Name = name[:1].upper() + name[1:]
                 content.append(f'  if ((r = SafeCompare(lhs->{Name}(), rhs->{Name}(), context)) != 0) return r;')
         else:
             if not name.endswith('s'):
                 name += 's'
 
+            if type != 'symbol':
+                includes.add(type)
+
             Name = name[:1].upper() + name[1:]
-            includes.add(type)
             content.append(f'  if ((r = SafeCompare(lhs, lhs->{Name}(), rhs, rhs->{Name}(), context)) != 0) return r;')
 
     content.extend([
@@ -786,8 +793,8 @@ def _get_Swap_implementation(model):
             type = 'any'
 
         if card == '1':
-            if type not in ['string', 'uint32_t', 'int32_t', 'bool']:
-                if type != 'any':
+            if type not in ['string', 'int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'bool']:
+                if type not in ['any', 'symbol']:
                     includes.add(type)
 
                 Name = name[:1].upper() + name[1:]
@@ -799,7 +806,7 @@ def _get_Swap_implementation(model):
                 name += 's'
 
             Name = name[:1].upper() + name[1:]
-            if type != 'any':
+            if type not in ['any', 'symbol']:
                 includes.add(type)
             content.append(f'  if (auto c = {Name}()) if (auto withT = with->Cast<{type}>()) {{')
             content.append( '    for (auto &p : *c) if (p == what) p = withT; else p->Swap(what, with);')
@@ -952,17 +959,14 @@ def _generate_one_class(model, models, templates):
             type = value.get('type')
             card = value.get('card')
 
-            Vpi = vpi[:1].upper() + vpi[1:]
-
             if name == 'type':
                 type_specified = True
+                Vpi = vpi[:1].upper() + vpi[1:]
                 public_declarations.append(f'  {type} {Vpi}() const {"final" if leaf else "override"} {{ return {value.get("vpiname")}; }}')
             else: # properties are already defined in vpi_user.h, no need to redefine them
                 data_members.extend(_get_data_member(type, vpi, card))
                 public_declarations.append(_get_declarations(type, vpi, card))
-                func_body, func_includes = _get_implementations(classname, type, vpi, card)
-                implementations.extend(func_body)
-                includes.update(func_includes)
+                implementations.extend(_get_implementations(classname, type, vpi, card))
 
         elif (key == 'extends') and value:
             header_file_content = header_file_content.replace('<EXTENDS>', value)
@@ -987,9 +991,7 @@ def _generate_one_class(model, models, templates):
             group_headers.update(_get_group_headers(type, real_type))
             data_members.extend(_get_data_member(type, name, card))
             public_declarations.append(_get_declarations(type, name, card, real_type))
-            func_body, func_includes = _get_implementations(classname, type, name, card)
-            implementations.extend(func_body)
-            includes.update(func_includes)
+            implementations.extend(_get_implementations(classname, type, name, card))
 
     if not type_specified and (modeltype == 'obj_def'):
         vpiclasstype = config.make_vpi_name(classname)

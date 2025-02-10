@@ -85,7 +85,7 @@ def generate(models):
 
       public_implementations.append(f'void VpiListener::listen{Classname_}(vpiHandle handle) {{')
       public_implementations.append(f'  const {classname}* object = (const {classname}*) ((const uhdm_handle*)handle)->object;')
-      public_implementations.append(f'  callstack.push_back(object);')
+      public_implementations.append(f'  callstack.emplace_back(object);')
       public_implementations.append(f'  enter{Classname_}(object, handle);')
       public_implementations.append( '  if (visited.insert(object).second) {')
       public_implementations.append(f'    listen{Classname_}_(handle);')

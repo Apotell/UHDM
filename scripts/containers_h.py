@@ -22,12 +22,9 @@ def generate(models):
                     type = 'any' if key == 'group_ref' else value.get('type')
                     types.add(type)
 
-    containers = []
-    for type in sorted(types):
-        containers.append(f'  typedef std::vector<{type}*> VectorOf{type};')
-        containers.append(f'  typedef std::vector<{type}*>::iterator VectorOf{type}Itr;')
-        containers.append('')
-    containers = '\n'.join(containers)
+    types.discard('symbol')
+    containers = '  typedef std::vector<SymbolId> VectorOfsymbol;\n'
+    containers += '\n'.join(f'  typedef std::vector<{type}*> VectorOf{type};' for type in sorted(types))
 
     with open(config.get_template_filepath('containers.h'), 'rt') as strm:
         file_content = strm.read()

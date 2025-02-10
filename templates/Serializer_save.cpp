@@ -96,13 +96,6 @@ void Serializer::Save(const std::string& filepath) {
   cap_root.setVersion(kVersion);
   cap_root.setObjectId(m_objId);
 
-  ::capnp::List<Design>::Builder designs = cap_root.initDesigns(designMaker.objects_.size());
-  index = 0;
-  for (auto design : designMaker.objects_) {
-    designs[index].setVpiName((RawSymbolId)design->GetSerializer()->symbolMaker.Make(design->VpiName()));
-    index++;
-  }
-
   const IdMap idMap = AllObjects();
   SaveAdapter adapter;
 <CAPNP_SAVE>

@@ -21,11 +21,6 @@
     vpi: vpiIndex
     type: int32_t
     card: 1
-  - property: type
-    name: vpiModule
-    vpi: vpiType
-    type: uint32_t
-    card: 1
   - property: top_module
     name: top module
     type: bool
@@ -83,12 +78,12 @@
     card: any
   - obj_ref: modules
     name: modules
-    vpi: vpiModule
+    vpi: vpiModules
     type: module_inst
     card: any
   - obj_ref: module_arrays
-    name: module array
-    vpi: vpiModuleArray
+    name: module arrays
+    vpi: vpiModuleArrays
     type: module_array
     card: any
   - obj_ref: gen_scope_array

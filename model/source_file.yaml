@@ -27,11 +27,11 @@
     card: any
   - obj_ref: preproc_macro_definition
     name: Preproc Macro Definitions
-    vpi: vpiPreprocMacroDefinitions
+    vpi: vpiPreprocMacroDefinition
     type: preproc_macro_definition
     card: any
   - obj_ref: preproc_macro_instance
     name: Preproc Macro Instances
-    vpi: vpiPreprocMacroInstances
+    vpi: vpiPreprocMacroInstance
     type: preproc_macro_instance
     card: any

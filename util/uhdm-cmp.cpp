@@ -101,16 +101,31 @@ int32_t main(int32_t argc, char **argv) {
     UHDM::CompareContext context;
     if (designsA[i]->Compare(designsB[i], &context) != 0) {
       if (context.m_failedLhs != nullptr) {
-        std::cerr << "LHS:" << std::endl;
-        std::cerr << UHDM::decompile(context.m_failedLhs);
+        const UHDM::any *p = context.m_failedLhs;
+        size_t count = 0;
+        while ((p != nullptr) && (count < 4)) {
+          std::cout << "LHS: " << count << ", " << p->VpiFile() << std::endl;
+          UHDM::decompile(p);
+          p = p->VpiParent();
+          ++count;
+        }
       } else {
-        std::cerr << "LHS: <null>" << std::endl;
+        std::cout << "LHS: <null>" << std::endl;
       }
+
+      std::cout << std::string(80, '=') << std::endl;
+
       if (context.m_failedRhs != nullptr) {
-        std::cerr << "RHS:" << std::endl;
-        std::cerr << UHDM::decompile(context.m_failedRhs);
+        const UHDM::any *p = context.m_failedRhs;
+        size_t count = 0;
+        while ((p != nullptr) && (count < 4)) {
+          std::cout << "RHS: " << count << ", " << p->VpiFile() << std::endl;
+          UHDM::decompile(p);
+          p = p->VpiParent();
+          ++count;
+        }
       } else {
-        std::cerr << "RHS: <null>" << std::endl;
+        std::cout << "RHS: <null>" << std::endl;
       }
       return -1;
     }

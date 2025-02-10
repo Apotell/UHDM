@@ -60,20 +60,25 @@
     vpi: vpiVirtualInterfaceVar
     type: virtual_interface_var
     card: any
-  - obj_ref: logic_var
-    name: logic var
+  - obj_ref: logic_vars
+    name: logic vars
     vpi: vpiReg
     type: logic_var
     card: any
-  - obj_ref: array_var
-    name: array var
+  - obj_ref: array_vars
+    name: array vars
     vpi: vpiRegArray
     type: array_var
     card: any
   - obj_ref: array_var_mems
-    name: mem var
+    name: mem vars
     vpi: vpiMemory
     type: array_var
+    card: any
+  - obj_ref: gen_vars
+    name: gen vars
+    vpi: vpiGenVar
+    type: gen_var
     card: any
   - group_ref: parameters
     name: parameters
@@ -83,7 +88,7 @@
   - obj_ref: param_assigns
     vpi: vpiParamAssign
     type: param_assign
-    card: any    
+    card: any
   - class_ref: scopes
     name: scopes
     vpi: vpiInternalScope

@@ -26,11 +26,11 @@
     name: definition name
     vpi: vpiDefName
     type: string
-    card: 1  
-  - group_ref: actual_group
-    name: actual group
+    card: 1
+  - group_ref: actual_instance
+    name: actual instance
     vpi: vpiActual
-    type: actual_group
+    type: actual_instance
     card: 1
   - obj_ref: ports
     vpi: vpiPort

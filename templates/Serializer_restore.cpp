@@ -83,7 +83,10 @@ BaseClass* Serializer::GetObject(uint32_t objectType, uint32_t index) const {
 
 struct Serializer::RestoreAdapter {
   void operator()(Any::Reader reader, Serializer *const serializer, BaseClass *const obj) const {
-    obj->VpiParent(serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1));
+    // Do NOT call VpiParent function call here! It ends up duplicating the entries in the collections
+    // because of calls to OnChildAdded & OnChildRemoved.
+    // obj->VpiParent(serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1));
+    obj->vpiParent_ = serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1);
     obj->VpiFile(serializer->symbolMaker.GetSymbol(SymbolId(reader.getVpiFile(), kUnknownRawSymbol)));
     obj->VpiLineNo(reader.getVpiLineNo());
     obj->VpiColumnNo(reader.getVpiColumnNo());

@@ -91,6 +91,7 @@ extern "C" {
 #define vpiModuleTypespec                     768 /* !!! NOT Standard !!! */
 #define vpiRefTypespec                        769 /* !!! NOT Standard !!! */
 #define vpiTypedefTypespec                    770 /* !!! NOT Standard !!! */
+#define vpiImportTypespecItem                 771 /* !!! NOT Standard !!! */
 
 #define vpiLabel                              791
 #define vpiEndLabel                           792

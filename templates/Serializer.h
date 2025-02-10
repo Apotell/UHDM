@@ -90,6 +90,8 @@ class Serializer final {
   static constexpr uint32_t kBadIndex = static_cast<uint32_t>(-1);
   static const uint32_t kVersion;
 
+  typedef FactoryT<VectorOfsymbol> VectorOfsymbolFactory;
+
   Serializer() = default;
   ~Serializer();
 
@@ -132,6 +134,8 @@ class Serializer final {
   std::string_view GetSymbol(SymbolId id) const;
   SymbolId GetSymbolId(std::string_view symbol) const;
 
+  VectorOfsymbol* MakeSymbolVec();
+
   vpiHandle MakeUhdmHandle(UHDM_OBJECT_TYPE type, const void* object);
 
   bool Erase(const BaseClass* p);
@@ -163,6 +167,7 @@ class Serializer final {
   VectorOfanyFactory anyVectMaker;
   SymbolFactory symbolMaker;
   uhdm_handleFactory uhdm_handleMaker;
+  VectorOfsymbolFactory symbolVectMaker;
 
   using ScopeStack = std::vector<any *>;
   ScopeStack m_scopeStack;

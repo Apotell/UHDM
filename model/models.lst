@@ -106,6 +106,7 @@ operand_group.yaml
 operation.yaml
 actual_group.yaml
 ref_obj.yaml
+actual_instance.yaml
 ref_module.yaml
 ref_typespec.yaml
 part_select.yaml
