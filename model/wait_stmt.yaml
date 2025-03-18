@@ -13,13 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "wait" formal description
- 
-- obj_def: wait_stmt
-  - extends: waits
-  - group_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr_sequence_inst_group
-    card: 1
-    
 
+- obj_def: wait_stmt
+- extends: waits
+- group_ref: condition
+  vpi: vpiCondition
+  type: expr_sequence_inst_group
+  card: 1

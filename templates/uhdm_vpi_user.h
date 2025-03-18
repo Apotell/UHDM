@@ -52,6 +52,15 @@
 #define vpiModules           3021
 #define vpiModuleArrays      3022
 
+#define vpiAllPackages       3031
+#define vpiTopPackages       3032
+#define vpiAllClasses        3033
+#define vpiAllInterfaces     3034
+#define vpiAllUdps           3035
+#define vpiAllPrograms       3036
+#define vpiAllModules        3037
+#define vpiTopModules        3038
+
 // Tags used to model unsupported nodes
 #define vpiUnsupportedStmt        4000
 #define vpiUnsupportedExpr        4001

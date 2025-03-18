@@ -29,19 +29,10 @@
 
 #include <vector>
 
-#include <uhdm/BaseClass.h>
-
-namespace UHDM {
-class BaseClass;
-typedef BaseClass any;
-
+namespace uhdm {
 <UHDM_CLASSES_FORWARD_DECL>
 
-<UHDM_FACTORIES_FORWARD_DECL>
+  using Any = BaseClass;
+} // namespace uhdm
 
-typedef FactoryT<std::vector<BaseClass*>> VectorOfanyFactory;
-<UHDM_CONTAINER_FACTORIES_FORWARD_DECL>
-};
-
-
-#endif
+#endif  // UHDM_FORWARD_DECL_H

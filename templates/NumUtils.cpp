@@ -31,7 +31,7 @@
 #include <regex>
 #include <sstream>
 
-namespace UHDM {
+namespace uhdm {
 
 std::string NumUtils::hexToBin(std::string_view s) {
   std::string out;
@@ -195,4 +195,4 @@ const char *NumUtils::parseLongDouble(std::string_view s, long double *result) {
   return strToIeee<long double, strtold>(s, result);
 }
 
-}  // namespace UHDM
+}  // namespace uhdm

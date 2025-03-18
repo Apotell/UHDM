@@ -27,18 +27,22 @@
 #ifndef UHDM_UHDMLISTENER_H
 #define UHDM_UHDMLISTENER_H
 
+#include <uhdm/BaseClass.h>
 #include <uhdm/containers.h>
 #include <uhdm/sv_vpi_user.h>
+#include <uhdm/uhdm_types.h>
 
 #include <algorithm>
 #include <unordered_set>
 #include <vector>
 
 
-namespace UHDM {
+namespace uhdm {
+class Serializer;
+
 class ScopedVpiHandle final {
  public:
-  ScopedVpiHandle(const UHDM::any *const any);
+  ScopedVpiHandle(const Any *const any);
   ~ScopedVpiHandle();
 
   operator vpiHandle() const { return handle; }
@@ -49,11 +53,11 @@ class ScopedVpiHandle final {
 
 class UhdmListener {
 protected:
-  typedef std::unordered_set<const any *> any_set_t;
-  typedef std::vector<const any *> any_stack_t;
+  using any_set_t = std::unordered_set<const Any *>;
+  using any_stack_t = std::vector<const Any *>;
 
-  any_set_t visited;
-  any_stack_t callstack;
+  any_set_t m_visited;
+  any_stack_t m_callstack;
 
 public:
   // Use implicit constructor to initialize all members
@@ -61,38 +65,37 @@ public:
   virtual ~UhdmListener() = default;
 
 public:
-  any_set_t &getVisited() { return visited; }
-  const any_set_t &getVisited() const { return visited; }
+  any_set_t &getVisited() { return m_visited; }
+  const any_set_t &getVisited() const { return m_visited; }
 
-  const any_stack_t &getCallstack() const { return callstack; }
+  const any_stack_t &getCallstack() const { return m_callstack; }
 
-  bool isOnCallstack(const any *const what) const {
-    return std::find(callstack.crbegin(), callstack.crend(), what) !=
-           callstack.rend();
+  bool isOnCallstack(const Any *const what) const {
+    return std::find(m_callstack.crbegin(), m_callstack.crend(), what) !=
+           m_callstack.rend();
   }
 
-  bool isOnCallstack(const std::unordered_set<UHDM_OBJECT_TYPE> &types) const {
-    return std::find_if(callstack.crbegin(), callstack.crend(),
-                        [&types](const any *const which) {
-                          return types.find(which->UhdmType()) != types.end();
-                        }) != callstack.rend();
+  bool isOnCallstack(const std::unordered_set<UhdmType> &types) const {
+    return std::find_if(m_callstack.crbegin(), m_callstack.crend(),
+                        [&types](const Any *const which) {
+                          return types.find(which->getUhdmType()) != types.end();
+                        }) != m_callstack.rend();
   }
 
   bool didVisitAll(const Serializer &serializer) const;
 
-  void listenAny(const any *const object);
+  void listenAny(const Any *const object, uint32_t vpiRelation = 0);
 <UHDM_PUBLIC_LISTEN_DECLARATIONS>
 
-  virtual void enterAny(const any* const object) {}
-  virtual void leaveAny(const any* const object) {}
+  virtual void enterAny(const Any* const object, uint32_t vpiRelation = 0) {}
+  virtual void leaveAny(const Any* const object, uint32_t vpiRelation = 0) {}
 
 <UHDM_ENTER_LEAVE_DECLARATIONS>
-<UHDM_ENTER_LEAVE_VECTOR_DECLARATIONS>
+<UHDM_ENTER_LEAVE_COLLECTION_DECLARATIONS>
 private:
-  void listenBaseClass_(const any *const object);
+  void listenAny_(const Any *const object);
 <UHDM_PRIVATE_LISTEN_DECLARATIONS>
 };
-}  // namespace UHDM
-
+}  // namespace uhdm
 
 #endif  // UHDM_UHDMLISTENER_H

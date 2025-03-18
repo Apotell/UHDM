@@ -15,20 +15,12 @@
 # Universal Hardware Data Model (UHDM) "while_stmt" formal description
 
 - obj_def: while_stmt
-  - extends: atomic_stmt
-  - property: type
-    name: vpiWhile
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-
+- extends: atomic_stmt
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

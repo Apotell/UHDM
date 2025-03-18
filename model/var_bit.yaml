@@ -13,22 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "var bit" formal description
- 
-- obj_def: var_bit
-  - extends: variables
-  - property: constant_selection
-    name: constant selection
-    vpi: vpiConstantSelect
-    type: bool
-    card: 1
-  - class_ref: expr_index
-    name: expr index
-    vpi: vpiIndex
-    type: expr
-    card: 1
-  - class_ref: expr_indexes
-    name: expor indexes
-    vpi: vpiIndex
-    type: expr
-    card: any
 
+- obj_def: var_bit
+- extends: variables
+- property: constant_select
+  vpi: vpiConstantSelect
+  type: bool
+  card: 1
+- class_ref: expr_index
+  vpi: vpiIndex
+  type: expr
+  card: 1
+- class_ref: expr_indexes
+  vpi: vpiIndex
+  type: expr
+  card: any

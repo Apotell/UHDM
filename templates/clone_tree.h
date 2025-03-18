@@ -27,12 +27,12 @@
 
 #include <uhdm/sv_vpi_user.h>
 
-namespace UHDM {
+namespace uhdm {
 class BaseClass;
 class CloneContext;
 
 BaseClass* clone_tree(const BaseClass* root, CloneContext* context);
 
-};  // namespace UHDM
+};  // namespace uhdm
 
 #endif  // UHDM_CLONE_TREE_H

@@ -15,23 +15,19 @@
 # Universal Hardware Data Model (UHDM) "source_file" formal description
 
 - obj_def: source_file
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: includes
-    name: included files
-    vpi: vpiIncludes
-    type: source_file
-    card: any
-  - obj_ref: preproc_macro_definition
-    name: Preproc Macro Definitions
-    vpi: vpiPreprocMacroDefinition
-    type: preproc_macro_definition
-    card: any
-  - obj_ref: preproc_macro_instance
-    name: Preproc Macro Instances
-    vpi: vpiPreprocMacroInstance
-    type: preproc_macro_instance
-    card: any
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: includes
+  vpi: vpiIncludes
+  type: source_file
+  card: any
+- obj_ref: preproc_macro_definition
+  vpi: vpiPreprocMacroDefinition
+  type: preproc_macro_definition
+  card: any
+- obj_ref: preproc_macro_instance
+  vpi: vpiPreprocMacroInstance
+  type: preproc_macro_instance
+  card: any

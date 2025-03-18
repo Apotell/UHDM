@@ -15,10 +15,8 @@
 # Universal Hardware Data Model (UHDM) "import_typespec" formal description
 
 - obj_def: import_typespec
-  - extends: typespec
-  - obj_ref: item
-    name: item
-    vpi: vpiImportTypespecItem
-    type: constant
-    card: 1
-
+- extends: typespec
+- obj_ref: item
+  vpi: vpiImportTypespecItem
+  type: constant
+  card: 1

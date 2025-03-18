@@ -13,20 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "tagged pattern" formal description
- 
+
 - obj_def: tagged_pattern
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - group_ref: pattern
-    name: pattern
-    vpi: vpiPattern
-    type: pattern
-    card: 1
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypespec
-    type: ref_typespec
-    card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- group_ref: pattern
+  vpi: vpiPattern
+  type: pattern
+  card: 1
+- class_ref: typespec
+  vpi: vpiTypespec
+  type: ref_typespec
+  card: 1

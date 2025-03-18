@@ -38,7 +38,7 @@
 #include "uhdm/uhdm_forward_decl.h"
 #include "uhdm/vpi_visitor.h"
 
-using namespace UHDM;
+using namespace uhdm;
 
 //-------------------------------------------
 // This self-contained example demonstrate how one can navigate the Folded Model
@@ -52,127 +52,128 @@ using namespace UHDM;
 std::vector<vpiHandle> build_designs(Serializer* s) {
   std::vector<vpiHandle> designs;
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
+  Design* d = s->make<Design>();
+  d->setName("design1");
 
   //-------------------------------------------
   // Module definition M1 (non elaborated)
-  module_inst* m1 = s->MakeModule_inst();
+  Module* m1 = s->make<Module>();
   {
-    m1->VpiDefName("M1");
-    m1->VpiParent(d);
-    m1->VpiFile("fake1.sv");
-    m1->VpiLineNo(10);
+    m1->setDefName("M1");
+    m1->setParent(d);
+    m1->setFile("fake1.sv");
+    m1->setStartLine(10);
   }
 
   //-------------------------------------------
   // Module definition M2 (non elaborated)
-  module_inst* m2 = s->MakeModule_inst();
+  Module* m2 = s->make<Module>();
   {
-    m2->VpiDefName("M2");
-    m2->VpiFile("fake2.sv");
-    m2->VpiLineNo(20);
-    m2->VpiParent(d);
+    m2->setDefName("M2");
+    m2->setFile("fake2.sv");
+    m2->setStartLine(20);
+    m2->setParent(d);
     // M2 Ports
-    VectorOfport* vp = s->MakePortVec();
-    port* p = s->MakePort();
-    p->VpiName("i1");
-    p->VpiDirection(vpiInput);
+    PortCollection* vp = s->makeCollection<Port>();
+    Port* p = s->make<Port>();
+    p->setName("i1");
+    p->setDirection(vpiInput);
     vp->push_back(p);
-    p = s->MakePort();
-    p->VpiName("o1");
-    p->VpiDirection(vpiOutput);
+    p = s->make<Port>();
+    p->setName("o1");
+    p->setDirection(vpiOutput);
     vp->push_back(p);
-    m2->Ports(vp);
+    m2->setPorts(vp);
     // M2 Nets
-    VectorOfnet* vn = s->MakeNetVec();
-    logic_net* n = s->MakeLogic_net();
-    n->VpiName("i1");
+    NetCollection* vn = s->makeCollection<Net>();
+    LogicNet* n = s->make<LogicNet>();
+    n->setName("i1");
     vn->push_back(n);
-    n = s->MakeLogic_net();
-    n->VpiName("o1");
+    n = s->make<LogicNet>();
+    n->setName("o1");
     vn->push_back(n);
-    m2->Nets(vn);
+    m2->setNets(vn);
 
     // M2 continuous assignment
-    VectorOfcont_assign* assigns = s->MakeCont_assignVec();
-    cont_assign* cassign = s->MakeCont_assign();
+    ContAssignCollection* assigns = s->makeCollection<ContAssign>();
+    ContAssign* cassign = s->make<ContAssign>();
     assigns->push_back(cassign);
-    ref_obj* lhs = s->MakeRef_obj();
-    ref_obj* rhs = s->MakeRef_obj();
-    lhs->VpiName("o1");
-    rhs->VpiName("i1");
-    cassign->Lhs(lhs);
-    cassign->Rhs(rhs);
-    m2->Cont_assigns(assigns);
+    RefObj* lhs = s->make<RefObj>();
+    RefObj* rhs = s->make<RefObj>();
+    lhs->setName("o1");
+    rhs->setName("i1");
+    cassign->setLhs(lhs);
+    cassign->setRhs(rhs);
+    m2->setContAssigns(assigns);
   }
 
   //-------------------------------------------
   // Instance tree (Elaborated tree)
   // Top level module
-  module_inst* m3 = s->MakeModule_inst();
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
+  Module* m3 = s->make<Module>();
+  ModuleCollection* v1 = s->makeCollection<Module>();
   {
-    m3->VpiDefName("M1");  // Points to the module def (by name)
-    m3->VpiName("M1");     // Instance name
-    m3->VpiTopModule(true);
-    m3->Modules(v1);
-    m3->VpiParent(d);
+    m3->setDefName("M1");  // Points to the module def (by name)
+    m3->setName("M1");     // Instance name
+    m3->setTopModule(true);
+    m3->setModules(v1);
+    m3->setParent(d);
   }
 
   //-------------------------------------------
   // Sub Instance
-  module_inst* m4 = s->MakeModule_inst();
+  Module* m4 = s->make<Module>();
   {
-    m4->VpiDefName("M2");         // Points to the module def (by name)
-    m4->VpiName("inst1");         // Instance name
-    m4->VpiFullName("M1.inst1");  // Instance full name
-    VectorOfport* inst_vp = s->MakePortVec();  // Create elaborated ports
-    m4->Ports(inst_vp);
-    port* p1 = s->MakePort();
-    p1->VpiName("i1");
+    m4->setDefName("M2");         // Points to the module def (by name)
+    m4->setName("inst1");         // Instance name
+    m4->setFullName("M1.inst1");  // Instance full name
+    PortCollection* inst_vp =
+        s->makeCollection<Port>();  // Create elaborated ports
+    m4->setPorts(inst_vp);
+    Port* p1 = s->make<Port>();
+    p1->setName("i1");
     inst_vp->push_back(p1);
-    port* p2 = s->MakePort();
-    p2->VpiName("o1");
+    Port* p2 = s->make<Port>();
+    p2->setName("o1");
     inst_vp->push_back(p2);
     // M2 Nets
-    VectorOfnet* vn = s->MakeNetVec();  // Create elaborated nets
-    logic_net* n = s->MakeLogic_net();
-    n->VpiName("i1");
-    n->VpiFullName("M1.inst.i1");
-    ref_obj* low_conn = s->MakeRef_obj();
-    low_conn->Actual_group(n);
-    low_conn->VpiName("i1");
-    p1->Low_conn(low_conn);
+    NetCollection* vn = s->makeCollection<Net>();  // Create elaborated nets
+    LogicNet* n = s->make<LogicNet>();
+    n->setName("i1");
+    n->setFullName("M1.inst.i1");
+    RefObj* low_conn = s->make<RefObj>();
+    low_conn->setActual(n);
+    low_conn->setName("i1");
+    p1->setLowConn(low_conn);
     vn->push_back(n);
-    n = s->MakeLogic_net();
-    n->VpiName("o1");
-    n->VpiFullName("M1.inst.o1");
-    low_conn = s->MakeRef_obj();
-    low_conn->Actual_group(n);
-    low_conn->VpiName("o1");
-    p2->Low_conn(low_conn);
+    n = s->make<LogicNet>();
+    n->setName("o1");
+    n->setFullName("M1.inst.o1");
+    low_conn = s->make<RefObj>();
+    low_conn->setActual(n);
+    low_conn->setName("o1");
+    p2->setLowConn(low_conn);
     vn->push_back(n);
-    m4->Nets(vn);
+    m4->setNets(vn);
   }
 
   // Create parent-child relation in between the 2 modules in the instance tree
   v1->push_back(m4);
-  m4->VpiParent(m3);
+  m4->setParent(m3);
 
   //-------------------------------------------
   // Create both non-elaborated and elaborated lists
-  VectorOfmodule_inst* allModules = s->MakeModule_instVec();
-  d->AllModules(allModules);
+  ModuleCollection* allModules = s->makeCollection<Module>();
+  d->setAllModules(allModules);
   allModules->push_back(m1);
   allModules->push_back(m2);
 
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
+  ModuleCollection* topModules = s->makeCollection<Module>();
+  d->setTopModules(topModules);
   topModules->push_back(
       m3);  // Only m3 goes there as it is the top level module
 
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
 
   return designs;
@@ -188,19 +189,19 @@ class MyElaboratorListener : public VpiListener {
  protected:
   typedef std::map<std::string, const BaseClass*, std::less<>> ComponentMap;
 
-  void leaveDesign(const design* object, vpiHandle handle) override {
-    design* root = (design*)object;
-    root->VpiElaborated(true);
+  void leaveDesign(const Design* object, vpiHandle handle) override {
+    Design* root = (Design*)object;
+    root->setElaborated(true);
   }
 
-  void enterModule_inst(const module_inst* object, vpiHandle handle) override {
-    bool topLevelModule = object->VpiTopModule();
-    const std::string_view instName = object->VpiName();
-    const std::string_view defName = object->VpiDefName();
-    bool flatModule =
-        instName.empty() && ((object->VpiParent() == 0) ||
-                             ((object->VpiParent() != 0) &&
-                              (object->VpiParent()->VpiType() != vpiModule)));
+  void enterModule(const Module* object, vpiHandle handle) override {
+    bool topLevelModule = object->getTopModule();
+    const std::string_view instName = object->getName();
+    const std::string_view defName = object->getDefName();
+    bool flatModule = instName.empty() &&
+                      ((object->getParent() == 0) ||
+                       ((object->getParent() != 0) &&
+                        (object->getParent()->getVpiType() != vpiModule)));
     // false when it is a module in a hierachy tree
     std::cout << "Module: " << defName << " (" << instName
               << ") Flat:" << flatModule << ", Top:" << topLevelModule
@@ -209,15 +210,15 @@ class MyElaboratorListener : public VpiListener {
     if (flatModule) {
       // Flat list of module (unelaborated)
       flatComponentMap_.insert(
-          ComponentMap::value_type(object->VpiDefName(), object));
+          ComponentMap::value_type(object->getDefName(), object));
     } else {
       // Hierachical module list (elaborated)
 
       // Collect instance elaborated nets
       ComponentMap netMap;
-      if (object->Nets()) {
-        for (net* net : *object->Nets()) {
-          netMap.insert(ComponentMap::value_type(net->VpiName(), net));
+      if (object->getNets()) {
+        for (Net* net : *object->getNets()) {
+          netMap.insert(ComponentMap::value_type(net->getName(), net));
         }
       }
 
@@ -228,34 +229,34 @@ class MyElaboratorListener : public VpiListener {
       ComponentMap::iterator itrDef = flatComponentMap_.find(defName);
       if (itrDef != flatComponentMap_.end()) {
         const BaseClass* comp = (*itrDef).second;
-        int32_t compType = comp->VpiType();
+        int32_t compType = comp->getVpiType();
         switch (compType) {
           case vpiModule: {
-            module_inst* defMod = (module_inst*)comp;
+            Module* defMod = (Module*)comp;
 
             // 1) This section illustrates how one can walk the data model in
             // the listener context
 
             // Bind the cont assign lhs and rhs to elaborated nets
-            if (defMod->Cont_assigns()) {
-              for (cont_assign* assign :
-                   *defMod->Cont_assigns()) {  // explicit walking
-                net* lnet = nullptr;
-                net* rnet = nullptr;
-                const expr* lhs = assign->Lhs();
-                if (lhs->VpiType() == vpiRefObj) {
-                  ref_obj* lref = (ref_obj*)lhs;
-                  lnet = bindNet_(lref->VpiName());
+            if (defMod->getContAssigns()) {
+              for (ContAssign* assign :
+                   *defMod->getContAssigns()) {  // explicit walking
+                Net* lnet = nullptr;
+                Net* rnet = nullptr;
+                const Expr* lhs = assign->getLhs();
+                if (lhs->getVpiType() == vpiRefObj) {
+                  RefObj* lref = (RefObj*)lhs;
+                  lnet = bindNet_(lref->getName());
                 }
-                const expr* rhs = assign->Rhs();
-                if (rhs->VpiType() == vpiRefObj) {
-                  ref_obj* rref = (ref_obj*)rhs;
-                  rnet = bindNet_(rref->VpiName());
+                const Expr* rhs = assign->getRhs();
+                if (rhs->getVpiType() == vpiRefObj) {
+                  RefObj* rref = (RefObj*)rhs;
+                  rnet = bindNet_(rref->getName());
                 }
                 // Client code has now access the cont assign and the
                 // hierarchical nets
-                std::cout << "[2] assign " << lnet->VpiFullName() << " = "
-                          << rnet->VpiFullName() << "\n";
+                std::cout << "[2] assign " << lnet->getFullName() << " = "
+                          << rnet->getFullName() << "\n";
               }
             }
 
@@ -269,10 +270,7 @@ class MyElaboratorListener : public VpiListener {
             // method below will be trigerred to capture the same data as the
             // walking above in (1)
             if (vpiHandle defModule = NewVpiHandle(defMod)) {
-              MyElaboratorListener* listener = new MyElaboratorListener();
-              listener->listenModule_inst(defModule);
-              delete listener;
-              vpi_free_object(defModule);
+              listenModule(defModule);
             }
 
             break;
@@ -284,46 +282,46 @@ class MyElaboratorListener : public VpiListener {
     }
   }
 
-  void leaveModule_inst(const module_inst* object, vpiHandle handle) override {
-    const std::string_view instName = object->VpiName();
-    bool flatModule =
-        instName.empty() && ((object->VpiParent() == 0) ||
-                             ((object->VpiParent() != 0) &&
-                              (object->VpiParent()->VpiType() != vpiModule)));
+  void leaveModule(const Module* object, vpiHandle handle) override {
+    const std::string_view instName = object->getName();
+    bool flatModule = instName.empty() &&
+                      ((object->getParent() == 0) ||
+                       ((object->getParent() != 0) &&
+                        (object->getParent()->getVpiType() != vpiModule)));
     // false when it is a module in a hierachy tree
     if (!flatModule) instStack_.pop();
   }
 
   // Make full use of the listener pattern for all objects in a module, example
   // with "cont assign":
-  void enterCont_assign(const cont_assign* assign, vpiHandle handle) override {
-    net* lnet = nullptr;
-    net* rnet = nullptr;
-    ref_obj* lref = nullptr;
-    ref_obj* rref = nullptr;
-    const expr* lhs = assign->Lhs();
-    if (lhs->VpiType() == vpiRefObj) {
-      lref = (ref_obj*)lhs;
+  void enterContAssign(const ContAssign* assign, vpiHandle handle) override {
+    Net* lnet = nullptr;
+    Net* rnet = nullptr;
+    RefObj* lref = nullptr;
+    RefObj* rref = nullptr;
+    const Expr* lhs = assign->getLhs();
+    if (lhs->getVpiType() == vpiRefObj) {
+      lref = (RefObj*)lhs;
     }
-    const expr* rhs = assign->Rhs();
-    if (rhs->VpiType() == vpiRefObj) {
-      rref = (ref_obj*)rhs;
+    const Expr* rhs = assign->getRhs();
+    if (rhs->getVpiType() == vpiRefObj) {
+      rref = (RefObj*)rhs;
     }
 
     if (instStack_.size() == 0) {
       // Flat module traversal
-      std::cout << "[1] assign " << lref->VpiName() << " = " << rref->VpiName()
+      std::cout << "[1] assign " << lref->getName() << " = " << rref->getName()
                 << "\n";
 
     } else {
       // In the instance context (through the trigered listener)
 
-      lnet = bindNet_(lref->VpiName());
-      rnet = bindNet_(rref->VpiName());
+      lnet = bindNet_(lref->getName());
+      rnet = bindNet_(rref->getName());
 
       // Client code has now access the cont assign and the hierarchical nets
-      std::cout << "[3] assign " << lnet->VpiFullName() << " = "
-                << rnet->VpiFullName() << "\n";
+      std::cout << "[3] assign " << lnet->getFullName() << " = "
+                << rnet->getFullName() << "\n";
     }
   }
 
@@ -331,24 +329,24 @@ class MyElaboratorListener : public VpiListener {
 
  private:
   // Bind to a net in the parent instace
-  net* bindParentNet_(std::string_view name) {
+  Net* bindParentNet_(std::string_view name) {
     std::pair<const BaseClass*, ComponentMap> mem = instStack_.top();
     instStack_.pop();
     ComponentMap& netMap = instStack_.top().second;
     instStack_.push(mem);
     ComponentMap::iterator netItr = netMap.find(name);
     if (netItr != netMap.end()) {
-      return (net*)(*netItr).second;
+      return (Net*)(*netItr).second;
     }
     return nullptr;
   }
 
   // Bind to a net in the current instace
-  net* bindNet_(std::string_view name) {
+  Net* bindNet_(std::string_view name) {
     ComponentMap& netMap = instStack_.top().second;
     ComponentMap::iterator netItr = netMap.find(name);
     if (netItr != netMap.end()) {
-      return (net*)(*netItr).second;
+      return (Net*)(*netItr).second;
     }
     return nullptr;
   }
@@ -367,7 +365,7 @@ TEST(ListenerElabTest, RoundTrip) {
   std::string orig;
   orig += "DUMP Design content:\n";
   orig += designs_to_string(designs);
-  std::cout << orig;
+  // std::cout << orig;
   bool elaborated = false;
   for (auto design : designs) {
     elaborated = vpi_get(vpiElaborated, design) || elaborated;

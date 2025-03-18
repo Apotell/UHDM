@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "property_expr_named_event_group" formal description
- 
-- group_def: property_expr_named_event_group
-  - group_ref: property_expr_group
-  - obj_ref: named_event
 
+- group_def: property_expr_named_event_group
+- group_ref: property_expr_group
+- obj_ref: named_event

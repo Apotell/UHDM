@@ -16,6 +16,7 @@ import uhdm_forward_decl_h
 import uhdm_h
 import uhdm_types_h
 import UhdmListener
+import UhdmListenerTracer_h
 import vpi_user_cpp
 import vpi_visitor
 import VpiListener
@@ -61,6 +62,9 @@ def _worker(params):
 
     elif key == 'UhdmListener':
       return UhdmListener.generate(*args)
+
+    elif key == 'UhdmListenerTracer_h':
+      return UhdmListenerTracer_h.generate(*args)
 
     elif key == 'vpi_user_cpp':
         return vpi_user_cpp.generate(*args)
@@ -147,6 +151,7 @@ def _main():
         ('uhdm_h', [models]),
         ('uhdm_types_h', [models]),
         ('UhdmListener', [models]),
+        ('UhdmListenerTracer_h', [models]),
         ('vpi_user_cpp', [models]),
         ('vpi_visitor', [models]),
         ('VpiListener', [models]),

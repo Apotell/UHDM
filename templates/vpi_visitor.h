@@ -35,7 +35,7 @@
 #include <string>
 #include <vector>
 
-namespace UHDM {
+namespace uhdm {
 #ifndef SWIG
 class VpiVisitor;
 
@@ -51,10 +51,13 @@ void visit_designs(const std::vector<vpiHandle>& designs, std::ostream& out);
 
 #ifndef SWIG
 // For debug use in GDB
-std::string decompile(const UHDM::any* handle);
+std::string decompile(const Any* any);
 std::string decompileVPI(vpiHandle handle);
 
 class VpiVisitor final {
+ public:
+  using visited_t = std::set<const Any*>;
+
  private:
   std::ostream& stream_indent(int32_t indent) const;
 
@@ -64,14 +67,14 @@ class VpiVisitor final {
  public:
   void visit_object(vpiHandle obj_h, int32_t indent,
                     const char* relation, bool shallowVisit);
-  void visit_weakly_referenced();
+  void visitWeaklyReferenced();
 
   bool getVisitWeaklyReferenced() const { return m_visitWeaklyReferenced; }
   void setVisitWeaklyReferenced(bool enable) {
     m_visitWeaklyReferenced = enable;
   }
 
-  const VisitedContainer& getVisited() const { return m_visited; }
+  const visited_t& getVisited() const { return m_visited; }
   const AnySet& getWeaklyReferenced() const { return m_weaklyReferenced2; }
 
   explicit VpiVisitor(std::ostream& out) : m_out(out) {}
@@ -79,11 +82,11 @@ class VpiVisitor final {
   std::ostream& m_out;
   AnySet m_weaklyReferenced1;
   AnySet m_weaklyReferenced2;
-  VisitedContainer m_visited;
+  visited_t m_visited;
   bool m_visitWeaklyReferenced = true;
 };
 #endif
 
-}  // namespace UHDM
+}  // namespace uhdm
 
 #endif  // UHDM_VPI_VISITOR_H

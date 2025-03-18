@@ -1,4 +1,3 @@
-
 # Copyright 2019-2020 Alain Dargelas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,5 +15,5 @@
 # Universal Hardware Data Model (UHDM) "expr_constr_group" formal description
 
 - group_def: expr_constr_group
-  - class_ref: expr
-  - obj_ref: constraint
+- class_ref: expr
+- obj_ref: constraint

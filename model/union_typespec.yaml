@@ -13,21 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "union_typespec" formal description
- 
+
 - obj_def: union_typespec
-  - extends: typespec
-  - property: packed
-    name: packed
-    vpi: vpiPacked
-    type: bool
-    card: 1
-  - property: tagged
-    name: tagged
-    vpi: vpiTagged
-    type: bool
-    card: 1
-  - obj_ref: members
-    name: members
-    vpi: vpiTypespecMember
-    type: typespec_member
-    card: any
+- extends: typespec
+- property: packed
+  vpi: vpiPacked
+  type: bool
+  card: 1
+- property: tagged
+  vpi: vpiTagged
+  type: bool
+  card: 1
+- obj_ref: member
+  vpi: vpiTypespecMember
+  type: typespec_member
+  card: any

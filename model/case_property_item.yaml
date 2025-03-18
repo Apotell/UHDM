@@ -15,13 +15,11 @@
 # Universal Hardware Data Model (UHDM) "case_property_item" formal description
 
 - obj_def: case_property_item
-  - class_ref: expressions
-    name: expressions
-    vpi: vpiExpr
-    type: expr
-    card: any   
-  - group_ref: property_expr
-    name: property expr
-    vpi: vpiPropertyExpr
-    type: property_expr_group
-    card: 1
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: any
+- group_ref: property_expr
+  vpi: vpiPropertyExpr
+  type: property_expr_group
+  card: 1

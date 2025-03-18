@@ -13,53 +13,42 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "clocking_block" formal description
- 
+
 - obj_def: clocking_block
-  - extends: scope
-  - property: input_edge
-    name: input edge
-    vpi: vpiInputEdge
-    type: int32_t
-    card: 1
-  - property: output_edge
-    name: output edge
-    vpi: vpiOutputEdge
-    type: int32_t
-    card: 1
-  - obj_ref: input_skew
-    name: input skew
-    vpi: vpiInputSkew
-    type: delay_control
-    card: 1
-  - obj_ref: output_skew
-    name: output skew
-    vpi: vpiOutputSkew
-    type: delay_control
-    card: 1
-  - obj_ref: clocking_event
-    name: clocking event
-    vpi: vpiClockingEvent
-    type: event_control
-    card: 1    
-  - class_ref: instance
-    name: instance
-    vpi: vpiInstance
-    type: instance
-    card: 1
-  - obj_ref: clocking_io_decl
-    name: clocking io decl
-    vpi: vpiClockingIODecl
-    type: clocking_io_decl
-    card: any
-  - obj_ref: prefix
-    name: prefix
-    vpi: vpiPrefix
-    type: virtual_interface_var
-    card: 1  
-  - obj_ref: actual
-    name: actual
-    vpi: vpiActual
-    type: clocking_block
-    card: 1
-
-
+- extends: scope
+- property: input_edge
+  vpi: vpiInputEdge
+  type: int32_t
+  card: 1
+- property: output_edge
+  vpi: vpiOutputEdge
+  type: int32_t
+  card: 1
+- obj_ref: input_skew
+  vpi: vpiInputSkew
+  type: delay_control
+  card: 1
+- obj_ref: output_skew
+  vpi: vpiOutputSkew
+  type: delay_control
+  card: 1
+- obj_ref: clocking_event
+  vpi: vpiClockingEvent
+  type: event_control
+  card: 1
+- class_ref: instance
+  vpi: vpiInstance
+  type: instance
+  card: 1
+- obj_ref: clocking_io_decl
+  vpi: vpiClockingIODecl
+  type: clocking_io_decl
+  card: any
+- obj_ref: prefix
+  vpi: vpiPrefix
+  type: virtual_interface_var
+  card: 1
+- obj_ref: actual
+  vpi: vpiActual
+  type: clocking_block
+  card: 1

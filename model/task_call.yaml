@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "task_call" formal description
- 
+
 - obj_def: task_call
-  - extends: tf_call
-  - obj_ref: task
-    name: task
-    type: task
-    vpi: vpiTask
-    card: 1
+- extends: tf_call
+- obj_ref: task
+  type: task
+  vpi: vpiTask
+  card: 1

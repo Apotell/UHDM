@@ -13,22 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "constr_if_else" formal description
- 
-- obj_def: constr_if_else
-  - extends: constraint_expr
-  - class_ref: condition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - class_ref: constraint_expr
-    name: constraint expr
-    vpi: vpiConstraintExpr
-    type: constraint_expr
-    card: any
-  - class_ref: else_constraint_expr
-    name: else constraint expr
-    vpi: vpiElseConst
-    type: constraint_expr
-    card: any
 
+- obj_def: constr_if_else
+- extends: constraint_expr
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- class_ref: if_constraint_expr
+  vpi: vpiConstraintExpr
+  type: constraint_expr
+  card: any
+- class_ref: else_constraint_expr
+  vpi: vpiElseConst
+  type: constraint_expr
+  card: any

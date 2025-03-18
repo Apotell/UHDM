@@ -2,95 +2,94 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "test_util.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
-#include "test_util.h"
-
-using namespace UHDM;
+using namespace uhdm;
 using testing::HasSubstr;
 
 static std::vector<vpiHandle> build_designs(Serializer* s) {
   std::vector<vpiHandle> designs;
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design3");
-  module_inst* m1 = s->MakeModule_inst();
-  m1->VpiTopModule(true);
-  m1->VpiDefName("M1");
-  m1->VpiParent(d);
-  m1->VpiFile("fake1.sv");
-  m1->VpiLineNo(10);
-  module_inst* m2 = s->MakeModule_inst();
-  m2->VpiDefName("M2");
-  m2->VpiName("u1");
-  m2->VpiFullName("M1.u1");
-  m2->VpiParent(m1);
-  m2->Instance(m1);
-  m2->Module_inst(m1);
-  m2->VpiFile("fake2.sv");
-  m2->VpiLineNo(20);
+  Design* d = s->make<Design>();
+  d->setName("design3");
+  Module* m1 = s->make<Module>();
+  m1->setTopModule(true);
+  m1->setDefName("M1");
+  m1->setParent(d);
+  m1->setFile("fake1.sv");
+  m1->setStartLine(10);
+  Module* m2 = s->make<Module>();
+  m2->setDefName("M2");
+  m2->setName("u1");
+  m2->setFullName("M1.u1");
+  m2->setParent(m1);
+  m2->setInstance(m1);
+  m2->setModule(m1);
+  m2->setFile("fake2.sv");
+  m2->setStartLine(20);
 
-  initial* init = s->MakeInitial();
-  VectorOfprocess_stmt* processes = s->MakeProcess_stmtVec();
+  Initial* init = s->make<Initial>();
+  ProcessCollection* processes = s->makeCollection<Process>();
   processes->push_back(init);
-  begin* begin_block = s->MakeBegin();
-  init->Stmt(begin_block);
-  VectorOfany* statements = s->MakeAnyVec();
-  ref_obj* lhs_rf = s->MakeRef_obj();
-  lhs_rf->VpiName("out");
-  assignment* assign1 = s->MakeAssignment();
-  assign1->Lhs(lhs_rf);
-  constant* c1 = s->MakeConstant();
-  c1->VpiValue("INT:0");
-  assign1->Rhs(m1);  // Triggers error handler!
+  Begin* begin_block = s->make<Begin>();
+  init->setStmt(begin_block);
+  AnyCollection* statements = s->makeCollection<Any>();
+  RefObj* lhs_rf = s->make<RefObj>();
+  lhs_rf->setName("out");
+  Assignment* assign1 = s->make<Assignment>();
+  assign1->setLhs(lhs_rf);
+  Constant* c1 = s->make<Constant>();
+  c1->setValue("INT:0");
+  assign1->setRhs(m1);  // Triggers error handler!
   statements->push_back(assign1);
 
-  assignment* assign2 = s->MakeAssignment();
-  assign2->Lhs(lhs_rf);
-  constant* c2 = s->MakeConstant();
-  c2->VpiValue("STRING:a string");
-  assign2->Rhs(c2);
+  Assignment* assign2 = s->make<Assignment>();
+  assign2->setLhs(lhs_rf);
+  Constant* c2 = s->make<Constant>();
+  c2->setValue("STRING:a string");
+  assign2->setRhs(c2);
   statements->push_back(assign2);
 
-  delay_control* dc = s->MakeDelay_control();
-  dc->VpiDelay("#100");
+  DelayControl* dc = s->make<DelayControl>();
+  dc->setVpiDelay("#100");
 
-  assignment* assign3 = s->MakeAssignment();
-  assign3->Lhs(lhs_rf);
-  constant* c3 = s->MakeConstant();
+  Assignment* assign3 = s->make<Assignment>();
+  assign3->setLhs(lhs_rf);
+  Constant* c3 = s->make<Constant>();
   s_vpi_value val;
   val.format = vpiIntVal;
   val.value.integer = 1;
-  c3->VpiValue(VpiValue2String(&val));
-  assign3->Rhs(c3);
-  dc->Stmt(assign3);
+  c3->setValue(VpiValue2String(&val));
+  assign3->setRhs(c3);
+  dc->setStmt(assign3);
   statements->push_back(dc);
-  begin_block->Stmts(statements);
-  m2->Process(processes);
+  begin_block->setStmts(statements);
+  m2->setProcesses(processes);
 
-  module_inst* m3 = s->MakeModule_inst();
-  m3->VpiDefName("M3");
-  m3->VpiName("u2");
-  m3->VpiFullName("M1.u2");
-  m3->VpiParent(m1);
-  m3->Instance(m1);
-  m3->Module_inst(m1);
-  m3->VpiFile("fake3.sv");
-  m3->VpiLineNo(30);
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
+  Module* m3 = s->make<Module>();
+  m3->setDefName("M3");
+  m3->setName("u2");
+  m3->setFullName("M1.u2");
+  m3->setParent(m1);
+  m3->setInstance(m1);
+  m3->setModule(m1);
+  m3->setFile("fake3.sv");
+  m3->setStartLine(30);
+  ModuleCollection* v1 = s->makeCollection<Module>();
   v1->push_back(m1);
-  d->AllModules(v1);
-  VectorOfmodule_inst* v2 = s->MakeModule_instVec();
+  d->setAllModules(v1);
+  ModuleCollection* v2 = s->makeCollection<Module>();
   v2->push_back(m2);
   v2->push_back(m3);
-  m1->Modules(v2);
-  package* p1 = s->MakePackage();
-  p1->VpiDefName("P0");
-  VectorOfpackage* v3 = s->MakePackageVec();
+  m1->setModules(v2);
+  Package* p1 = s->make<Package>();
+  p1->setDefName("P0");
+  PackageCollection* v3 = s->makeCollection<Package>();
   v3->push_back(p1);
-  d->AllPackages(v3);
-  designs.push_back(s->MakeUhdmHandle(uhdmdesign, d));
+  d->setAllPackages(v3);
+  designs.push_back(s->makeUhdmHandle(UhdmType::Design, d));
 
   return designs;
 }
@@ -101,12 +100,12 @@ TEST(ErrorHandlerTest, ErrorHandlerIsCalled) {
   // Install a customer error handler
   bool issuedError = false;
   std::string last_msg;
-  UHDM::ErrorHandler MyErrorHandler = [&](ErrorType errType,
-                                          const std::string& msg, const any* object1, const any* object2) {
+  ErrorHandler MyErrorHandler = [&](ErrorType errType, const std::string& msg,
+                                    const Any* object1, const Any* object2) {
     last_msg = msg;
     issuedError = true;
   };
-  serializer.SetErrorHandler(MyErrorHandler);
+  serializer.setErrorHandler(MyErrorHandler);
 
   issuedError = false;
   const std::string before = designs_to_string(build_designs(&serializer));
@@ -116,13 +115,13 @@ TEST(ErrorHandlerTest, ErrorHandlerIsCalled) {
 
   issuedError = false;
   const std::string filename = testing::TempDir() + "/error-handler_test.uhdm";
-  serializer.Save(filename);
+  serializer.save(filename);
 
   EXPECT_FALSE(issuedError);
 
   // Save/restore will not contain the errornous part.
   issuedError = false;
-  std::vector<vpiHandle> restoredDesigns = serializer.Restore(filename);
+  std::vector<vpiHandle> restoredDesigns = serializer.restore(filename);
   const std::string restored = designs_to_string(restoredDesigns);
   EXPECT_FALSE(issuedError);
 

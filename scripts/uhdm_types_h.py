@@ -15,20 +15,13 @@ def get_type_map(models):
     if _typename_map:
       return _typename_map
 
-    typenames = set()
-    for model in models.values():
-        classname = model['name']
-        typenames.add(f'uhdm{classname}')
+    typenames = {
+      config.make_class_name(model['name']) for model in models.values() if model.get('type') != 'group_def'
+    }
 
-        for key, value in model.allitems():
-            if key in ['class', 'obj_ref', 'class_ref', 'group_ref']:
-                name = value.get('name')
-                card = value.get('card')
-
-                if (card == 'any') and not name.endswith('s'):
-                    name += 's'
-
-                typenames.add(f'uhdm{name}')
+    _typename_map['BaseClass'] = _next_objectid
+    _typename_map['Any'] = 'BaseClass'
+    _next_objectid += 1
 
     for typename in sorted(typenames):
         _typename_map[typename] = _next_objectid

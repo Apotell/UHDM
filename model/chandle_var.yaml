@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "chandle var" formal description
- 
+
 - obj_def: chandle_var
-  - extends: variables
-  - group_ref: actual_group
-    name: actual group
-    vpi: vpiActual
-    type: actual_group
-    card: 1
+- extends: variables
+- group_ref: actual
+  vpi: vpiActual
+  type: actual_group
+  card: 1

@@ -17,15 +17,11 @@
 # Note this is a custom extension of the IEEE standard, the checker is omitted from the VPI Object model
 
 - obj_def: checker_inst_port
-  - obj_ref: property
-    name: property
-    vpi: vpiPropertyInst
-    type: property_inst
-    card: 1
-  - obj_ref: sequence
-    name: sequence
-    vpi: vpiSequenceInst
-    type: sequence_inst
-    card: 1  
- 
-    
+- obj_ref: property_inst
+  vpi: vpiPropertyInst
+  type: property_inst
+  card: 1
+- obj_ref: sequence_inst
+  vpi: vpiSequenceInst
+  type: sequence_inst
+  card: 1

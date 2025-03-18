@@ -13,11 +13,11 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "ref_obj_interf_net_var_group" formal description
- 
+
 - group_def: ref_obj_interf_net_var_group
-  - obj_ref: ref_obj
-  - obj_ref: interface_tf_decl
-  - class_ref: nets
-  - class_ref: variables
-# Non Standard, added to support expr as default args to io_decl  
-  - class_ref: expr
+- obj_ref: ref_obj
+- obj_ref: interface_tf_decl
+- class_ref: nets
+- class_ref: variables
+# Non Standard, added to support expr as default args to io_decl
+- class_ref: expr

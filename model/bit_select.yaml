@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "bit_select" formal description
- 
+
 - obj_def: bit_select
-  - extends: ref_obj
-  - property: constant_selection
-    name: constant selection
-    vpi: vpiConstantSelect
-    type: bool
-    card: 1
-  - class_ref: vpiIndex
-    name: vpiIndex
-    vpi: vpiIndex
-    type: expr
-    card: 1
+- extends: ref_obj
+- property: constant_select
+  vpi: vpiConstantSelect
+  type: bool
+  card: 1
+- class_ref: index
+  vpi: vpiIndex
+  type: expr
+  card: 1

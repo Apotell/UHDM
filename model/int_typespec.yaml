@@ -13,29 +13,25 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "int_typespec" formal description
- 
+
 - obj_def: int_typespec
-  - extends: typespec
+- extends: typespec
  # Non Standard, allows to model casts to integer values
-  - property: vpi_get_value
-    name: vpi_get_value
-    vpi: vpiValue
-    type: value
-    card: 1
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1
  # Or cast to expression
-  - class_ref: cast_to_expr
-    name: cast to expr
-    vpi: vpiExpr
-    type: expr
-    card: 1
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: 1
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1
  # For parameter type
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any

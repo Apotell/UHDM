@@ -32,37 +32,38 @@
 #include <string>
 #include <string_view>
 
-namespace UHDM {
+namespace uhdm {
+  class BaseClass;
+  class Design;
   class Serializer;
-  class design;
-};
+};  // namespace uhdm
 
-struct uhdm_handle {
-  uhdm_handle(UHDM::UHDM_OBJECT_TYPE type, const void* object) :
+struct uhdm_handle final {
+  uhdm_handle(uhdm::UhdmType type, const void* object) :
     type(type), object(object), index(0) {}
-  const UHDM::UHDM_OBJECT_TYPE type;
+  const uhdm::UhdmType type;
   const void* object;
   uint32_t index;
 };
 
-class uhdm_handleFactory {
-  friend UHDM::Serializer;
+class UhdmHandleFactory final {
+  friend uhdm::Serializer;
 
  public:
-  vpiHandle Make(UHDM::UHDM_OBJECT_TYPE type, const void* object) {
+  vpiHandle make(uhdm::UhdmType type, const void* object) {
     return (vpiHandle) new uhdm_handle(type, object);
   }
 
-  bool Erase(vpiHandle handle) {
+  bool erase(vpiHandle handle) {
     delete (uhdm_handle*)handle;
     return true;
   }
 
-  void Purge() {}
+  void purge() {}
 };
 
 /** Obtain a vpiHandle from a BaseClass (any) object */
-vpiHandle NewVpiHandle (const UHDM::BaseClass* object);
+vpiHandle NewVpiHandle (const uhdm::BaseClass* object);
 
 s_vpi_value* String2VpiValue(std::string_view sv);
 
@@ -72,10 +73,10 @@ std::string VpiValue2String(const s_vpi_value* value);
 
 std::string VpiDelay2String(const s_vpi_delay* delay);
 
-/** Obtain a UHDM::design pointer from a vpiHandle */
-UHDM::design* UhdmDesignFromVpiHandle(vpiHandle hdesign);
+/** Obtain a uhdm::design pointer from a vpiHandle */
+uhdm::Design* UhdmDesignFromVpiHandle(vpiHandle hdesign);
 
 /** Shows unique IDs in vpi_visitor dump (uhdmdump) */
 void vpi_show_ids(bool show);
 
-#endif
+#endif  // VPI_UHDM_H

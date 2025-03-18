@@ -26,8 +26,8 @@
 #include <uhdm/uhdm.h>
 #include <unordered_map>
 
-namespace UHDM {
-ScopedVpiHandle::ScopedVpiHandle(const UHDM::any* const any)
+namespace uhdm {
+ScopedVpiHandle::ScopedVpiHandle(const Any* const any)
     : handle(NewVpiHandle(any)) {}
 
 ScopedVpiHandle::~ScopedVpiHandle() {
@@ -37,19 +37,19 @@ ScopedVpiHandle::~ScopedVpiHandle() {
 }
 
 bool UhdmListener::didVisitAll(const Serializer& serializer) const {
-  std::set<const any*> allVisited;
-  std::copy(visited.begin(), visited.end(),
+  std::set<const Any*> allVisited;
+  std::copy(m_visited.begin(), m_visited.end(),
             std::inserter(allVisited, allVisited.begin()));
 
-  const Serializer::IdMap idMap = serializer.AllObjects();
-  std::set<const any*> allObjects;
+  const Serializer::IdMap idMap = serializer.getAllObjects();
+  std::set<const Any*> allObjects;
   std::transform(
       idMap.cbegin(), idMap.cend(),
       std::inserter(allObjects, allObjects.begin()),
       [](std::unordered_map<const BaseClass*, uint32_t>::const_reference
              entry) { return entry.first; });
 
-  std::set<const any*> diffObjects;
+  std::set<const Any*> diffObjects;
   std::set_difference(allObjects.begin(), allObjects.end(), allVisited.begin(),
                       allVisited.end(),
                       std::inserter(diffObjects, diffObjects.begin()));
@@ -57,24 +57,29 @@ bool UhdmListener::didVisitAll(const Serializer& serializer) const {
   return diffObjects.empty();
 }
 
-void UhdmListener::listenBaseClass_(const any* const object) {
-  if (const any* const vpiParent_ = object->VpiParent()) {
-    listenAny(vpiParent_);
-  }
+void UhdmListener::listenAny_(const Any* const object) {
+  // NOTE(HS): Don't want upwards. When initiating calls from non-design
+  // objects, the intended behavior to walk the subtree but enabling this
+  // walks the entire deisgn.
+  // if (const Any* const parent = object->getParent()) {
+  //   listenAny(parent, vpiParent);
+  // }
 }
 
 <UHDM_PRIVATE_LISTEN_IMPLEMENTATIONS>
 <UHDM_PUBLIC_LISTEN_IMPLEMENTATIONS>
-void UhdmListener::listenAny(const any* const object) {
-  const bool revisiting = visited.find(object) != visited.end();
-  if (!revisiting) enterAny(object);
+void UhdmListener::listenAny(const Any* const object, uint32_t vpiRelation) {
+  const bool revisiting = m_visited.find(object) != m_visited.end();
+  if (!revisiting) enterAny(object, vpiRelation);
 
-  switch (object->UhdmType()) {
+  m_callstack.emplace_back(object);
+  switch (object->getUhdmType()) {
 <UHDM_LISTENANY_IMPLEMENTATION>
   default: break;
   }
+  m_callstack.pop_back();
 
-  if (!revisiting) leaveAny(object);
+  if (!revisiting) leaveAny(object, vpiRelation);
 }
 
-} // namespace UHDM
+} // namespace uhdm

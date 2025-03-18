@@ -30,25 +30,25 @@
 #include "gtest/gtest.h"
 #include "uhdm/uhdm.h"
 
-using namespace UHDM;
+using namespace uhdm;
 
 //-------------------------------------------
 
 TEST(GroupTest, Membership) {
   Serializer s;
-  sequence_inst* inst = s.MakeSequence_inst();
-  VectorOfany* exprs = s.MakeAnyVec();
-  constant* legal = s.MakeConstant();
+  SequenceInst* inst = s.make<SequenceInst>();
+  AnyCollection* exprs = s.makeCollection<Any>();
+  Constant* legal = s.make<Constant>();
   exprs->push_back(legal);
-  module_inst* illegal = s.MakeModule_inst();
-  inst->Named_event_sequence_expr_groups(exprs);
-  VectorOfany* all_legal = inst->Named_event_sequence_expr_groups();
+  Module* illegal = s.make<Module>();
+  inst->setArguments(exprs);
+  AnyCollection* all_legal = inst->getArguments();
   EXPECT_EQ(all_legal->size(), 1);
 
-  sequence_inst* inst2 = s.MakeSequence_inst();
-  VectorOfany* exprs2 = s.MakeAnyVec();
+  SequenceInst* inst2 = s.make<SequenceInst>();
+  AnyCollection* exprs2 = s.makeCollection<Any>();
   exprs2->push_back(illegal);
-  inst2->Named_event_sequence_expr_groups(exprs2);
-  VectorOfany* all_illegal = inst2->Named_event_sequence_expr_groups();
+  inst2->setArguments(exprs2);
+  AnyCollection* all_illegal = inst2->getArguments();
   EXPECT_EQ(all_illegal, nullptr);
 }

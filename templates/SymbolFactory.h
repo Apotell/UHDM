@@ -34,7 +34,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace UHDM {
+namespace uhdm {
 class Serializer;
 
 class SymbolFactory {
@@ -81,15 +81,6 @@ class SymbolFactory {
   static SymbolId getBadId() { return BadSymbolId; }
   static std::string_view getEmptyMacroMarker();
 
-  // IMPORTANT NOTE:
-  // These are UHDM specific APIs and to be used within UHDM only.
-  // An important distinction between these and the above -
-  // For invalid id, these will return an empty string
-  // unlike the above which return bad symbol.
-  SymbolId Make(std::string_view symbol);
-  std::string_view GetSymbol(SymbolId id) const;
-  SymbolId GetId(std::string_view symbol) const;
-
  protected:
   // Create a snapshot of the current symbol table. Private, as this
   // functionality should be explicitly accessed through CreateSnapshot().
@@ -97,11 +88,11 @@ class SymbolFactory {
       : m_parent(&parent), m_idOffset(parent.m_idCounter + parent.m_idOffset) {}
 
  private:
-  void Purge();
-  void AppendSymbols(int64_t up_to, std::vector<std::string_view>* dest) const;
+  void purge();
+  void appendSymbols(int64_t up_to, std::vector<std::string_view>* dest) const;
 
-  typedef std::deque<std::string> Id2SymbolMap;
-  typedef std::unordered_map<std::string_view, RawSymbolId> Symbol2IdMap;
+  using Id2SymbolMap = std::deque<std::string>;
+  using Symbol2IdMap = std::unordered_map<std::string_view, RawSymbolId>;
 
   const SymbolFactory *const m_parent;
   const RawSymbolId m_idOffset;
@@ -117,6 +108,6 @@ class SymbolFactory {
 
   friend Serializer;
 };
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif /* UHDM_SYMBOLFACTORY_H */
+#endif  // UHDM_SYMBOLFACTORY_H

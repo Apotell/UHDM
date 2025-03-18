@@ -31,43 +31,43 @@
 #include <cstring>
 #include <regex>
 
-namespace UHDM {
+namespace uhdm {
 
-void UhdmLint::leaveBit_select(const bit_select* object, vpiHandle handle) {
-  if (const ref_obj* index = object->VpiIndex<ref_obj>()) {
-    if (const real_var* actual = index->Actual_group<real_var>()) {
-      const std::string errMsg(actual->VpiName());
-      serializer_->GetErrorHandler()(ErrorType::UHDM_REAL_TYPE_AS_SELECT,
-                                     errMsg, index, nullptr);
+void UhdmLint::leaveBitSelect(const BitSelect* object, vpiHandle handle) {
+  if (const RefObj* index = object->getIndex<RefObj>()) {
+    if (const RealVar* actual = index->getActual<RealVar>()) {
+      const std::string errMsg(actual->getName());
+      m_serializer->getErrorHandler()(ErrorType::UHDM_REAL_TYPE_AS_SELECT,
+                                      errMsg, index, nullptr);
     }
   }
 }
 
-static const any* returnWithValue(const any* stmt) {
-  switch (stmt->UhdmType()) {
-    case UHDM_OBJECT_TYPE::uhdmreturn_stmt: {
-      return_stmt* ret = (return_stmt*)stmt;
-      if (const any* r = ret->VpiCondition()) return r;
+static const Any* returnWithValue(const Any* stmt) {
+  switch (stmt->getUhdmType()) {
+    case UhdmType::ReturnStmt: {
+      ReturnStmt* ret = (ReturnStmt*)stmt;
+      if (const Any* r = ret->getCondition()) return r;
       break;
     }
-    case UHDM_OBJECT_TYPE::uhdmbegin: {
-      begin* st = (begin*)stmt;
-      if (st->Stmts()) {
-        for (auto s : *st->Stmts()) {
-          if (const any* r = returnWithValue(s)) return r;
+    case UhdmType::Begin: {
+      Begin* st = (Begin*)stmt;
+      if (st->getStmts()) {
+        for (auto s : *st->getStmts()) {
+          if (const Any* r = returnWithValue(s)) return r;
         }
       }
       break;
     }
-    case UHDM_OBJECT_TYPE::uhdmif_stmt: {
-      if_stmt* st = (if_stmt*)stmt;
-      if (const any* r = returnWithValue(st->VpiStmt())) return r;
+    case UhdmType::IfStmt: {
+      IfStmt* st = (IfStmt*)stmt;
+      if (const Any* r = returnWithValue(st->getStmt())) return r;
       break;
     }
-    case UHDM_OBJECT_TYPE::uhdmif_else: {
-      if_else* st = (if_else*)stmt;
-      if (const any* r = returnWithValue(st->VpiStmt())) return r;
-      if (const any* r = returnWithValue(st->VpiElseStmt())) return r;
+    case UhdmType::IfElse: {
+      IfElse* st = (IfElse*)stmt;
+      if (const Any* r = returnWithValue(st->getStmt())) return r;
+      if (const Any* r = returnWithValue(st->getElseStmt())) return r;
       break;
     }
     default:
@@ -76,51 +76,50 @@ static const any* returnWithValue(const any* stmt) {
   return nullptr;
 }
 
-void UhdmLint::leaveFunction(const function* object, vpiHandle handle) {
-  if (object->Return() == nullptr) {
-    if (const any* st = object->Stmt()) {
-      if (const any* ret = returnWithValue(st)) {
-        const std::string errMsg(object->VpiName());
-        serializer_->GetErrorHandler()(
+void UhdmLint::leaveFunction(const Function* object, vpiHandle handle) {
+  if (object->getReturn() == nullptr) {
+    if (const Any* st = object->getStmt()) {
+      if (const Any* ret = returnWithValue(st)) {
+        const std::string errMsg(object->getName());
+        m_serializer->getErrorHandler()(
             ErrorType::UHDM_RETURN_VALUE_VOID_FUNCTION, errMsg, ret, nullptr);
       }
     }
   }
 }
 
-void UhdmLint::leaveStruct_typespec(const struct_typespec* object,
-                                    vpiHandle handle) {
-  if (object->VpiPacked() && (object->Members() != nullptr)) {
-    for (typespec_member* member : *object->Members()) {
-      if (member->Default_value()) {
-        serializer_->GetErrorHandler()(ErrorType::UHDM_ILLEGAL_DEFAULT_VALUE,
-                                       std::string(""), member->Default_value(),
-                                       nullptr);
+void UhdmLint::leaveStructTypespec(const StructTypespec* object,
+                                   vpiHandle handle) {
+  if (object->getPacked() && (object->getMembers() != nullptr)) {
+    for (TypespecMember* member : *object->getMembers()) {
+      if (member->getDefaultValue()) {
+        m_serializer->getErrorHandler()(ErrorType::UHDM_ILLEGAL_DEFAULT_VALUE,
+                                        std::string(""),
+                                        member->getDefaultValue(), nullptr);
       }
     }
   }
 }
 
-void UhdmLint::leaveModule_inst(const module_inst* object, vpiHandle handle) {
-  if (auto assigns = object->Cont_assigns()) {
+void UhdmLint::leaveModule(const Module* object, vpiHandle handle) {
+  if (auto assigns = object->getContAssigns()) {
     checkMultiContAssign(assigns);
   }
 }
 
-void UhdmLint::checkMultiContAssign(
-    const std::vector<UHDM::cont_assign*>* assigns) {
+void UhdmLint::checkMultiContAssign(const std::vector<ContAssign*>* assigns) {
   for (uint32_t i = 0; i < assigns->size() - 1; i++) {
-    const cont_assign* cassign = assigns->at(i);
-    if (cassign->VpiStrength0() || cassign->VpiStrength1()) continue;
+    const ContAssign* cassign = assigns->at(i);
+    if (cassign->getStrength0() || cassign->getStrength1()) continue;
 
-    const expr* lhs_exp = cassign->Lhs();
-    if (const operation* op = cassign->Rhs<operation>()) {
+    const Expr* lhs_exp = cassign->getLhs();
+    if (const Operation* op = cassign->getRhs<Operation>()) {
       bool triStatedOp = false;
-      if (op->Operands()) {
-        for (auto operand : *op->Operands()) {
-          if (operand->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
-            constant* c = (constant*)operand;
-            if (c->VpiValue().find('z') != std::string_view::npos) {
+      if (op->getOperands()) {
+        for (auto operand : *op->getOperands()) {
+          if (operand->getUhdmType() == UhdmType::Constant) {
+            Constant* c = (Constant*)operand;
+            if (c->getValue().find('z') != std::string_view::npos) {
               triStatedOp = true;
               break;
             }
@@ -130,26 +129,26 @@ void UhdmLint::checkMultiContAssign(
       if (triStatedOp) continue;
     }
     for (uint32_t j = i + 1; j < assigns->size(); j++) {
-      const cont_assign* as = assigns->at(j);
-      if (as->VpiStrength0() || as->VpiStrength1()) continue;
+      const ContAssign* as = assigns->at(j);
+      if (as->getStrength0() || as->getStrength1()) continue;
 
-      if (const UHDM::ref_obj* ref = as->Lhs<ref_obj>()) {
-        if (ref->VpiName() == lhs_exp->VpiName()) {
-          if (const logic_net* ln = ref->Actual_group<logic_net>()) {
-            int32_t nettype = ln->VpiNetType();
+      if (const RefObj* ref = as->getLhs<RefObj>()) {
+        if (ref->getName() == lhs_exp->getName()) {
+          if (const LogicNet* ln = ref->getActual<LogicNet>()) {
+            int32_t nettype = ln->getNetType();
             if ((nettype == vpiWor) || (nettype == vpiWand) ||
                 (nettype == vpiTri) || (nettype == vpiTriAnd) ||
                 (nettype == vpiTriOr) || (nettype == vpiTri0) ||
                 (nettype == vpiTri1) || (nettype == vpiTriReg))
               continue;
           }
-          if (const operation* op = as->Rhs<operation>()) {
+          if (const Operation* op = as->getRhs<Operation>()) {
             bool triStatedOp = false;
-            if (op->Operands()) {
-              for (auto operand : *op->Operands()) {
-                if (operand->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
-                  constant* c = (constant*)operand;
-                  if (c->VpiValue().find('z') != std::string_view::npos) {
+            if (op->getOperands()) {
+              for (auto operand : *op->getOperands()) {
+                if (operand->getUhdmType() == UhdmType::Constant) {
+                  Constant* c = (Constant*)operand;
+                  if (c->getValue().find('z') != std::string_view::npos) {
                     triStatedOp = true;
                     break;
                   }
@@ -158,7 +157,7 @@ void UhdmLint::checkMultiContAssign(
             }
             if (triStatedOp) continue;
           }
-          // serializer_->GetErrorHandler()(ErrorType::UHDM_MULTIPLE_CONT_ASSIGN,
+          // m_serializer->getErrorHandler()(ErrorType::UHDM_MULTIPLE_CONT_ASSIGN,
           //                                lhs_exp->VpiName(),
           //                                lhs_exp, lhs);
         }
@@ -167,42 +166,42 @@ void UhdmLint::checkMultiContAssign(
   }
 }
 
-void UhdmLint::leaveAssignment(const assignment* object, vpiHandle handle) {
+void UhdmLint::leaveAssignment(const Assignment* object, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
-  if (!design_->VpiElaborated()) return;  // -uhdmelab
-  if (const ref_obj* lhs = object->Lhs<ref_obj>()) {
-    if (const logic_net* n = lhs->Actual_group<logic_net>()) {
-      if (n->VpiNetType() == vpiWire) {
+  if (!m_design->getElaborated()) return;  // -uhdmelab
+  if (const RefObj* lhs = object->getLhs<RefObj>()) {
+    if (const LogicNet* n = lhs->getActual<LogicNet>()) {
+      if (n->getNetType() == vpiWire) {
         bool inProcess = false;
-        const any* tmp = object;
+        const Any* tmp = object;
         while (tmp) {
-          if ((tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdmalways) ||
-              (tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdminitial) ||
-              (tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdmfinal_stmt)) {
+          if ((tmp->getUhdmType() == UhdmType::Always) ||
+              (tmp->getUhdmType() == UhdmType::Initial) ||
+              (tmp->getUhdmType() == UhdmType::FinalStmt)) {
             inProcess = true;
             break;
           }
-          tmp = tmp->VpiParent();
+          tmp = tmp->getParent();
         }
         if (inProcess) {
-          const std::string errMsg(lhs->VpiName());
-          serializer_->GetErrorHandler()(ErrorType::UHDM_ILLEGAL_WIRE_LHS,
-                                         errMsg, lhs, 0);
+          const std::string errMsg(lhs->getName());
+          m_serializer->getErrorHandler()(ErrorType::UHDM_ILLEGAL_WIRE_LHS,
+                                          errMsg, lhs, 0);
         }
       }
     }
   }
 }
 
-void UhdmLint::leaveLogic_net(const logic_net* object, vpiHandle handle) {
-  if (const ref_typespec* rt = object->Typespec()) {
-    if (const logic_typespec* tps = rt->Actual_typespec<logic_typespec>()) {
-      if (const VectorOfrange* ranges = tps->Ranges()) {
-        range* r0 = ranges->at(0);
-        if (const constant* c = r0->Right_expr<constant>()) {
-          if (c->VpiValue() == "STRING:unsized") {
-            const std::string errMsg(object->VpiName());
-            serializer_->GetErrorHandler()(
+void UhdmLint::leaveLogicNet(const LogicNet* object, vpiHandle handle) {
+  if (const RefTypespec* rt = object->getTypespec()) {
+    if (const LogicTypespec* tps = rt->getActualTypespec<LogicTypespec>()) {
+      if (const RangeCollection* ranges = tps->getRanges()) {
+        Range* r0 = ranges->at(0);
+        if (const Constant* c = r0->getRightExpr<Constant>()) {
+          if (c->getValue() == "STRING:unsized") {
+            const std::string errMsg(object->getName());
+            m_serializer->getErrorHandler()(
                 ErrorType::UHDM_ILLEGAL_PACKED_DIMENSION, errMsg, c, nullptr);
           }
         }
@@ -211,101 +210,101 @@ void UhdmLint::leaveLogic_net(const logic_net* object, vpiHandle handle) {
   }
 }
 
-void UhdmLint::leaveEnum_typespec(const enum_typespec* object,
-                                  vpiHandle handle) {
-  const typespec* baseType = nullptr;
-  if (const ref_typespec* rt = object->Base_typespec()) {
-    baseType = rt->Actual_typespec<typespec>();
+void UhdmLint::leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) {
+  const Typespec* baseType = nullptr;
+  if (const RefTypespec* rt = object->getBaseTypespec()) {
+    baseType = rt->getActualTypespec();
   }
   if (!baseType) return;
   static std::regex r("^[0-9]*'");
   ExprEval eval;
-  eval.setDesign(design_);
+  eval.setDesign(m_design);
 
   bool invalidValue = false;
-  const uint64_t baseSize =
-      eval.size(baseType, invalidValue,
-                object->Instance() ? object->Instance() : object->VpiParent(),
-                object->VpiParent(), true);
+  const uint64_t baseSize = eval.size(
+      baseType, invalidValue,
+      object->getInstance() ? object->getInstance() : object->getParent(),
+      object->getParent(), true);
   if (invalidValue) return;
 
-  if (object->Enum_consts()) {
-    for (auto c : *object->Enum_consts()) {
-      const std::string_view val = c->VpiDecompile();
-      if (c->VpiSize() == -1) continue;
+  if (object->getEnumConsts()) {
+    for (auto c : *object->getEnumConsts()) {
+      const std::string_view val = c->getDecompile();
+      if (c->getSize() == -1) continue;
       if (!std::regex_match(std::string(val), r)) continue;
       invalidValue = false;
-      const uint64_t c_size = eval.size(c, invalidValue, object->Instance(),
-                                        object->VpiParent(), true);
+      const uint64_t c_size = eval.size(c, invalidValue, object->getInstance(),
+                                        object->getParent(), true);
       if (!invalidValue && (baseSize != c_size)) {
-        const std::string errMsg(c->VpiName());
-        serializer_->GetErrorHandler()(ErrorType::UHDM_ENUM_CONST_SIZE_MISMATCH,
-                                       errMsg, c, baseType);
+        const std::string errMsg(c->getName());
+        m_serializer->getErrorHandler()(
+            ErrorType::UHDM_ENUM_CONST_SIZE_MISMATCH, errMsg, c, baseType);
       }
     }
   }
 }
 
-class DetectSequenceInst : public VpiListener {
+class DetectSequenceInst final : public VpiListener {
  public:
   explicit DetectSequenceInst() {}
   ~DetectSequenceInst() override = default;
 
-   void enterOperation(const operation* object, vpiHandle handle) final {
-    int opType = object->VpiOpType();
+  void enterOperation(const Operation* object, vpiHandle handle) final {
+    int opType = object->getOpType();
     if (opType == vpiNonOverlapImplyOp || opType == vpiOverlapImplyOp) {
-      rhsImplication = object->Operands()->at(1);
+      m_rhsImplication = object->getOperands()->at(1);
     }
   }
 
-  void leaveRef_obj(const ref_obj* object, vpiHandle handle) final {
-    if (decl && (seq_parent == nullptr)) {
-      const any* parent = object;
+  void leaveRefObj(const RefObj* object, vpiHandle handle) final {
+    if (m_decl && (m_seqParent == nullptr)) {
+      const Any* parent = object;
       while (parent) {
-        if (parent == rhsImplication) {
-          seq_parent = object;
+        if (parent == m_rhsImplication) {
+          m_seqParent = object;
           return;
         }
-        parent = parent->VpiParent();
+        parent = parent->getParent();
       }
-      decl = nullptr;
+      m_decl = nullptr;
     }
   }
 
-  void leaveSequence_decl(const sequence_decl *object, vpiHandle handle) final {
-        decl = object; 
+  void leaveSequenceDecl(const SequenceDecl* object, vpiHandle handle) final {
+    m_decl = object;
   }
-  const sequence_decl* seqDeclDetected() const { return decl; }
-  const ref_obj* parentRef() { return seq_parent; }
+
+  const SequenceDecl* seqDeclDetected() const { return m_decl; }
+  const RefObj* parentRef() { return m_seqParent; }
+
  private:
-  const ref_obj* seq_parent = nullptr;
-  const sequence_decl* decl = nullptr;
-  const any* rhsImplication = nullptr;
+  const RefObj* m_seqParent = nullptr;
+  const SequenceDecl* m_decl = nullptr;
+  const Any* m_rhsImplication = nullptr;
 };
 
-void UhdmLint::leaveProperty_spec(const property_spec* prop_s,
-                                  vpiHandle handle) {
+void UhdmLint::leavePropertySpec(const PropertySpec* prop_s, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
-  if (const any* exp = prop_s->VpiPropertyExpr()) {
-    if (exp->UhdmType() == uhdmref_obj) {
-      const ref_obj* ref = any_cast<const ref_obj*>(exp);
-      if (ref->Actual_group()) {
-        if (ref->Actual_group()->UhdmType() == uhdmlogic_net) {
-          const std::string errMsg(ref->VpiName());
-          serializer_->GetErrorHandler()(ErrorType::UHDM_UNRESOLVED_PROPERTY,
-                                         errMsg, ref, nullptr);
+  if (const Any* exp = prop_s->getPropertyExpr()) {
+    if (exp->getUhdmType() == UhdmType::RefObj) {
+      const RefObj* ref = any_cast<const RefObj*>(exp);
+      if (ref->getActual()) {
+        if (ref->getActual()->getUhdmType() == UhdmType::LogicNet) {
+          const std::string errMsg(ref->getName());
+          m_serializer->getErrorHandler()(ErrorType::UHDM_UNRESOLVED_PROPERTY,
+                                          errMsg, ref, nullptr);
         }
       }
     }
     {
-      if (prop_s->VpiClockingEvent()) {
+      if (prop_s->getClockingEvent()) {
         DetectSequenceInst seqDetector;
         vpiHandle h = NewVpiHandle(exp);
         seqDetector.listenAny(h);
         vpi_free_object(h);
-        if (const sequence_decl* decl = seqDetector.seqDeclDetected()) {
-          const std::string errMsg(decl->VpiName());
-          serializer_->GetErrorHandler()(
+        if (const SequenceDecl* decl = seqDetector.seqDeclDetected()) {
+          const std::string errMsg(decl->getName());
+          m_serializer->getErrorHandler()(
               ErrorType::UHDM_NON_TEMPORAL_SEQUENCE_USE, errMsg,
               seqDetector.parentRef(), nullptr);
         }
@@ -314,68 +313,66 @@ void UhdmLint::leaveProperty_spec(const property_spec* prop_s,
   }
 }
 
-void UhdmLint::leaveSys_func_call(const sys_func_call* object,
-                                  vpiHandle handle) {
+void UhdmLint::leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) {
   ExprEval eval;
-  eval.setDesign(design_);
-  if (object->VpiName() == "$past") {
-    if (auto arg = object->Tf_call_args()) {
+  eval.setDesign(m_design);
+  if (object->getName() == "$past") {
+    if (auto arg = object->getArguments()) {
       if (arg->size() == 2) {
-        any* ex = arg->at(1);
+        Any* ex = arg->at(1);
         bool invalidValue = false;
         const int64_t val = eval.get_value(
             invalidValue,
-            eval.reduceExpr(ex, invalidValue, nullptr, object->VpiParent()));
+            eval.reduceExpr(ex, invalidValue, nullptr, object->getParent()));
         if (val <= 0 && (invalidValue == false)) {
           const std::string errMsg = std::to_string(val);
-          serializer_->GetErrorHandler()(
-              ErrorType::UHDM_NON_POSITIVE_VALUE, errMsg,
-              ex, nullptr);
+          m_serializer->getErrorHandler()(ErrorType::UHDM_NON_POSITIVE_VALUE,
+                                          errMsg, ex, nullptr);
         }
       }
     }
   }
 }
 
-
-void UhdmLint::leavePort(const port* object, vpiHandle handle) {
+void UhdmLint::leavePort(const Port* object, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
   bool signedHighConn = false;
   bool signedLowConn = false;
   bool highConn = false;
-  const any* reportObject = object;
-  if (const any* hc = object->High_conn()) {
-    if (const ref_obj* ref = any_cast<const ref_obj*> (hc)) {
+  const Any* reportObject = object;
+  if (const Any* hc = object->getHighConn()) {
+    if (const RefObj* ref = any_cast<const RefObj*>(hc)) {
       reportObject = ref;
-      if (const any* actual = ref->Actual_group()) {
-        if (actual->UhdmType() == uhdmlogic_var) {
-          logic_var* var = (logic_var*)actual;
+      if (const Any* actual = ref->getActual()) {
+        if (actual->getUhdmType() == UhdmType::LogicVar) {
+          LogicVar* var = (LogicVar*)actual;
           highConn = true;
-          if (var->VpiSigned()) {
-             signedHighConn = true;
+          if (var->getSigned()) {
+            signedHighConn = true;
           }
-        } if (actual->UhdmType() == uhdmlogic_net) {
-          logic_net* var = (logic_net*)actual;
+        }
+        if (actual->getUhdmType() == UhdmType::LogicNet) {
+          LogicNet* var = (LogicNet*)actual;
           highConn = true;
-          if (var->VpiSigned()) {
-             signedHighConn = true;
+          if (var->getSigned()) {
+            signedHighConn = true;
           }
         }
       }
-    } 
+    }
   }
-  if (const any* lc = object->Low_conn()) {
-    if (const ref_obj* ref = any_cast<const ref_obj*>(lc)) {
-      if (const any* actual = ref->Actual_group()) {
-        if (actual->UhdmType() == uhdmlogic_var) {
-          logic_var* var = (logic_var*)actual;
-          if (var->VpiSigned()) {
+  if (const Any* lc = object->getLowConn()) {
+    if (const RefObj* ref = any_cast<const RefObj*>(lc)) {
+      if (const Any* actual = ref->getActual()) {
+        if (actual->getUhdmType() == UhdmType::LogicVar) {
+          LogicVar* var = (LogicVar*)actual;
+          if (var->getSigned()) {
             signedLowConn = true;
           }
         }
-        if (actual->UhdmType() == uhdmlogic_net) {
-          logic_net* var = (logic_net*)actual;
-          if (var->VpiSigned()) {
+        if (actual->getUhdmType() == UhdmType::LogicNet) {
+          LogicNet* var = (LogicNet*)actual;
+          if (var->getSigned()) {
             signedLowConn = true;
           }
         }
@@ -383,11 +380,10 @@ void UhdmLint::leavePort(const port* object, vpiHandle handle) {
     }
   }
   if (highConn && (signedLowConn != signedHighConn)) {
-    std::string_view errMsg = object->VpiName();
-    serializer_->GetErrorHandler()(
-              ErrorType::UHDM_SIGNED_UNSIGNED_PORT_CONN, std::string(errMsg),
-              reportObject, nullptr);
+    std::string_view errMsg = object->getName();
+    m_serializer->getErrorHandler()(ErrorType::UHDM_SIGNED_UNSIGNED_PORT_CONN,
+                                    std::string(errMsg), reportObject, nullptr);
   }
 }
 
-}  // namespace UHDM
+}  // namespace uhdm

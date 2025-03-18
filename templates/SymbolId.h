@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace UHDM {
+namespace uhdm {
 /**
  * class SymbolId
  *
@@ -17,7 +17,7 @@ namespace UHDM {
  * should) be resolved only with the SymbolFactory that it was generated with.
  *
  */
-typedef uint32_t RawSymbolId;
+using RawSymbolId = uint32_t;
 inline static constexpr RawSymbolId BadRawSymbolId = 0;
 inline static constexpr std::string_view BadRawSymbol = "@@BAD_SYMBOL@@";
 
@@ -107,11 +107,10 @@ struct SymbolIdLessThanComparer final {
   }
 };
 
-typedef std::set<SymbolId, SymbolIdLessThanComparer> SymbolIdSet;
-typedef std::unordered_set<SymbolId, SymbolIdHasher, SymbolIdEqualityComparer>
-    SymbolIdUnorderedSet;
-typedef std::vector<SymbolId> SymbolIdVector;
+using SymbolIdSet = std::set<SymbolId, SymbolIdLessThanComparer>;
+using SymbolIdUnorderedSet = std::unordered_set<SymbolId, SymbolIdHasher, SymbolIdEqualityComparer>;
+using SymbolIdVector = std::vector<SymbolId>;
 
-}  // namespace UHDM
+}  // namespace uhdm
 
 #endif  // UHDM_SYMBOLID_H

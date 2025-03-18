@@ -13,17 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "constraint ordering" formal description
- 
-- obj_def: constraint_ordering
-  - class_ref: solve_before
-    name: solve before
-    vpi: vpiSolveBefore
-    type: expr
-    card: any
-  - class_ref: solve_after
-    name: solve after
-    vpi: vpiSolveAfter
-    type: expr
-    card: any
 
- 
+- obj_def: constraint_ordering
+- class_ref: solve_before
+  vpi: vpiSolveBefore
+  type: expr
+  card: any
+- class_ref: solve_after
+  vpi: vpiSolveAfter
+  type: expr
+  card: any

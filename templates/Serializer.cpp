@@ -34,58 +34,70 @@
 #include <string>
 #include <vector>
 
-namespace UHDM {
+namespace uhdm {
 
 const uint32_t Serializer::kVersion = 1;
 
-void Serializer::GarbageCollect() {
+Serializer::Serializer() {
+<INIT_FACTORIES>
+}
+
+Serializer::~Serializer() { purge(); }
+
+void Serializer::collectGarbage() {
   if (!m_enableGC) return;
 
+  Factory* const factory = m_factories[UhdmType::Design];
   UhdmListener* const listener = new UhdmListener();
-  for (auto d : designMaker.objects_) {
-    listener->listenDesign(d);
+  for (auto d : factory->m_objects) {
+    listener->listenDesign(any_cast<Design>(d));
   }
 
   const AnySet visited(listener->getVisited().begin(),
                        listener->getVisited().end());
   delete listener;
 
-<FACTORY_GC>
+  for (factories_t::const_reference entry : m_factories) {
+    entry.second->eraseIfNotIn(visited);
+  }
 }
 
 void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
-                         const any* object1, const any* object2) {
+                         const Any* object1, const Any* object2) {
   std::cerr << errorMsg << std::endl;
 }
 
-SymbolId Serializer::MakeSymbol(std::string_view symbol) {
-  return symbolMaker.Make(symbol);
+SymbolId Serializer::makeSymbol(std::string_view symbol) {
+  return m_symbolFactory.registerSymbol(symbol);
 }
 
-std::string_view Serializer::GetSymbol(SymbolId id) const {
-  return symbolMaker.GetSymbol(id);
+std::string_view Serializer::getSymbol(SymbolId id) const {
+  return m_symbolFactory.getSymbol(id);
 }
 
-SymbolId Serializer::GetSymbolId(std::string_view symbol) const {
-  return symbolMaker.GetId(symbol);
+SymbolId Serializer::getSymbolId(std::string_view symbol) const {
+  return m_symbolFactory.getId(symbol);
 }
 
-vpiHandle Serializer::MakeUhdmHandle(UHDM_OBJECT_TYPE type,
+vpiHandle Serializer::makeUhdmHandle(UhdmType type,
                                      const void* object) {
-  return uhdm_handleMaker.Make(type, object);
+  return m_uhdmHandleFactory.make(type, object);
 }
 
-VectorOfsymbol* Serializer::MakeSymbolVec() {
-  return symbolVectMaker.Make();
+SymbolCollection* Serializer::makeSymbolCollection() {
+  // return m_symbolVectorFactory.make();
+  return nullptr;
 }
 
-Serializer::IdMap Serializer::AllObjects() const {
+Serializer::IdMap Serializer::getAllObjects() const {
   IdMap idMap;
-<CAPNP_ID>
+  for (factories_t::const_reference entry : m_factories) {
+    entry.second->mapToIndex(idMap);
+  }
   return idMap;
 }
 
-std::string UhdmName(UHDM_OBJECT_TYPE type) {
+std::string UhdmName(UhdmType type) {
   switch (type) {
 <UHDM_NAME_MAP>
     default: return "NO TYPE";
@@ -96,19 +108,21 @@ std::string UhdmName(UHDM_OBJECT_TYPE type) {
 std::string VpiTypeName(vpiHandle h) {
   uhdm_handle* handle = (uhdm_handle*)h;
   BaseClass* obj = (BaseClass*)handle->object;
-  return UhdmName(obj->UhdmType());
+  return UhdmName(obj->getUhdmType());
 }
 
-std::map<std::string, uint32_t, std::less<>> Serializer::ObjectStats() const {
+std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats() const {
   std::map<std::string, uint32_t, std::less<>> stats;
-<FACTORY_STATS>
+  for (factories_t::const_reference entry : m_factories) {
+    stats.emplace(UhdmName(entry.first), entry.second->m_objects.size());
+  }
   return stats;
 }
 
-void Serializer::PrintStats(std::ostream& strm,
+void Serializer::printStats(std::ostream& strm,
                             std::string_view infoText) const {
   strm << "=== UHDM Object Stats Begin (" << infoText << ") ===" << std::endl;
-  auto stats = ObjectStats();
+  auto stats = getObjectStats();
   std::vector<std::string_view> names;
   names.reserve(stats.size());
   std::transform(stats.begin(), stats.end(), std::back_inserter(names),
@@ -128,30 +142,26 @@ void Serializer::PrintStats(std::ostream& strm,
   strm << "=== UHDM Object Stats End ===" << std::endl;
 }
 
-bool Serializer::Erase(const BaseClass* p) {
+bool Serializer::erase(const BaseClass* p) {
   if (p == nullptr) {
     return true;
   }
 
-  switch (p->UhdmType()) {
-<FACTORY_ERASE_OBJECT>
-    default: return false;
+  return m_factories[p->getUhdmType()]->erase(p);
+}
+
+void Serializer::purge() {
+  m_symbolFactory.purge();
+  m_uhdmHandleFactory.purge();
+  for (factories_t::const_reference entry : m_factories) {
+    entry.second->purge();
   }
 }
 
-Serializer::~Serializer() { Purge(); }
-
-void Serializer::Purge() {
-  anyVectMaker.Purge();
-  symbolMaker.Purge();
-  uhdm_handleMaker.Purge();
-  symbolVectMaker.Purge();
-<FACTORY_PURGE>
-}
-
 #ifndef SWIG
-void Serializer::PushScope(any* s) { m_scopeStack.emplace_back(s); }
-bool Serializer::PopScope(any* s) {
+void Serializer::pushScope(Any* s) { m_scopeStack.emplace_back(s); }
+
+bool Serializer::popScope(Any* s) {
   if (!m_scopeStack.empty() && (m_scopeStack.back() == s)) {
     m_scopeStack.pop_back();
     return true;
@@ -159,10 +169,10 @@ bool Serializer::PopScope(any* s) {
   return false;
 }
 
-ScopedScope::ScopedScope(any* s) : m_any(s) {
-  m_any->GetSerializer()->PushScope(s);
+ScopedScope::ScopedScope(Any* s) : m_any(s) {
+  m_any->getSerializer()->pushScope(s);
 }
 
-ScopedScope::~ScopedScope() { m_any->GetSerializer()->PopScope(m_any); }
+ScopedScope::~ScopedScope() { m_any->getSerializer()->popScope(m_any); }
 #endif
-}  // namespace UHDM
+}  // namespace uhdm

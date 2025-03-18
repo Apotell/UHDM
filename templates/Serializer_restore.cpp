@@ -46,70 +46,48 @@
 
 #include "uhdm/config.h"
 
-namespace UHDM {
+namespace uhdm {
 static constexpr std::string_view kUnknownRawSymbol = "<unknown>";
 
-template <typename T>
-inline T* Serializer::Make(FactoryT<T>* const factory) {
-  T* const obj = factory->Make();
-  obj->SetSerializer(this);
-  obj->UhdmId(++m_objId);
-  return obj;
-}
-
-template <typename T>
-void Serializer::Make(FactoryT<T>* const factory, uint32_t count) {
-  for (uint32_t i = 0; i < count; ++i) Make(factory);
-}
-
-template <typename T>
-inline std::vector<T*>* Serializer::Make(FactoryT<std::vector<T*>>* const factory) {
-  return factory->Make();
-}
-
-BaseClass* Serializer::GetObject(uint32_t objectType, uint32_t index) const {
+template<typename T>
+T* Serializer::getObject(uint32_t type, uint32_t index) const {
   if (index == kBadIndex) {
     return nullptr;
   }
 
-  // TODO: have objectTyp enum UHDM_OBJECT_TYPE type in the first place
-  switch (static_cast<UHDM_OBJECT_TYPE>(objectType)) {
-<FACTORY_GET_OBJECT>
-    default: return nullptr;
-  }
+  factories_t::const_iterator it = m_factories.find(static_cast<UhdmType>(type));
+  return it != m_factories.cend() ? any_cast<T>(it->second->m_objects[index]) : nullptr;
 }
 
-<FACTORY_FUNCTION_IMPLEMENTATIONS>
-
 struct Serializer::RestoreAdapter {
-  void operator()(Any::Reader reader, Serializer *const serializer, BaseClass *const obj) const {
+  void operator()(::Any::Reader reader, Serializer *const serializer, BaseClass *const obj) const {
     // Do NOT call VpiParent function call here! It ends up duplicating the entries in the collections
     // because of calls to OnChildAdded & OnChildRemoved.
-    // obj->VpiParent(serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1));
-    obj->vpiParent_ = serializer->GetObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1);
-    obj->VpiFile(serializer->symbolMaker.GetSymbol(SymbolId(reader.getVpiFile(), kUnknownRawSymbol)));
-    obj->VpiLineNo(reader.getVpiLineNo());
-    obj->VpiColumnNo(reader.getVpiColumnNo());
-    obj->VpiEndLineNo(reader.getVpiEndLineNo());
-    obj->VpiEndColumnNo(reader.getVpiEndColumnNo());
-    obj->UhdmId(reader.getUhdmId());
-  };
+    // obj->VpiParent(serializer->getObject(reader.getVpiParent().getType(), reader.getVpiParent().getIndex() - 1));
+    obj->m_parent = serializer->getObject<BaseClass>(reader.getParent().getType(), reader.getParent().getIndex() - 1);
+    obj->setFile(serializer->m_symbolFactory.getSymbol(SymbolId(reader.getFile(), kUnknownRawSymbol)));
+    obj->m_startLine = reader.getStartLine();
+    obj->m_startColumn = reader.getStartColumn();
+    obj->m_endLine = reader.getEndLine();
+    obj->m_endColumn = reader.getEndColumn();
+    obj->m_uhdmId = reader.getUhdmId();
+  }
 
 <CAPNP_RESTORE_ADAPTERS>
-
   template<typename T, typename U, typename = typename std::enable_if<std::is_base_of<BaseClass, T>::value>::type>
-  void operator()(typename ::capnp::List<U>::Reader reader, Serializer *serializer, typename FactoryT<T>::objects_t &objects) const {
+  void operator()(typename ::capnp::List<U>::Reader reader, Serializer *serializer) const {
+    Factory::objects_t& objects = serializer->m_factories[T::kUhdmType]->m_objects;
     uint32_t index = 0;
-    for (typename U::Reader obj : reader)
-      operator()(obj, serializer, objects[index++]);
+    for (typename U::Reader subReader : reader)
+      operator()(subReader, serializer, any_cast<T>(objects[index++]));
   }
 };
 
-const std::vector<vpiHandle> Serializer::Restore(const std::filesystem::path& filepath) {
-    return Restore( filepath.string());
+const std::vector<vpiHandle> Serializer::restore(const std::filesystem::path& filepath) {
+    return restore( filepath.string());
 }
-const std::vector<vpiHandle> Serializer::Restore(const std::string& filepath) {
-  Purge();
+const std::vector<vpiHandle> Serializer::restore(const std::string& filepath) {
+  purge();
   std::vector<vpiHandle> designs;
   const std::string file = filepath;
   int32_t fileid = open(file.c_str(), O_RDONLY | O_BINARY);
@@ -123,7 +101,7 @@ const std::vector<vpiHandle> Serializer::Restore(const std::string& filepath) {
 
   const ::capnp::List<::capnp::Text>::Reader& symbols = cap_root.getSymbols();
   for (const auto& symbol : symbols) {
-    symbolMaker.Make(symbol.cStr());
+    m_symbolFactory.registerSymbol(symbol.cStr());
   }
 
 <CAPNP_INIT_FACTORIES>
@@ -133,12 +111,13 @@ const std::vector<vpiHandle> Serializer::Restore(const std::string& filepath) {
   RestoreAdapter adapter;
 <CAPNP_RESTORE_FACTORIES>
 
-   for (auto d : designMaker.objects_) {
-    vpiHandle designH = uhdm_handleMaker.Make(UHDM_OBJECT_TYPE::uhdmdesign, d);
-    designs.push_back(designH);
+  Factory* const designFactory = m_factories[UhdmType::Design];
+  for (auto d : designFactory->m_objects) {
+    vpiHandle designH = m_uhdmHandleFactory.make(UhdmType::Design, d);
+    designs.emplace_back(designH);
   }
 
   close(fileid);
   return designs;
 }
-}  // namespace UHDM
+}  // namespace uhdm

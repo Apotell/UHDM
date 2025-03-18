@@ -13,11 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "spec param" formal description
- 
+
 - obj_def: spec_param
-  - extends: simple_expr
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- extends: simple_expr

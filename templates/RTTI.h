@@ -9,7 +9,7 @@
 #include <type_traits>
 
 
-namespace UHDM
+namespace uhdm
 {
   // Ref: https://gist.github.com/klemens-morgenstern/b75599292667a4f53007
   namespace internal
@@ -69,8 +69,8 @@ namespace UHDM
   class RTTI
   {
   protected:
-    typedef uint32_t typeid_t;
-    typedef RTTI thistype_t;
+    using typeid_t = uint32_t;
+    using thistype_t = RTTI;
     static constexpr typeid_t kTypeId = internal::RTTIHash("RTTI", internal::kFNV1aSeed32);
     static constexpr std::array<typeid_t, 1> kTypeIds{ kTypeId };
 
@@ -168,17 +168,17 @@ namespace UHDM
     return AsOfTypeRecurse(tid);
   }
 
-} // namespace UHDM
+} // namespace uhdm
 
 #define UHDM_IMPLEMENT_RTTI(classType, baseType)                                                                  \
   public:                                                                                                         \
-    typedef classType thistype_t;                                                                                 \
-    typedef baseType basetype_t;                                                                                  \
-    static constexpr typeid_t kTypeId = UHDM::internal::RTTIHash("/" #classType, basetype_t::kTypeId);            \
-    static constexpr auto kTypeIds = UHDM::internal::join(                                                        \
+    using thistype_t = classType;                                                                                 \
+    using basetype_t = baseType;                                                                                  \
+    static constexpr typeid_t kTypeId = uhdm::internal::RTTIHash("/" #classType, basetype_t::kTypeId);            \
+    static constexpr auto kTypeIds = uhdm::internal::join(                                                        \
       std::array<typeid_t, 1>{thistype_t::kTypeId}, basetype_t::kTypeIds);                                        \
   protected:                                                                                                      \
-    friend class UHDM::RTTI;                                                                                      \
+    friend class uhdm::RTTI;                                                                                      \
     inline virtual RTTI::typeid_t GetTypeId() const override { return thistype_t::kTypeId; }                      \
     inline virtual const RTTI::typeid_t *GetTypeIds(size_t &count) const override                                 \
     { count = thistype_t::kTypeIds.size(); return thistype_t::kTypeIds.data(); }                                  \
@@ -192,15 +192,15 @@ namespace UHDM
 
 #define UHDM_IMPLEMENT_RTTI_2_BASES(classType, baseType1, baseType2)                                                            \
   public:                                                                                                                       \
-    typedef classType thistype_t;                                                                                               \
-    typedef baseType1 base1type_t;                                                                                              \
-    typedef baseType2 base2type_t;                                                                                              \
-    static constexpr typeid_t kTypeId = UHDM::internal::RTTIHash("/" #classType, base1type_t::kTypeId ^ base2type_t::kTypeId);  \
-    static constexpr auto kTypeIds = UHDM::internal::join(                                                                      \
+    using thistype_t = classType;                                                                                               \
+    using base1type_t = baseType1;                                                                                              \
+    using base2type_t = baseType2;                                                                                              \
+    static constexpr typeid_t kTypeId = uhdm::internal::RTTIHash("/" #classType, base1type_t::kTypeId ^ base2type_t::kTypeId);  \
+    static constexpr auto kTypeIds = uhdm::internal::join(                                                                      \
       std::array<typeid_t, 1>{thistype_t::kTypeId},                                                                             \
-      UHDM::internal::join(base1type_t::kTypeIds, base2type_t::kTypeIds));                                                      \
+      uhdm::internal::join(base1type_t::kTypeIds, base2type_t::kTypeIds));                                                      \
   protected:                                                                                                                    \
-    friend class UHDM::RTTI;                                                                                                    \
+    friend class uhdm::RTTI;                                                                                                    \
     inline virtual RTTI::typeid_t GetTypeId() const override { return thistype_t::kTypeId; }                                    \
     inline virtual const RTTI::typeid_t *GetTypeIds(size_t &count) const override                                               \
     { count = thistype_t::kTypeIds.size(); return thistype_t::kTypeIds.data(); }                                                \

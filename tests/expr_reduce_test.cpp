@@ -35,7 +35,7 @@
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
-using namespace UHDM;
+using namespace uhdm;
 
 //-------------------------------------------
 // This self-contained example demonstrate how one can use expression reduction
@@ -43,53 +43,53 @@ using namespace UHDM;
 //-------------------------------------------
 
 //-------------------------------------------
-// Unit test design
+// Unit test Design
 
 std::vector<vpiHandle> build_designs(Serializer* s) {
-  std::vector<vpiHandle> designs;
+  std::vector<vpiHandle> Designs;
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
+  Design* d = s->make<Design>();
+  d->setName("Design1");
 
   //-------------------------------------------
   // Module definition M1 (non elaborated)
-  module_inst* m1 = s->MakeModule_inst();
+  Module* m1 = s->make<Module>();
   {
-    m1->VpiDefName("M1");
-    m1->VpiParent(d);
-    m1->VpiFile("fake1.sv");
-    m1->VpiLineNo(10);
-    constant* c1 = s->MakeConstant();
-    c1->VpiValue("INT:2");
-    c1->VpiConstType(vpiIntConst);
-    constant* c2 = s->MakeConstant();
-    c2->VpiValue("INT:3");
-    c2->VpiConstType(vpiIntConst);
-    operation* oper = s->MakeOperation();
-    oper->VpiOpType(vpiAddOp);
-    VectorOfany* operands = s->MakeAnyVec();
-    oper->Operands(operands);
+    m1->setDefName("M1");
+    m1->setParent(d);
+    m1->setFile("fake1.sv");
+    m1->setStartLine(10);
+    Constant* c1 = s->make<Constant>();
+    c1->setValue("INT:2");
+    c1->setConstType(vpiIntConst);
+    Constant* c2 = s->make<Constant>();
+    c2->setValue("INT:3");
+    c2->setConstType(vpiIntConst);
+    Operation* oper = s->make<Operation>();
+    oper->setOpType(vpiAddOp);
+    AnyCollection* operands = s->makeCollection<Any>();
+    oper->setOperands(operands);
     operands->push_back(c1);
     operands->push_back(c2);
-    parameter* p = s->MakeParameter();
-    p->VpiName("param");
-    param_assign* pass = s->MakeParam_assign();
-    pass->Lhs(p);
-    pass->Rhs(oper);
-    m1->Parameters(s->MakeAnyVec());
-    m1->Parameters()->push_back(p);
-    m1->Param_assigns(s->MakeParam_assignVec());
-    m1->Param_assigns()->push_back(pass);
+    Parameter* p = s->make<Parameter>();
+    p->setName("param");
+    ParamAssign* pass = s->make<ParamAssign>();
+    pass->setLhs(p);
+    pass->setRhs(oper);
+    m1->setParameters(s->makeCollection<Any>());
+    m1->getParameters()->push_back(p);
+    m1->setParamAssigns(s->makeCollection<ParamAssign>());
+    m1->getParamAssigns()->push_back(pass);
   }
 
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
+  ModuleCollection* topModules = s->makeCollection<Module>();
+  d->setTopModules(topModules);
   topModules->push_back(m1);
 
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
-  designs.push_back(dh);
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
+  Designs.push_back(dh);
 
-  return designs;
+  return Designs;
 }
 
 TEST(FullElabTest, ElaborationRoundtrip) {
@@ -98,8 +98,8 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   const std::string before = designs_to_string(designs);
 
   bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
+  for (auto Design : designs) {
+    elaborated = vpi_get(vpiElaborated, Design) || elaborated;
   }
   EXPECT_FALSE(elaborated);
 
@@ -109,19 +109,19 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   delete elaboratorContext;
 
   elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
+  for (auto Design : designs) {
+    elaborated = vpi_get(vpiElaborated, Design) || elaborated;
   }
   EXPECT_TRUE(elaborated);
 
   vpiHandle dh = designs.at(0);
-  design* d = UhdmDesignFromVpiHandle(dh);
-  for (auto m : *d->TopModules()) {
-    for (auto pass : *m->Param_assigns()) {
-      const any* rhs = pass->Rhs();
+  Design* d = UhdmDesignFromVpiHandle(dh);
+  for (auto m : *d->getTopModules()) {
+    for (auto pass : *m->getParamAssigns()) {
+      const Any* rhs = pass->getRhs();
       ExprEval eval;
       bool invalidValue = false;
-      expr* reduced = eval.reduceExpr(rhs, invalidValue, m, pass);
+      Expr* reduced = eval.reduceExpr(rhs, invalidValue, m, pass);
       int64_t val = eval.get_value(invalidValue, reduced);
       EXPECT_EQ(val, 5);
       EXPECT_EQ(invalidValue, false);

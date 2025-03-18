@@ -15,25 +15,20 @@
 # Universal Hardware Data Model (UHDM) "method_task_call" formal description
 
 - obj_def: method_task_call
-  - extends: tf_call
-  - property: is_built_in
-    name: is built in
-    type: bool
-    vpi: vpiUserDefn
-    card: 1
-  - class_ref: prefix
-    name: prefix
-    type: expr
-    vpi: vpiPrefix
-    card: 1
-  - group_ref: with
-    name: with
-    type: expr_constr_group
-    vpi: vpiWith
-    card: 1
-  - obj_ref: task
-    name: task
-    type: task
-    vpi: vpiTask
-    card: 1
-    
+- extends: tf_call
+- property: user_defn
+  type: bool
+  vpi: vpiUserDefn
+  card: 1
+- class_ref: prefix
+  type: expr
+  vpi: vpiPrefix
+  card: 1
+- group_ref: with
+  type: expr_constr_group
+  vpi: vpiWith
+  card: 1
+- obj_ref: task
+  type: task
+  vpi: vpiTask
+  card: 1

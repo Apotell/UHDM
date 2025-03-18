@@ -13,15 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "atomic_stmt" formal description
- 
+
 - class_def: atomic_stmt
-  - property: label
-    name: label
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- property: label
+  vpi: vpiLabel
+  type: string
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

@@ -15,24 +15,20 @@
 # Universal Hardware Data Model (UHDM) "ref_typespec" formal description
 
 - obj_def: ref_typespec
-  - extends: simple_expr
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - property: definition_name
-    name: definition name
-    vpi: vpiDefName
-    type: string
-    card: 1
-  - class_ref: actual_typespec
-    name: actual typespec
-    vpi: vpiActual
-    type: typespec
-    card: 1
+- extends: simple_expr
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- property: def_name
+  vpi: vpiDefName
+  type: string
+  card: 1
+- class_ref: actual_typespec
+  vpi: vpiActual
+  type: typespec
+  card: 1

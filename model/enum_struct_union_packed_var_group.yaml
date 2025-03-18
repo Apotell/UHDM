@@ -13,11 +13,11 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "enum struct union packed var group" formal description
- 
+
 - group_def: enum_struct_union_packed_var_group
-  - obj_ref: enum_var
-  - obj_ref: struct_var
-  - obj_ref: union_var
-  - obj_ref: packed_array_var
-# Non-standard, packed_array_var can have a logic_var as an element, it simplifies synlig code to handle packed array of logic array (Which should be logic var with multi-dimentional ranges per standard)  
-  - obj_ref: logic_var
+- obj_ref: enum_var
+- obj_ref: struct_var
+- obj_ref: union_var
+- obj_ref: packed_array_var
+# Non-standard, packed_array_var can have a logic_var as an element, it simplifies synlig code to handle packed array of logic array (Which should be logic var with multi-dimentional ranges per standard)
+- obj_ref: logic_var

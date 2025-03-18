@@ -13,21 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "constr_foreach" formal description
- 
+
 - obj_def: constr_foreach
-  - extends: constraint_expr
-  - class_ref: variable
-    name: variable
-    vpi: vpiVariables
-    type: variables
-    card: 1
-  - group_ref: vpiLoopVars
-    name: vpiLoopVars
-    vpi: vpiLoopVars
-    type: variables_operation_group
-    card: any
-  - class_ref: constraint_expr
-    name: constraint expr
-    vpi: vpiConstraintExpr
-    type: constraint_expr
-    card: any
+- extends: constraint_expr
+- class_ref: variables
+  vpi: vpiVariables
+  type: variables
+  card: 1
+- group_ref: loop_vars
+  vpi: vpiLoopVars
+  type: variables_operation_group
+  card: any
+- class_ref: constraint_expr
+  vpi: vpiConstraintExpr
+  type: constraint_expr
+  card: any

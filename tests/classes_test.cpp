@@ -8,95 +8,93 @@
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
-using namespace UHDM;
+using namespace uhdm;
 
 static std::vector<vpiHandle> build_designs(Serializer* s) {
   std::vector<vpiHandle> designs;
 
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
+  Design* d = s->make<Design>();
+  d->setName("design1");
 
   // Module
-  module_inst* m1 = s->MakeModule_inst();
-  m1->VpiTopModule(true);
-  m1->VpiDefName("M1");
-  m1->VpiParent(d);
-  m1->VpiFile("fake1.sv");
-  m1->VpiLineNo(10);
+  Module* m1 = s->make<Module>();
+  m1->setTopModule(true);
+  m1->setDefName("M1");
+  m1->setParent(d);
+  m1->setFile("fake1.sv");
+  m1->setStartLine(10);
 
   /* Base class */
-  class_defn* base = s->MakeClass_defn();
-  base->VpiName("Base");
-  base->VpiParent(m1);
+  ClassDefn* base = s->make<ClassDefn>();
+  base->setName("Base");
+  base->setParent(m1);
 
-  parameter* param = s->MakeParameter();
-  param->VpiName("P1");
-  param->VpiParent(base);
+  Parameter* param = s->make<Parameter>();
+  param->setName("P1");
+  param->setParent(base);
 
-  function* f1 = s->MakeFunction();
-  f1->VpiName("f1");
-  f1->VpiMethod(true);
-  f1->VpiParent(base);
+  Function* f1 = s->make<Function>();
+  f1->setName("f1");
+  f1->setMethod(true);
+  f1->setParent(base);
 
-  assign_stmt* as = s->MakeAssign_stmt();
-  f1->Stmt(as);
+  AssignStmt* as = s->make<AssignStmt>();
+  f1->setStmt(as);
 
-  ref_obj* lhs = s->MakeRef_obj();
-  lhs->VpiName("a");
-  lhs->VpiParent(as);
+  RefObj* lhs = s->make<RefObj>();
+  lhs->setName("a");
+  lhs->setParent(as);
 
-  ref_obj* rhs = s->MakeRef_obj();
-  rhs->VpiName("P1");
-  rhs->VpiParent(as);
-  as->Lhs(lhs);
-  as->Rhs(rhs);
+  RefObj* rhs = s->make<RefObj>();
+  rhs->setName("P1");
+  rhs->setParent(as);
+  as->setLhs(lhs);
+  as->setRhs(rhs);
 
-  function* f2 = s->MakeFunction();
-  f2->VpiName("f2");
-  f2->VpiMethod(true);
-  f2->VpiParent(base);
+  Function* f2 = s->make<Function>();
+  f2->setName("f2");
+  f2->setMethod(true);
+  f2->setParent(base);
 
-  method_func_call* fcall = s->MakeMethod_func_call();
-  f2->Stmt(fcall);
-  fcall->VpiName("f1");
-  fcall->VpiParent(f2);
+  MethodFuncCall* fcall = s->make<MethodFuncCall>();
+  f2->setStmt(fcall);
+  fcall->setName("f1");
+  fcall->setParent(f2);
 
   /* Child class */
-  class_defn* child = s->MakeClass_defn();
-  child->VpiName("Child");
-  child->VpiParent(m1);
+  ClassDefn* child = s->make<ClassDefn>();
+  child->setName("Child");
+  child->setParent(m1);
 
-  UHDM::class_defn* derived = child;
-  UHDM::class_defn* parent = base;
-  UHDM::extends* extends = s->MakeExtends();
-  UHDM::class_typespec* tps = s->MakeClass_typespec();
-  UHDM::ref_typespec* rt = s->MakeRef_typespec();
-  tps->VpiParent(child);
-  rt->Actual_typespec(tps);
-  rt->VpiParent(extends);
-  extends->VpiParent(child);
-  extends->Class_typespec(rt);
-  tps->Class_defn(parent);
-  derived->Extends(extends);
+  ClassDefn* derived = child;
+  ClassDefn* parent = base;
+  Extends* extends = s->make<Extends>();
+  ClassTypespec* tps = s->make<ClassTypespec>();
+  RefTypespec* rt = s->make<RefTypespec>();
+  tps->setParent(child);
+  rt->setActualTypespec(tps);
+  rt->setParent(extends);
+  extends->setParent(child);
+  extends->setClassTypespec(rt);
+  tps->setClassDefn(parent);
+  derived->setExtends(extends);
 
-  UHDM::VectorOfclass_defn* all_derived = s->MakeClass_defnVec();
-  parent->Deriveds(all_derived);
-  all_derived->push_back(derived);
+  parent->getDerivedClasses(true)->emplace_back(derived);
 
-  function* f3 = s->MakeFunction();
-  f3->VpiName("f3");
-  f3->VpiMethod(true);
-  f3->VpiParent(child);
+  Function* f3 = s->make<Function>();
+  f3->setName("f3");
+  f3->setMethod(true);
+  f3->setParent(child);
 
-  method_func_call* fcall2 = s->MakeMethod_func_call();
-  f3->Stmt(fcall);
-  fcall2->VpiName("f1");  // parent class function
-  fcall->VpiParent(f3);
+  MethodFuncCall* fcall2 = s->make<MethodFuncCall>();
+  f3->setStmt(fcall);
+  fcall2->setName("f1");  // parent class function
+  fcall->setParent(f3);
 
-  d->TopModules(true)->emplace_back(m1);
+  d->getTopModules(true)->emplace_back(m1);
 
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
   return designs;
 }
@@ -107,9 +105,9 @@ TEST(ClassesTest, DesignSaveRestoreRoundtrip) {
   const std::string before = designs_to_string(designs);
 
   const std::string filename = testing::TempDir() + "/classes_test.uhdm";
-  serializer.Save(filename);
+  serializer.save(filename);
 
-  const std::vector<vpiHandle>& restoredDesigns = serializer.Restore(filename);
+  const std::vector<vpiHandle>& restoredDesigns = serializer.restore(filename);
   const std::string restored = designs_to_string(restoredDesigns);
 
   EXPECT_EQ(before, restored);

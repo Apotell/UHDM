@@ -13,6 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "gate" formal description
- 
+
 - obj_def: gate
-  - extends: primitive
+- extends: primitive

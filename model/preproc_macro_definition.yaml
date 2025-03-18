@@ -15,16 +15,15 @@
 # Universal Hardware Data Model (UHDM) "preproc_macro_definition" formal description
 
 - obj_def: preproc_macro_definition
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: name_start_column
-    vpi: vpiNameStartColumn
-    type: uint16_t
-    card: 1
-  - property: body_start_column
-    vpi: vpiBodyStartColumn
-    type: uint16_t
-    card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: name_start_column
+  vpi: vpiNameStartColumn
+  type: uint16_t
+  card: 1
+- property: body_start_column
+  vpi: vpiBodyStartColumn
+  type: uint16_t
+  card: 1

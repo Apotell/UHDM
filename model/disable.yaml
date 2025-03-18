@@ -13,13 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "disable" formal description
- 
-- obj_def: disable
-  - extends: disables
-  - group_ref: vpiExpr
-    name: expr
-    vpi: vpiExpr
-    type: task_func_named_begin_fork_group
-    card: 1
-    
 
+- obj_def: disable
+- extends: disables
+- group_ref: expr
+  vpi: vpiExpr
+  type: task_func_named_begin_fork_group
+  card: 1

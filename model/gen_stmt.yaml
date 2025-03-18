@@ -17,13 +17,11 @@
 # in the non-elaborate tree
 
 - class_def: gen_stmt
-  - property: label
-    name: label
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- property: label
+  vpi: vpiLabel
+  type: string
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

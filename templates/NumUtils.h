@@ -31,7 +31,7 @@
 #include <string>
 #include <string_view>
 
-namespace UHDM {
+namespace uhdm {
 namespace NumUtils {
 namespace internal {
 // These functions parse a number from a std::string_view into "result".
@@ -177,6 +177,6 @@ template <typename result_type>
 [[nodiscard]] const char* parseLongDouble(std::string_view s,
                                           long double* result);
 }  // namespace NumUtils
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif /* UHDM_NUMUTILS_H */
+#endif  // UHDM_NUMUTILS_H

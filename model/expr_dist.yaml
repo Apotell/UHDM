@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "expr distribution class" formal description
- 
+
 - group_def: expr_dist
-  - class_ref: expr
-  - obj_ref: distribution
- 
+- class_ref: expr
+- obj_ref: distribution

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "actual instance" formal description
- 
+
 - group_def: actual_instance
-  - obj_ref: checker_inst
-  - obj_ref: interface_inst
-  - obj_ref: module_inst
+- obj_ref: checker_inst
+- obj_ref: interface
+- obj_ref: module

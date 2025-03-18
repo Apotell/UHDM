@@ -61,11 +61,11 @@ int32_t main(int32_t argc, char **argv) {
     return usage(argv[0]);
   }
 
-  std::unique_ptr<UHDM::Serializer> serializerA(new UHDM::Serializer);
-  std::vector<vpiHandle> handlesA = serializerA->Restore(fileA);
+  std::unique_ptr<uhdm::Serializer> serializerA(new uhdm::Serializer);
+  std::vector<vpiHandle> handlesA = serializerA->restore(fileA);
 
-  std::unique_ptr<UHDM::Serializer> serializerB(new UHDM::Serializer);
-  std::vector<vpiHandle> handlesB = serializerB->Restore(fileB);
+  std::unique_ptr<uhdm::Serializer> serializerB(new uhdm::Serializer);
+  std::vector<vpiHandle> handlesB = serializerB->restore(fileB);
 
   if (handlesA.empty()) {
     std::cerr << fileA << ": Failed to load." << std::endl;
@@ -82,31 +82,31 @@ int32_t main(int32_t argc, char **argv) {
     return -1;
   }
 
-  std::function<const UHDM::design *(vpiHandle handle)> to_design =
+  std::function<const uhdm::Design *(vpiHandle handle)> to_design =
       [](vpiHandle handle) {
-        return (const UHDM::design *)((const uhdm_handle *)handle)->object;
+        return (const uhdm::Design *)((const uhdm_handle *)handle)->object;
       };
 
-  std::vector<const UHDM::design *> designsA;
+  std::vector<const uhdm::Design *> designsA;
   designsA.reserve(handlesA.size());
   std::transform(handlesA.begin(), handlesA.end(), std::back_inserter(designsA),
                  to_design);
 
-  std::vector<const UHDM::design *> designsB;
+  std::vector<const uhdm::Design *> designsB;
   designsB.reserve(handlesB.size());
   std::transform(handlesB.begin(), handlesB.end(), std::back_inserter(designsB),
                  to_design);
 
   for (size_t i = 0, n = designsA.size(); i < n; ++i) {
-    UHDM::CompareContext context;
-    if (designsA[i]->Compare(designsB[i], &context) != 0) {
+    uhdm::CompareContext context;
+    if (designsA[i]->compare(designsB[i], &context) != 0) {
       if (context.m_failedLhs != nullptr) {
-        const UHDM::any *p = context.m_failedLhs;
+        const uhdm::Any *p = context.m_failedLhs;
         size_t count = 0;
         while ((p != nullptr) && (count < 4)) {
-          std::cout << "LHS: " << count << ", " << p->VpiFile() << std::endl;
-          UHDM::decompile(p);
-          p = p->VpiParent();
+          std::cout << "LHS: " << count << ", " << p->getFile() << std::endl;
+          uhdm::decompile(p);
+          p = p->getParent();
           ++count;
         }
       } else {
@@ -116,12 +116,12 @@ int32_t main(int32_t argc, char **argv) {
       std::cout << std::string(80, '=') << std::endl;
 
       if (context.m_failedRhs != nullptr) {
-        const UHDM::any *p = context.m_failedRhs;
+        const uhdm::Any *p = context.m_failedRhs;
         size_t count = 0;
         while ((p != nullptr) && (count < 4)) {
-          std::cout << "RHS: " << count << ", " << p->VpiFile() << std::endl;
-          UHDM::decompile(p);
-          p = p->VpiParent();
+          std::cout << "RHS: " << count << ", " << p->getFile() << std::endl;
+          uhdm::decompile(p);
+          p = p->getParent();
           ++count;
         }
       } else {

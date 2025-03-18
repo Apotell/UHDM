@@ -13,70 +13,54 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "program" formal description
- 
+
 - obj_def: program
-  - extends: instance
-  - property: index
-    name: index
-    vpi: vpiIndex
-    type: int32_t
-    card: 1
-  - property: type
-    name: vpiProgram
-    vpi: vpiType
-    type: uint32_t
-    card: 1
-  - obj_ref: default_clocking
-    name: default clocking
-    vpi: vpiDefaultClocking
-    type: clocking_block
-    card: 1
-  - class_ref: instance_array
-    name: instance_array
-    vpi: vpiInstanceArray
-    type: instance_array
-    card: 1
-  - obj_ref: interfaces
-    name: interface_inst
-    vpi: vpiInterface
-    type: interface_inst
-    card: any
-  - group_ref: expr_dist
-    name: expr distribution
-    vpi: vpiDefaultDisableIff
-    type: expr_dist
-    card: 1
-  - obj_ref: interface_arrays
-    vpi: vpiInterfaceArray
-    name: interface array
-    type: interface_array
-    card: any
-  - class_ref: process
-    name: process
-    vpi: vpiProcess
-    type: process_stmt
-    card: any
-  - obj_ref: cont_assigns
-    name: cont assign
-    vpi: vpiContAssign
-    type: cont_assign
-    card: any
-  - obj_ref: clocking_blocks
-    vpi: vpiClockingBlock
-    type: clocking_block
-    card: any
-  - obj_ref: ports
-    vpi: vpiPort
-    name: port
-    type: port
-    card: any
-  - obj_ref: gen_scope_array
-    name: gen scope array
-    vpi: vpiGenScopeArray
-    type: gen_scope_array
-    card: any   
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+- extends: instance
+- property: index
+  vpi: vpiIndex
+  type: int32_t
+  card: 1
+- obj_ref: default_clocking
+  vpi: vpiDefaultClocking
+  type: clocking_block
+  card: 1
+- class_ref: instance_array
+  vpi: vpiInstanceArray
+  type: instance_array
+  card: 1
+- obj_ref: interface
+  vpi: vpiInterface
+  type: interface
+  card: any
+- group_ref: default_disable_iff
+  vpi: vpiDefaultDisableIff
+  type: expr_dist
+  card: 1
+- obj_ref: interface_array
+  vpi: vpiInterfaceArray
+  type: interface_array
+  card: any
+- class_ref: processes
+  vpi: vpiProcess
+  type: process_stmt
+  card: any
+- obj_ref: cont_assign
+  vpi: vpiContAssign
+  type: cont_assign
+  card: any
+- obj_ref: clocking_block
+  vpi: vpiClockingBlock
+  type: clocking_block
+  card: any
+- obj_ref: port
+  vpi: vpiPort
+  type: port
+  card: any
+- obj_ref: gen_scope_array
+  vpi: vpiGenScopeArray
+  type: gen_scope_array
+  card: any
+- property: end_label
+  vpi: vpiEndLabel
+  type: string
+  card: 1

@@ -13,21 +13,18 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "integer_typespec" formal description
- 
+
 - obj_def: integer_typespec
-  - extends: typespec
-  - property: vpi_get_value
-    name: vpi_get_value
-    vpi: vpiValue
-    type: value
-    card: 1
-  - class_ref: expr
-    name: expr
-    vpi: vpiExpr
-    type: expr
-    card: 1 
-  - property: sign
-    name: sign
-    vpi: vpiSigned
-    type: bool
-    card: 1
+- extends: typespec
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1
+- class_ref: expr
+  vpi: vpiExpr
+  type: expr
+  card: 1
+- property: signed
+  vpi: vpiSigned
+  type: bool
+  card: 1

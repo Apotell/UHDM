@@ -13,21 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "array net" formal description
- 
+
 - obj_def: array_net
-  - extends: nets
-  - obj_ref: range
-    name: range
-    vpi: vpiRange
-    type: range
-    card: any
-  - class_ref: nets
-    name: nets
-    vpi: vpiNet
-    type: net
-    card: any
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- extends: nets
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any
+- class_ref: net
+  vpi: vpiNet
+  type: net
+  card: any

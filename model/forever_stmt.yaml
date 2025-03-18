@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "forever_stmt" formal description
- 
-- obj_def: forever_stmt
-  - extends: atomic_stmt
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
 
+- obj_def: forever_stmt
+- extends: atomic_stmt
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

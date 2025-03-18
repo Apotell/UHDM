@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "assign_stmt" formal description
- 
+
 - obj_def: assign_stmt
-  - extends: atomic_stmt
-  - class_ref: rhs
-    name: rhs
-    vpi: vpiRhs
-    type: expr
-    card: 1
-  - class_ref: lhs
-    name: lhs
-    vpi: vpiLhs
-    type: expr
-    card: 1
+- extends: atomic_stmt
+- class_ref: rhs
+  vpi: vpiRhs
+  type: expr
+  card: 1
+- class_ref: lhs
+  vpi: vpiLhs
+  type: expr
+  card: 1

@@ -13,31 +13,26 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "packed array net" formal description
- 
+
 - obj_def: packed_array_net
-  - extends: net
-  - property: packed_array_member
-    name: packed array member
-    vpi: vpiPackedArrayMember
-    type: bool
-    card: 1
-  - class_ref: left_expr
-    name: left range
-    vpi: vpiLeftRange
-    type: expr
-    card: 1
-  - class_ref: right_expr
-    name: right range
-    vpi: vpiRightRange
-    type: expr
-    card: 1
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
-  - group_ref: elements
-    name: elements
-    vpi: vpiElement
-    type: enum_struct_packed_net_group
-    card: any
+- extends: net
+- property: packed_array_member
+  vpi: vpiPackedArrayMember
+  type: bool
+  card: 1
+- class_ref: left_expr
+  vpi: vpiLeftRange
+  type: expr
+  card: 1
+- class_ref: right_expr
+  vpi: vpiRightRange
+  type: expr
+  card: 1
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any
+- group_ref: element
+  vpi: vpiElement
+  type: enum_struct_packed_net_group
+  card: any

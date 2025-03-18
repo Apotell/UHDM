@@ -13,15 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "case_item" formal description
- 
+
 - obj_def: case_item
-  - group_ref: vpiExpr
-    name: expr
-    vpi: vpiExpr
-    type: pattern_expr_group
-    card: any
-  - group_ref: stmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
+- group_ref: expr
+  vpi: vpiExpr
+  type: pattern_expr_group
+  card: any
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

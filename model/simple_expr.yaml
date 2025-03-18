@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "simple_expr" formal description
- 
-- class_def: simple_expr
-  - extends: expr
-  - group_ref: vpiUse
-    name: simple expr use group
-    type: simple_expr_use_group
-    vpi: vpiUse
-    card: any
 
+- class_def: simple_expr
+- extends: expr
+- group_ref: use
+  type: simple_expr_use_group
+  vpi: vpiUse
+  card: any

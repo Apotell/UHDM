@@ -13,25 +13,21 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "reg array" formal description
- 
+
 - obj_def: reg_array
-  - property: is_a_memory
-    name: is a memory
-    vpi: vpiIsMemory
-    type: bool
-    card: 1
-  - class_ref: left_expr
-    name: left range
-    vpi: vpiLeftRange
-    type: expr
-    card: 1
-  - class_ref: right_expr
-    name: right range
-    vpi: vpiRightRange
-    type: expr
-    card: 1
-  - obj_ref: regs
-    name: regs
-    vpi: vpiMemoryWord
-    type: reg
-    card: any
+- property: is_memory
+  vpi: vpiIsMemory
+  type: bool
+  card: 1
+- class_ref: left_expr
+  vpi: vpiLeftRange
+  type: expr
+  card: 1
+- class_ref: right_expr
+  vpi: vpiRightRange
+  type: expr
+  card: 1
+- obj_ref: memory_word
+  vpi: vpiMemoryWord
+  type: reg
+  card: any

@@ -13,12 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "continue_stmt" formal description
- 
+
 - obj_def: continue_stmt
-  - extends: atomic_stmt
-  - property: type
-    name: vpiContinue
-    vpi: vpiType
-    type: uint32_t
-    card: 1
- 
+- extends: atomic_stmt

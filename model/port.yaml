@@ -13,17 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "port" formal description
- 
+
 - obj_def: port
-  - extends: ports
-  - obj_ref: bits
-    name: bits
-    vpi: vpiBit
-    type: port_bit
-    card: any
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-   
+- extends: ports
+- obj_ref: bit
+  vpi: vpiBit
+  type: port_bit
+  card: any
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

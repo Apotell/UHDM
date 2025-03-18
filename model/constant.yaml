@@ -15,9 +15,8 @@
 # Universal Hardware Data Model (UHDM) "constant" formal description
 
 - obj_def: constant
-  - extends: expr
-  - property: constant_type
-     name: constant type
-     vpi: vpiConstType
-     type: int32_t
-     card: 1
+- extends: expr
+- property: const_type
+  vpi: vpiConstType
+  type: int32_t
+  card: 1

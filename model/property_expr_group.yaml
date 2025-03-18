@@ -13,15 +13,13 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "property_expr_group" formal description
- 
-- group_def: property_expr_group
-  - obj_ref: operation
-  - group_ref: sequence_expr_group
-  - obj_ref: multiclock_sequence_expr
-  - obj_ref: property_inst
-  - obj_ref: clocked_property
-  - obj_ref: case_property
-  - obj_ref: ref_obj
-  - obj_ref: hier_path
 
-  
+- group_def: property_expr_group
+- obj_ref: operation
+- group_ref: sequence_expr_group
+- obj_ref: multiclock_sequence_expr
+- obj_ref: property_inst
+- obj_ref: clocked_property
+- obj_ref: case_property
+- obj_ref: ref_obj
+- obj_ref: hier_path

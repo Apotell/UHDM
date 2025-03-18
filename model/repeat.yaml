@@ -15,15 +15,12 @@
 # Universal Hardware Data Model (UHDM) "repeat" formal description
 
 - obj_def: repeat
-  - extends: atomic_stmt
-  - class_ref: vpiCondition
-    name: condition
-    vpi: vpiCondition
-    type: expr
-    card: 1
-  - group_ref: vpiStmt
-    name: stmt
-    vpi: vpiStmt
-    type: stmt
-    card: 1
-
+- extends: atomic_stmt
+- class_ref: condition
+  vpi: vpiCondition
+  type: expr
+  card: 1
+- group_ref: stmt
+  vpi: vpiStmt
+  type: stmt
+  card: 1

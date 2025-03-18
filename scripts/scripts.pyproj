@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>bdbc56d1-89ba-40cd-9724-d828e05d8a7d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>generate.py</StartupFile>
+    <StartupFile>loader.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -16,7 +16,6 @@
     <CommandLineArguments>-output-dirpath E:\Public\UHDM\out\build\debug\generated</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
     <IsWindowsApplication>False</IsWindowsApplication>
-    <InterpreterId>Global|PythonCore|3.8</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -36,20 +35,17 @@
     <Compile Include="file_utils.py" />
     <Compile Include="generate.py" />
     <Compile Include="loader.py" />
+    <Compile Include="reformat.py" />
     <Compile Include="serializer.py" />
+    <Compile Include="UhdmListener.py" />
+    <Compile Include="UhdmListenerTracer_h.py" />
     <Compile Include="uhdm_forward_decl_h.py" />
     <Compile Include="uhdm_h.py" />
     <Compile Include="uhdm_types_h.py" />
     <Compile Include="VpiListenerTracer_h.py" />
-    <Compile Include="VpiListener_h.py" />
-    <Compile Include="vpi_listener.py" />
     <Compile Include="vpi_user_cpp.py" />
-    <Compile Include="vpi_visitor_cpp.py" />
     <Content Include="collections\**\*.json" />
     <Content Include="pipelines\*.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <InterpreterReference Include="Global|PythonCore|3.8" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

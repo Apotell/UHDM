@@ -1,118 +1,116 @@
 #include "swig_test.h"
+
 #include "uhdm.h"
-using namespace UHDM;
+using namespace uhdm;
 
 std::vector<vpiHandle> buildTestDesign(Serializer* s) {
   std::vector<vpiHandle> designs;
 
-  design* d = s->MakeDesign();
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign,d);
+  Design* d = s->make<Design>();
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
 
-  VectorOfmodule_inst* vm = s->MakeModule_instVec();
-  d->AllModules(vm);
+  ModuleCollection* vm = s->makeCollection<Module>();
+  d->setAllModules(vm);
 
-  module_inst* m1 = s->MakeModule_inst();
-  m1->VpiName("module1");
+  Module* m1 = s->make<Module>();
+  m1->setName("module1");
   vm->push_back(m1);
 
-  module_inst* m2 = s->MakeModule_inst();
-  m2->VpiName("module2");
+  Module* m2 = s->make<Module>();
+  m2->setName("module2");
   vm->push_back(m2);
 
   return designs;
 }
 
-std::vector<vpiHandle> buildTestTypedef(UHDM::Serializer* s){
+std::vector<vpiHandle> buildTestTypedef(uhdm::Serializer* s) {
   std::vector<vpiHandle> designs;
 
-  design* d = s->MakeDesign();
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign,d);
+  Design* d = s->make<Design>();
+  vpiHandle dh = s->makeUhdmHandle(uhdmdesign, d);
   designs.push_back(dh);
 
-  VectorOftypespec* typespecs = s->MakeTypespecVec();
-  d->Typespecs(typespecs);
+  TypespecCollection* typespecs = s->makeCollection<Typespec>();
+  d->setTypespecs(typespecs);
 
-  struct_typespec* typespec1 = s->MakeStruct_typespec();
-  typespec1->VpiName("IR");
+  StructTypespec* typespec1 = s->make<StructTypespec>();
+  typespec1->setName("IR");
   typespecs->push_back(typespec1);
 
-  VectorOftypespec_member* members = s->MakeTypespec_memberVec();
-  typespec1->Members(members);
+  TypespecMemberCollection* members = s->makeCollection<TypespecMember>();
+  typespec1->setMembers(members);
 
-  typespec_member* member1 = s->MakeTypespec_member();
-  member1->VpiName("opcode");
-  member1->VpiParent(typespec1);
+  TypespecMember* member1 = s->make<TypespecMember>();
+  member1->setName("opcode");
+  member1->setParent(typespec1);
   members->push_back(member1);
 
-  bit_typespec* btps = s->MakeBit_typespec();
+  BitTypespec* btps = s->make<BitTypespec>();
 
-  ref_typespec* btps_rt = s->MakeRef_typespec();
-  btps_rt->Actual_typespec(btps);
-  member1->Typespec(btps_rt);
+  RefTypespec* btps_rt = s->make<RefTypespec>();
+  btps_rt->setActualTypespec(btps);
+  member1->setTypespec(btps_rt);
 
-  VectorOfrange* ranges = s->MakeRangeVec();
-  btps->VpiParent(member1);
-  btps->Ranges(ranges);
-  range* range = s->MakeRange();
-  range->VpiParent(btps);
+  RangeCollection* ranges = s->makeCollection<Range>();
+  btps->setParent(member1);
+  btps->setRanges(ranges);
+  Range* range = s->make<Range>();
+  range->setParent(btps);
   ranges->push_back(range);
 
-  constant* c1 = s->MakeConstant();
-  c1->VpiParent(range);
-  c1->VpiValue("UNIT:7");
-  c1->VpiConstType(vpiUIntConst);
-  c1->VpiDecompile("7");
-  c1->VpiSize(64);
-  range->Left_expr(c1);
-  constant* c2 = s->MakeConstant();
-  c2->VpiParent(range);
-  c2->VpiValue("UNIT:0");
-  c2->VpiConstType(vpiUIntConst);
-  c2->VpiDecompile("0");
-  c2->VpiSize(64);
-  range->Right_expr(c2);
+  Constant* c1 = s->make<Constant>();
+  c1->setParent(range);
+  c1->setValue("UNIT:7");
+  c1->setConstType(vpiUIntConst);
+  c1->setDecompile("7");
+  c1->setSize(64);
+  range->setLeftExpr(c1);
+  Constant* c2 = s->make<Constant>();
+  c2->setParent(range);
+  c2->setValue("UNIT:0");
+  c2->setConstType(vpiUIntConst);
+  c2->setDecompile("0");
+  c2->setSize(64);
+  range->setRightExpr(c2);
 
-  typespec_member* member2 = s->MakeTypespec_member();
-  member2->VpiName("addr");
-  member2->VpiParent(typespec1);
+  TypespecMember* member2 = s->make<TypespecMember>();
+  member2->setName("addr");
+  member2->setParent(typespec1);
   members->push_back(member2);
 
-  btps = s->MakeBit_typespec();
+  btps = s->make<BitTypespec>();
 
-  btps_rt = s->MakeRef_typespec();
-  btps_rt->Actual_typespec(btps);
-  member2->Typespec(btps_rt);
+  btps_rt = s->make<RefTypespec>();
+  btps_rt->setActualTypespec(btps);
+  member2->setTypespec(btps_rt);
 
-  ranges = s->MakeRangeVec();
-  btps->VpiParent(member2);
-  btps->Ranges(ranges);
-  range = s->MakeRange();
-  range->VpiParent(btps);
+  ranges = s->makeCollection<Range>();
+  btps->setParent(member2);
+  btps->setRanges(ranges);
+  range = s->make<Range>();
+  range->setParent(btps);
   ranges->push_back(range);
 
-
-  ranges = s->MakeRangeVec();
-  btps->Ranges(ranges);
-  range = s->MakeRange();
+  ranges = s->makeCollection<Range>();
+  btps->setRanges(ranges);
+  range = s->make<Range>();
   ranges->push_back(range);
 
-  c1 = s->MakeConstant();
-  c1->VpiParent(range);
-  c1->VpiValue("UNIT:23");
-  c1->VpiConstType(vpiUIntConst);
-  c1->VpiDecompile("23");
-  //c1->VpiSize(64);
-  range->Left_expr(c1);
-  c2 = s->MakeConstant();
-  c2->VpiParent(range);
-  c2->VpiValue("UNIT:0");
-  c2->VpiConstType(vpiUIntConst);
-  c2->VpiDecompile("0");
-  //c2->VpiSize(64);
-  range->Right_expr(c2);
-
-
+  c1 = s->make<Constant>();
+  c1->setParent(range);
+  c1->setValue("UNIT:23");
+  c1->setConstType(vpiUIntConst);
+  c1->setDecompile("23");
+  // c1->setSize(64);
+  range->setLeftExpr(c1);
+  c2 = s->make<Constant>();
+  c2->setParent(range);
+  c2->setValue("UNIT:0");
+  c2->setConstType(vpiUIntConst);
+  c2->setDecompile("0");
+  // c2->setSize(64);
+  range->setRightExpr(c2);
 
   return designs;
 }

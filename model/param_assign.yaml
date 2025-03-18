@@ -13,30 +13,25 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "param assign" formal description
- 
+
 - obj_def: param_assign
-  - property: connection_by_name
-    name: connection by name
-    vpi: vpiConnByName
-    type: bool
-    card: 1
-  - property: overriden
-    name: overriden
-    vpi: vpiOverriden
-    type: bool
-    card: 1
-  - group_ref: rhs
-    name: rhs
-    vpi: vpiRhs
-    type: expr_typespec_group
-    card: 1
-  - group_ref: lhs
-    name: lhs
-    vpi: vpiLhs
-    type: parameters
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- property: conn_by_name
+  vpi: vpiConnByName
+  type: bool
+  card: 1
+- property: overriden
+  vpi: vpiOverriden
+  type: bool
+  card: 1
+- group_ref: rhs
+  vpi: vpiRhs
+  type: expr_typespec_group
+  card: 1
+- group_ref: lhs
+  vpi: vpiLhs
+  type: parameters
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

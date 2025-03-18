@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "variable drivers group" formal description
- 
-- group_def: variable_drivers_group
-  - class_ref: ports
-  - obj_ref: force
-  - obj_ref: cont_assign
-  - obj_ref: cont_assign_bit
-  - obj_ref: assign_stmt
+
+- group_def: drivers_group
+- class_ref: ports
+- obj_ref: force
+- obj_ref: cont_assign
+- obj_ref: cont_assign_bit
+- obj_ref: assign_stmt

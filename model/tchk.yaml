@@ -15,48 +15,35 @@
 # Universal Hardware Data Model (UHDM) "tchk" formal description
 
 - obj_def: tchk
-  - obj_ref: module_inst
-    name: module_inst
-    type: module_inst
-    vpi: vpiModule
-    card: 1
-  - class_ref: expr
-    name: expr
-    type: expr
-    vpi: vpiDelay
-    card: 1
-  - group_ref: expr_tchk_term
-    name: expr_tchk_term
-    type: expr_tchk_term_group
-    vpi: vpiExpr
-    card: any
-  - obj_ref: tchk_ref_term
-    name: tchk_ref_term
-    type: tchk_term
-    vpi: vpiTchkRefTerm
-    card: 1
-  - obj_ref: tchk_data_term
-    name: tchk_data_term
-    type: tchk_term
-    vpi: vpiTchkDataTerm
-    card: 1
-  - obj_ref: reg
-    name: regs
-    type: reg
-    vpi: vpiTchkNotifier
-    card: 1
-  - property: limit
-    name: limit
-    vpi: vpiDelay
-    type: delay
-    card: 1
-  - property: tchk_type
-    name: tchk type
-    type: int32_t
-    vpi: vpiTchkType
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
+- obj_ref: module
+  type: module
+  vpi: vpiModule
+  card: 1
+- class_ref: delay
+  type: expr
+  vpi: vpiDelay
+  card: 1
+- group_ref: expr
+  type: expr_tchk_term_group
+  vpi: vpiExpr
+  card: any
+- obj_ref: tchk_ref_term
+  type: tchk_term
+  vpi: vpiTchkRefTerm
+  card: 1
+- obj_ref: tchk_data_term
+  type: tchk_term
+  vpi: vpiTchkDataTerm
+  card: 1
+- obj_ref: tchk_notifier
+  type: reg
+  vpi: vpiTchkNotifier
+  card: 1
+- property: tchk_type
+  type: int32_t
+  vpi: vpiTchkType
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any

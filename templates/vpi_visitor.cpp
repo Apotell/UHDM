@@ -81,7 +81,7 @@ static constexpr int32_t kLevelIndent = 2;
   #define vpiArrayVar vpiRegArray
 #endif
 
-namespace UHDM {
+namespace uhdm {
 #ifdef STANDARD_VPI
 
 static std::string vpiTypeName(vpiHandle h) {
@@ -503,7 +503,7 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
 #ifdef STANDARD_VPI
   m_out << hspaces << vpiTypeName(obj_h) << "(" << vpi_get(vpiType, obj_h) << "): ";
 #else
-  m_out << hspaces << UHDM::VpiTypeName(obj_h) << ": ";
+  m_out << hspaces << uhdm::VpiTypeName(obj_h) << ": ";
 #endif
 
   bool needs_separator = false;
@@ -520,7 +520,7 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
   }
 
 #ifndef STANDARD_VPI
-  if (showIDs) m_out << ", id:" << object->UhdmId();
+  if (showIDs) m_out << ", id:" << object->getUhdmId();
 #endif
 
   if ((objectType == vpiModule) || (objectType == vpiProgram) ||
@@ -558,19 +558,19 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
   }
 }
 
-void VpiVisitor::visit_weakly_referenced() {
+void VpiVisitor::visitWeaklyReferenced() {
   if (m_weaklyReferenced1.empty()) return;
   m_out << "\\_weaklyReferenced:" << std::endl;
   while (!m_weaklyReferenced1.empty()) {
     AnySet::const_iterator it = std::min_element(
         m_weaklyReferenced1.begin(), m_weaklyReferenced1.end(),
-        [](const UHDM::any* const lhs, const UHDM::any* const rhs) {
-          return lhs->UhdmId() < rhs->UhdmId();
+        [](const Any* const lhs, const Any* const rhs) {
+          return lhs->getUhdmId() < rhs->getUhdmId();
         });
-    const UHDM::BaseClass* const object = *it;
+    const BaseClass* const object = *it;
     m_weaklyReferenced2.emplace(object);
     vpiHandle h =
-        object->GetSerializer()->MakeUhdmHandle(object->UhdmType(), object);
+        object->getSerializer()->makeUhdmHandle(object->getUhdmType(), object);
     visit_object(h, kLevelIndent, "", false);
     release_handle(h);
   }
@@ -579,7 +579,7 @@ void VpiVisitor::visit_weakly_referenced() {
 void visit_object(vpiHandle obj_h, VpiVisitor *visitor) {
   visitor->visit_object(obj_h, 0, "", false);
   if (visitor->getVisitWeaklyReferenced()) {
-    visitor->visit_weakly_referenced();
+    visitor->visitWeaklyReferenced();
   }
 }
 
@@ -592,7 +592,7 @@ void visit_designs(const std::vector<vpiHandle>& designs, VpiVisitor* visitor) {
   for (auto design : designs) {
     visitor->visit_object(design, 0, "", false);
     if (visitor->getVisitWeaklyReferenced()) {
-      visitor->visit_weakly_referenced();
+      visitor->visitWeaklyReferenced();
     }
   }
 }
@@ -602,15 +602,15 @@ void visit_designs(const std::vector<vpiHandle>& designs, std::ostream &out) {
   visit_designs(designs, &visitor);
 }
 
-std::string decompile(const UHDM::any* handle) {
+std::string decompile(const uhdm::Any* handle) {
   if (handle == nullptr) {
     std::cout << "NULL HANDLE\n";
     return "NULL HANDLE";
   }
-  UHDM::VisitedContainer visited;
+  uhdm::VpiVisitor::visited_t visited;
   vpi_show_ids(true);
   vpiHandle dh =
-      handle->GetSerializer()->MakeUhdmHandle(handle->UhdmType(), handle);
+      handle->getSerializer()->makeUhdmHandle(handle->getUhdmType(), handle);
   std::stringstream out;
   VpiVisitor visitor(out);
   visitor.visit_object(dh, 0, "decompile", false);
@@ -624,7 +624,7 @@ std::string decompileVPI(vpiHandle handle) {
     std::cout << "NULL HANDLE\n";
     return "NULL HANDLE";
   }
-  UHDM::VisitedContainer visited;
+  uhdm::VpiVisitor::visited_t visited;
   vpi_show_ids(true);
   std::stringstream out;
   VpiVisitor visitor(out);
@@ -633,7 +633,7 @@ std::string decompileVPI(vpiHandle handle) {
   return out.str();
 }
 
-} // namespace UHDM
+} // namespace uhdm
 
 void vpi_show_ids(bool show) {
   showIDs = show;
@@ -643,7 +643,7 @@ extern "C" {
   void vpi_decompiler (vpiHandle design) {
     std::vector<vpiHandle> designs;
     designs.push_back(design);
-    UHDM::visit_designs(designs, std::cout);
+    uhdm::visit_designs(designs, std::cout);
     std::cout << std::endl;
   }
 }

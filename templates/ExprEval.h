@@ -29,21 +29,21 @@
 
 #include <uhdm/containers.h>
 #include <uhdm/uhdm_forward_decl.h>
+#include <uhdm/vpi_user.h>
 
 #include <functional>
-#include <map>
 #include <iostream>
+#include <map>
 #include <sstream>
 
-namespace UHDM {
+namespace uhdm {
 class Serializer;
 #ifndef SWIG
-typedef std::function<any*(std::string_view name, const any* inst,
-                           const any* pexpr)>
-    GetObjectFunctor;
+using GetObjectFunctor = std::function<Any*(std::string_view name,
+                                            const Any* inst, const Any* pexpr)>;
 
-typedef std::function<task_func*(std::string_view name, const any* inst)>
-    GetTaskFuncFunctor;
+using GetTaskFuncFunctor =
+    std::function<TaskFunc*(std::string_view name, const Any* inst)>;
 #endif
 /* This UHDM extension offers expression reduction and other utilities that can
  be operating either:
@@ -54,19 +54,18 @@ class ExprEval {
  public:
   ExprEval(bool muteError = false) : m_muteError(muteError) {}
 #ifndef SWIG
-  bool isFullySpecified(const typespec* tps);
+  bool isFullySpecified(const Typespec* tps);
   /* Computes the size in bits of an object {typespec, var, net, operation...}.
    */
   uint64_t size(
-      const any* typespec, bool& invalidValue, const any* inst, const any* pexpr,
+      const Any* typespec, bool& invalidValue, const Any* inst,
+      const Any* pexpr,
       bool full /* false: use only last range size, true: use all ranges */,
       bool muteError = false);
 #endif
 
   uint64_t size(
-      const vpiHandle typespec,
-      bool& invalidValue,
-      const vpiHandle inst,
+      const vpiHandle typespec, bool& invalidValue, const vpiHandle inst,
       const vpiHandle pexpr,
       bool full /* false: use only last range size, true: use all ranges */,
       bool muteError = false);
@@ -75,78 +74,75 @@ class ExprEval {
   void reduceExceptions(const std::vector<int32_t> operationTypes) {
     m_skipOperationTypes = operationTypes;
   }
-  /* Tries to reduce any expression into a constant, returns the orignal
+  /* Tries to reduce Any expression into a constant, returns the orignal
      expression if fails. If an invalid value is found in the process,
      invalidValue will be set to true */
-  expr* reduceExpr(const any* object, bool& invalidValue, const any* inst,
-                   const any* pexpr, bool muteErrors = false);
+  Expr* reduceExpr(const Any* object, bool& invalidValue, const Any* inst,
+                   const Any* pexpr, bool muteErrors = false);
 
-  uint64_t getWordSize(const expr *exp, const any *inst,
-                                const any *pexpr);
+  uint64_t getWordSize(const Expr* exp, const Any* inst, const Any* pexpr);
 
-  uint64_t getValue(const UHDM::expr* expr);
+  uint64_t getValue(const Expr* expr);
 
-  std::string toBinary(const UHDM::constant* c);
+  std::string toBinary(const Constant* c);
 
-  any* getValue(std::string_view name, const any* inst, const any* pexpr,
-                bool muteError = false, const any* checkLoop = nullptr);
+  Any* getValue(std::string_view name, const Any* inst, const Any* pexpr,
+                bool muteError = false, const Any* checkLoop = nullptr);
 
-  any* getObject(std::string_view name, const any* inst, const any* pexpr,
+  Any* getObject(std::string_view name, const Any* inst, const Any* pexpr,
                  bool muteError = false);
 
-  int64_t get_value(bool& invalidValue, const UHDM::expr* expr, bool strict = true);
+  int64_t get_value(bool& invalidValue, const Expr* expr, bool strict = true);
 
-  uint64_t get_uvalue(bool& invalidValue, const UHDM::expr* expr, bool strict = true);
+  uint64_t get_uvalue(bool& invalidValue, const Expr* expr, bool strict = true);
 
-  long double get_double(bool& invalidValue, const UHDM::expr* expr);
+  long double get_double(bool& invalidValue, const Expr* expr);
 
-  expr* flattenPatternAssignments(Serializer& s, const typespec* tps,
-                                  expr* assignExpr);
+  Expr* flattenPatternAssignments(Serializer& s, const Typespec* tps,
+                                  Expr* assignExpr);
 
-  void prettyPrint(Serializer& s, const any* tree, uint32_t indent,
+  void prettyPrint(Serializer& s, const Any* tree, uint32_t indent,
                    std::ostream& out);
 
-  std::string prettyPrint(const UHDM::any* handle);
+  std::string prettyPrint(const Any* handle);
 
-  expr* reduceCompOp(operation* op, bool& invalidValue, const any* inst,
-                     const any* pexpr, bool muteError = false);
+  Expr* reduceCompOp(Operation* op, bool& invalidValue, const Any* inst,
+                     const Any* pexpr, bool muteError = false);
 
-  expr* reduceBitSelect(expr* op, uint32_t index_val, bool& invalidValue,
-                        const any* inst, const any* pexpr,
+  Expr* reduceBitSelect(Expr* op, uint32_t index_val, bool& invalidValue,
+                        const Any* inst, const Any* pexpr,
                         bool muteError = false);
 
-  void recursiveFlattening(Serializer& s, VectorOfany* flattened,
-                           const VectorOfany* ordered,
-                           std::vector<const typespec*> fieldTypes);
+  void recursiveFlattening(Serializer& s, AnyCollection* flattened,
+                           const AnyCollection* ordered,
+                           std::vector<const Typespec*> fieldTypes);
 
-  any* decodeHierPath(hier_path* path, bool& invalidValue, const any* inst,
-                      const any* pexpr, bool returnTypespec,
+  Any* decodeHierPath(HierPath* path, bool& invalidValue, const Any* inst,
+                      const Any* pexpr, bool returnTypespec,
                       bool muteError = false);
 
-  any* hierarchicalSelector(std::vector<std::string>& select_path,
-                            uint32_t level, UHDM::any* object,
-                            bool& invalidValue, const any* inst,
-                            const UHDM::any* pexpr, bool returnTypespec,
-                            bool muteError = false);
+  Any* hierarchicalSelector(std::vector<std::string>& select_path,
+                            uint32_t level, Any* object, bool& invalidValue,
+                            const Any* inst, const Any* pexpr,
+                            bool returnTypespec, bool muteError = false);
 
-  typedef std::vector<const instance*> Scopes;
+  using Scopes = std::vector<const Instance*>;
 
-  UHDM::expr* evalFunc(UHDM::function* func, std::vector<UHDM::any*>* args,
-                       bool& invalidValue, const any* inst, UHDM::any* pexpr,
-                       bool muteError = false);
+  Expr* evalFunc(Function* func, std::vector<Any*>* args, bool& invalidValue,
+                 const Any* inst, Any* pexpr, bool muteError = false);
 
   void evalStmt(std::string_view funcName, Scopes& scopes, bool& invalidValue,
                 bool& continue_flag, bool& break_flag, bool& return_flag,
-                const any* inst, const UHDM::any* stmt,
-                std::map<std::string, const typespec*>& local_vars,
+                const Any* inst, const Any* stmt,
+                std::map<std::string, const Typespec*>& local_vars,
                 bool muteError = false);
 
-  bool setValueInInstance(std::string_view lhs, any* lhsexp, expr* rhsexp,
-                          bool& invalidValue, Serializer& s, const any* inst,
-                          const any* scope_exp,
-                          std::map<std::string, const typespec*>& local_vars,
+  bool setValueInInstance(std::string_view lhs, Any* lhsexp, Expr* rhsexp,
+                          bool& invalidValue, Serializer& s, const Any* inst,
+                          const Any* scope_exp,
+                          std::map<std::string, const Typespec*>& local_vars,
                           int opType, bool muteError);
-  void setDesign(design* des) { m_design = des; }
+  void setDesign(Design* des) { m_design = des; }
   /* For Surelog or other UHDM clients to use the UHDM expr evaluator in their
    * context */
   void setGetObjectFunctor(GetObjectFunctor func) { getObjectFunctor = func; }
@@ -155,24 +151,24 @@ class ExprEval {
     getTaskFuncFunctor = func;
   }
 
-  UHDM::task_func* getTaskFunc(std::string_view name, const any* inst);
+  TaskFunc* getTaskFunc(std::string_view name, const Any* inst);
 
   std::vector<std::string_view> tokenizeMulti(
-    std::string_view str, std::string_view multichar_separator);
+      std::string_view str, std::string_view multichar_separator);
 #endif
  private:
   GetObjectFunctor getObjectFunctor = nullptr;
   GetObjectFunctor getValueFunctor = nullptr;
   GetTaskFuncFunctor getTaskFuncFunctor = nullptr;
-  const UHDM::design* m_design = nullptr;
+  const Design* m_design = nullptr;
   bool m_muteError = false;
   std::vector<int32_t> m_skipOperationTypes;
 };
 
 #ifndef SWIG
-std::string vPrint(UHDM::any* handle);
+std::string vPrint(Any* handle);
 #endif
 
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif
+#endif  // UHDM_EXPREVAL_H

@@ -13,21 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "package" formal description
- 
+
 - obj_def: package
-  - extends: instance
-  - property: type
-    name: vpiPackage
-    vpi: vpiType
-    type: uint32_t
-    card: 1    
-  - property: compile_unit
-    name: compile unit
-    vpi: vpiUnit
-    type: bool
-    card: 1
-  - property: endlabel
-    name: endlabel
-    vpi: vpiEndLabel
-    type: string
-    card: 1
+- extends: instance
+- property: unit
+  vpi: vpiUnit
+  type: bool
+  card: 1
+- property: end_label
+  vpi: vpiEndLabel
+  type: string
+  card: 1

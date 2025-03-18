@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "deassign" formal description
- 
+
 - obj_def: deassign
-  - extends: atomic_stmt
-  - class_ref: lhs
-    name: lhs
-    vpi: vpiLhs
-    type: expr
-    card: 1
+- extends: atomic_stmt
+- class_ref: lhs
+  vpi: vpiLhs
+  type: expr
+  card: 1

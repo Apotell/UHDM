@@ -32,7 +32,8 @@ def generate(models):
         f'  const s_vpi_value* v = nullptr;',
         f'  switch (handle->type) {{'
     ] + [
-        f'    case uhdm{classname}: v = String2VpiValue((({classname}*)obj)->VpiValue()); break;' for classname in sorted(vpi_get_value_classes)
+        f'    case UhdmType::{config.make_class_name(classname)}: v = String2VpiValue((({config.make_class_name(classname)}*)obj)->getValue()); break;'
+        for classname in sorted(vpi_get_value_classes)
     ] + [
          '    default: break;',
         f'  }}',
@@ -43,7 +44,8 @@ def generate(models):
         f'  const s_vpi_delay* v = nullptr;',
         f'  switch (handle->type) {{',
     ] + [
-        f'    case uhdm{classname}: v = String2VpiDelays((({classname}*)obj)->VpiDelay()); break;' for classname in sorted(vpi_get_delay_classes)
+        f'    case UhdmType::{config.make_class_name(classname)}: v = String2VpiDelay((({config.make_class_name(classname)}*)obj)->getVpiDelay()); break;'
+        for classname in sorted(vpi_get_delay_classes)
     ] + [
          '    default: break;',
         f'  }}',

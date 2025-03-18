@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "task" formal description
- 
-- obj_def: task_decl
-  - extends: task_func_decl
 
+- obj_def: task_decl
+- extends: task_func_decl

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "sequence_typespec" formal description
- 
-- obj_def: sequence_typespec
-  - extends: typespec
 
+- obj_def: sequence_typespec
+- extends: typespec

@@ -8,7 +8,7 @@ import config
 import file_utils
 
 
-def _get_schema(type, vpi, card):
+def _get_schema(name, type, card):
     mapping = {
       'string': 'UInt32',
       'unsigned': 'UInt32',
@@ -25,11 +25,13 @@ def _get_schema(type, vpi, card):
       'symbol': 'UInt32',
     }
 
+    name = config.make_var_name(name, card)
     type = mapping.get(type, type)
+
     if card == '1':
-        return (vpi, type)
+        return (name, type)
     elif card == 'any':
-        return (vpi, f'List({type})')
+        return (name, f'List({type})')
     else:
         return (None, None)
 
@@ -38,12 +40,12 @@ def generate(models):
     model_schemas = [
       'struct Any {',
       '  uhdmId @0 : UInt32;',
-      '  vpiParent @1 : ObjIndexType;',
-      '  vpiFile @2 : UInt32;',
-      '  vpiLineNo @3 : UInt32;',
-      '  vpiEndLineNo @4 : UInt32;',
-      '  vpiColumnNo @5 : UInt16;',
-      '  vpiEndColumnNo @6 : UInt16;',
+      '  parent @1 : ObjIndexType;',
+      '  file @2 : UInt32;',
+      '  startLine @3 : UInt32;',
+      '  endLine @4 : UInt32;',
+      '  startColumn @5 : UInt16;',
+      '  endColumn @6 : UInt16;',
       '}',
       ''
     ]
@@ -55,28 +57,28 @@ def generate(models):
             continue
 
         classname = model['name']
-        basename = model.get('extends', 'Any') or 'Any'
+        basename = model.get('extends') or 'Any'
 
-        Classname = classname[:1].upper() + classname[1:].replace('_', '')
-        Basename = basename[:1].upper() + basename[1:].replace('_', '')
+        ClassName = config.make_class_name(classname)
+        BaseName = config.make_class_name(basename)
 
         if modeltype != 'class_def':
-            classnames.add(Classname)
+            classnames.add(ClassName)
 
         field_index = 1
-        model_schemas.append(f'struct {Classname} {{')
-        model_schemas.append(f'  base @0: {Basename};')
+        model_schemas.append(f'struct {ClassName} {{')
+        model_schemas.append(f'  base @0: {BaseName};')
 
         for key, value in model.allitems():
             if key == 'property':
                 if value.get('name') != 'type':
-                    vpi = value.get('vpi')
+                    name = value.get('name')
                     type = value.get('type')
                     card = value.get('card')
 
-                    field_name, field_type = _get_schema(type, vpi, card)
+                    field_name, field_type = _get_schema(name, type, card)
                     if field_name and field_type:
-                        model_schemas.append(f'  {field_name} @{field_index} : {field_type};')
+                        model_schemas.append(f'  {field_name} @{field_index}: {field_type};')
                         field_index += 1
 
             elif key in ['class', 'obj_ref', 'class_ref', 'group_ref']:
@@ -84,16 +86,12 @@ def generate(models):
                 type = value.get('type')
                 card = value.get('card')
 
-                if (card == 'any') and not name.endswith('s'):
-                    name += 's'
-
-                name = name.replace('_', '')
-
+                name = config.make_var_name(name, card)
                 obj_key = 'ObjIndexType' if key in ['class_ref', 'group_ref'] else 'UInt64'
 
-                field_name, field_type = _get_schema(obj_key, name, card)
+                field_name, field_type = _get_schema(name, obj_key, card)
                 if field_name and field_type:
-                    model_schemas.append(f'  {field_name} @{field_index} : {field_type};')
+                    model_schemas.append(f'  {field_name} @{field_index}: {field_type};')
                     field_index += 1
 
         model_schemas.append('}')

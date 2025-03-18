@@ -17,18 +17,19 @@
  */
 
 /*
- * File:   <CLASSNAME>.cpp
+ * File:   <CLASSNAME_HEADER>.cpp
  * Author:
  *
  * Created on December 14, 2019, 10:03 PM
  */
 
-#include <uhdm/<CLASSNAME>.h>
+#include <uhdm/<CLASSNAME_HEADER>.h>
 #include <uhdm/ElaboratorListener.h>
+#include <uhdm/Serializer.h>
 <INCLUDES>
 
 #include <algorithm>
 
-namespace UHDM {
+namespace uhdm {
 <METHODS>
-}  // namespace UHDM
+}  // namespace uhdm

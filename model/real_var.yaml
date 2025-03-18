@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "real var" formal description
- 
-- obj_def: real_var
-  - extends: variables
 
+- obj_def: real_var
+- extends: variables

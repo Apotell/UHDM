@@ -30,19 +30,15 @@
 #include <uhdm/vpi_user.h>
 #include <uhdm/uhdm_vpi_user.h>
 
-namespace UHDM {
-class BaseClass;
-typedef BaseClass any;
-
-// TODO: make enum class at some point.
-enum UHDM_OBJECT_TYPE {
+namespace uhdm {
+enum class UhdmType {
 <DEFINES>
 };
 
-std::string UhdmName(UHDM_OBJECT_TYPE type);
+std::string UhdmName(UhdmType type);
 
 std::string VpiTypeName(vpiHandle h);
 
-};
+} // namespace uhdm
 
-#endif
+#endif  // UHDM_TYPES_H

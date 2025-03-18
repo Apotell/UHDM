@@ -18,11 +18,12 @@
 #define UHDM_TEST_UTIL_H
 
 #include <sstream>
+
 #include "uhdm/vpi_visitor.h"
 
 inline std::string designs_to_string(const std::vector<vpiHandle>& designs) {
   std::stringstream out;
-  UHDM::visit_designs(designs, out);
+  uhdm::visit_designs(designs, out);
   return out.str();
 }
 

@@ -13,17 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "unsupported_typespec" formal description
- 
+
 - obj_def: unsupported_typespec
-  - extends: typespec
-  - property: packed
-    name: packed
-    vpi: vpiPacked
-    type: bool
-    card: 1
-  - obj_ref: ranges
-    name: ranges
-    vpi: vpiRange
-    type: range
-    card: any
- 
+- extends: typespec
+- property: packed
+  vpi: vpiPacked
+  type: bool
+  card: 1
+- obj_ref: range
+  vpi: vpiRange
+  type: range
+  card: any

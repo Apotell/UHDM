@@ -13,21 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "gen var" formal description
- 
+
 - obj_def: gen_var
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - obj_ref: gen_scope_arrays
-    name: gen scope arrays
-    vpi: vpiGenScopeArray
-    type: gen_scope_array
-    card: any
- 
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- obj_ref: gen_scope_array
+  vpi: vpiGenScopeArray
+  type: gen_scope_array
+  card: any

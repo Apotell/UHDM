@@ -16,25 +16,20 @@
 # Non-standard model used to model hierarchical path containing expressions
 
 - obj_def: hier_path
-  - extends: simple_expr
-  - group_ref: path_elems
-    name: path elems
-    vpi: vpiActual
-    type: actual_group
-    card: any
-  - group_ref: root_value
-    name: root value
-    vpi: vpiExpr
-    type: actual_group
-    card: 1
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-
+- extends: simple_expr
+- group_ref: path_elem
+  vpi: vpiActual
+  type: actual_group
+  card: any
+- group_ref: expr
+  vpi: vpiExpr
+  type: actual_group
+  card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1

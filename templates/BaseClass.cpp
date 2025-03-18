@@ -25,79 +25,77 @@
 #include <uhdm/BaseClass.h>
 #include <uhdm/Serializer.h>
 
-namespace UHDM {
-std::string_view BaseClass::VpiFile() const {
-  return vpiFile_ ? serializer_->GetSymbol(vpiFile_) : kEmpty;
+namespace uhdm {
+std::string_view BaseClass::getFile() const {
+  return m_fileId ? m_serializer->getSymbol(m_fileId) : kEmpty;
 }
 
-bool BaseClass::VpiFile(std::string_view data) {
-  vpiFile_ = serializer_->MakeSymbol(data);
+bool BaseClass::setFile(std::string_view data) {
+  m_fileId = m_serializer->makeSymbol(data);
   return true;
 }
 
-bool BaseClass::VpiParent(BaseClass* data, bool force /* = false */) {
-  if (vpiParent_ == data) return true;
+bool BaseClass::setParent(BaseClass* data, bool force /* = false */) {
+  if (m_parent == data) return true;
   // Allow changing only from/to nullptr
-  if (!force &&
-      !(((vpiParent_ == nullptr) && (data != nullptr)) ||
-        ((vpiParent_ != nullptr) && (data == nullptr))))
+  if (!force && !(((m_parent == nullptr) && (data != nullptr)) ||
+                  ((m_parent != nullptr) && (data == nullptr))))
     return false;
 
-  BaseClass* const oldParent = vpiParent_;
+  BaseClass* const oldParent = m_parent;
 
-  vpiParent_ = nullptr;
-  if (oldParent != nullptr) oldParent->OnChildRemoved(this);
- 
-  vpiParent_ = data;
-  if (vpiParent_ != nullptr) vpiParent_->OnChildAdded(this);
+  m_parent = nullptr;
+  if (oldParent != nullptr) oldParent->onChildRemoved(this);
+
+  m_parent = data;
+  if (m_parent != nullptr) m_parent->onChildAdded(this);
 
   return true;
 }
 
-const BaseClass* BaseClass::GetByVpiName(std::string_view name) const {
+const BaseClass* BaseClass::getByVpiName(std::string_view name) const {
   return nullptr;
 }
 
-std::tuple<const BaseClass*, UHDM_OBJECT_TYPE,
-           const std::vector<const BaseClass*>*>
-BaseClass::GetByVpiType(int32_t type) const {
+BaseClass::get_by_vpi_type_return_t BaseClass::getByVpiType(
+    int32_t type) const {
   switch (type) {
     case vpiParent:
-      return std::make_tuple(vpiParent_, static_cast<UHDM_OBJECT_TYPE>(0),
-                             nullptr);
+      return get_by_vpi_type_return_t(static_cast<UhdmType>(0), m_parent,
+                                      nullptr);
     default:
-      return std::make_tuple(nullptr, static_cast<UHDM_OBJECT_TYPE>(0),
-                             nullptr);
+      return get_by_vpi_type_return_t(static_cast<UhdmType>(0), nullptr,
+                                      nullptr);
   };
 }
 
-BaseClass::vpi_property_value_t BaseClass::GetVpiPropertyValue(
+BaseClass::vpi_property_value_t BaseClass::getVpiPropertyValue(
     int32_t property) const {
   switch (property) {
     case vpiLineNo:
-      return vpi_property_value_t(vpiLineNo_);
+      return vpi_property_value_t(m_startLine);
     case vpiColumnNo:
-      return vpi_property_value_t(vpiColumnNo_);
+      return vpi_property_value_t(m_startColumn);
     case vpiEndLineNo:
-      return vpi_property_value_t(vpiEndLineNo_);
+      return vpi_property_value_t(m_endLine);
     case vpiEndColumnNo:
-      return vpi_property_value_t(vpiEndColumnNo_);
+      return vpi_property_value_t(m_endColumn);
     case vpiType:
-      return vpi_property_value_t(VpiType());
+      return vpi_property_value_t(getVpiType());
     case vpiFile: {
-      const std::string_view file = VpiFile();
+      const std::string_view file = getFile();
       if (!file.empty()) {
         return vpi_property_value_t(file.data());
       }
     } break;
     case vpiName: {
-      const std::string_view name = VpiName();
+      const std::string_view name = getName();
       if (!name.empty()) {
         return vpi_property_value_t(name.data());
       }
     } break;
     case vpiDefName: {
-      const std::string_view defname = VpiDefName();
+      const std::string_view defname = getDefName();
       if (!defname.empty()) {
         return vpi_property_value_t(defname.data());
       }
@@ -106,66 +104,66 @@ BaseClass::vpi_property_value_t BaseClass::GetVpiPropertyValue(
   return vpi_property_value_t();
 }
 
-BaseClass* BaseClass::DeepClone(BaseClass* parent,
+BaseClass* BaseClass::deepClone(BaseClass* parent,
                                 CloneContext* context) const {
   return nullptr;
 }
 
-void BaseClass::DeepCopy(BaseClass* clone, BaseClass* parent,
+void BaseClass::deepCopy(BaseClass* clone, BaseClass* parent,
                          CloneContext* context) const {
-  clone->VpiParent(parent);
+  clone->setParent(parent);
 }
 
-std::string BaseClass::ComputeFullName() const {
-  if ((UhdmType() == UHDM_OBJECT_TYPE::uhdmmodule_inst) && (VpiParent() != nullptr) &&
-      (VpiParent()->UhdmType() == UHDM_OBJECT_TYPE::uhdmmodule_inst)) {
-    return std::string(VpiDefName());
+std::string BaseClass::computeFullName() const {
+  if ((getUhdmType() == UhdmType::Module) && (getParent() != nullptr) &&
+      (getParent()->getUhdmType() == UhdmType::Module)) {
+    return std::string(getDefName());
   }
   std::vector<std::string_view> names;
   const BaseClass* parent = this;
   const BaseClass* child = nullptr;
   bool column = false;
   while (parent != nullptr) {
-    const BaseClass* actual_parent = parent->VpiParent();
-    UHDM_OBJECT_TYPE parent_type =
-        (parent != nullptr) ? parent->UhdmType() : uhdmunsupported_stmt;
-    UHDM_OBJECT_TYPE actual_parent_type = (actual_parent != nullptr)
-                                              ? actual_parent->UhdmType()
-                                              : uhdmunsupported_stmt;
-    if (parent_type == UHDM_OBJECT_TYPE::uhdmdesign) break;
-    if ((parent_type == UHDM_OBJECT_TYPE::uhdmpackage) ||
-        (parent_type == UHDM_OBJECT_TYPE::uhdmclass_defn))
+    const BaseClass* actual_parent = parent->getParent();
+    UhdmType parent_type =
+        (parent != nullptr) ? parent->getUhdmType() : UhdmType::UnsupportedStmt;
+    UhdmType actual_parent_type = (actual_parent != nullptr)
+                                      ? actual_parent->getUhdmType()
+                                      : UhdmType::UnsupportedStmt;
+    if (parent_type == UhdmType::Design) break;
+    if ((parent_type == UhdmType::Package) ||
+        (parent_type == UhdmType::ClassDefn))
       column = true;
     std::string_view name =
-        parent->VpiName().empty() ? parent->VpiDefName() : parent->VpiName();
-    bool skip_name = (actual_parent_type == UHDM_OBJECT_TYPE::uhdmref_obj) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmmethod_func_call) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmmethod_task_call) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmfunc_call) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmtask_call) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmsys_func_call) ||
-                     (parent_type == UHDM_OBJECT_TYPE::uhdmsys_task_call);
-    if ((parent_type == UHDM_OBJECT_TYPE::uhdmpackage) && !names.empty() && !name.empty()) {
+        parent->getName().empty() ? parent->getDefName() : parent->getName();
+    bool skip_name = (actual_parent_type == UhdmType::RefObj) ||
+                     (parent_type == UhdmType::MethodFuncCall) ||
+                     (parent_type == UhdmType::MethodTaskCall) ||
+                     (parent_type == UhdmType::FuncCall) ||
+                     (parent_type == UhdmType::TaskCall) ||
+                     (parent_type == UhdmType::SysFuncCall) ||
+                     (parent_type == UhdmType::SysTaskCall);
+    if ((parent_type == UhdmType::Package) && !names.empty() && !name.empty()) {
       std::string scopeName(name);
       scopeName.append("::");
       if (names.back().find(scopeName) == 0) skip_name = true;
     }
     if (child != nullptr) {
-      UHDM_OBJECT_TYPE child_type = child->UhdmType();
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmbit_select) &&
-          (parent_type == UHDM_OBJECT_TYPE::uhdmport)) {
+      UhdmType child_type = child->getUhdmType();
+      if ((child_type == UhdmType::BitSelect) &&
+          (parent_type == UhdmType::Port)) {
         skip_name = true;
       }
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
-          (parent_type == UHDM_OBJECT_TYPE::uhdmbit_select)) {
+      if ((child_type == UhdmType::RefObj) &&
+          (parent_type == UhdmType::BitSelect)) {
         skip_name = true;
       }
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
-          (parent_type == UHDM_OBJECT_TYPE::uhdmindexed_part_select)) {
+      if ((child_type == UhdmType::RefObj) &&
+          (parent_type == UhdmType::IndexedPartSelect)) {
         skip_name = true;
       }
-      if ((child_type == UHDM_OBJECT_TYPE::uhdmref_obj) &&
-          (parent_type == UHDM_OBJECT_TYPE::uhdmhier_path)) {
+      if ((child_type == UhdmType::RefObj) &&
+          (parent_type == UhdmType::HierPath)) {
         skip_name = true;
       }
     }
@@ -173,7 +171,7 @@ std::string BaseClass::ComputeFullName() const {
       names.emplace_back(name);
     }
     child = parent;
-    parent = parent->VpiParent();
+    parent = parent->getParent();
   }
   std::string fullName;
   if (names.size() == 1) {
@@ -190,24 +188,24 @@ std::string BaseClass::ComputeFullName() const {
   return fullName;
 }
 
-int32_t BaseClass::Compare(const BaseClass* const other,
+int32_t BaseClass::compare(const BaseClass* const other,
                            CompareContext* context) const {
   int32_t r = 0;
 
   const thistype_t* const lhs = this;
   const thistype_t* const rhs = other;
 
-  if ((r = VpiType() - rhs->VpiType()) != 0) {
+  if ((r = getVpiType() - rhs->getVpiType()) != 0) {
     context->m_failedLhs = lhs;
     context->m_failedRhs = rhs;
     return r;
   }
-  if ((r = VpiName().compare(rhs->VpiName())) != 0) {
+  if ((r = getName().compare(rhs->getName())) != 0) {
     context->m_failedLhs = lhs;
     context->m_failedRhs = rhs;
     return r;
   }
-  if ((r = VpiDefName().compare(rhs->VpiDefName())) != 0) {
+  if ((r = getDefName().compare(rhs->getDefName())) != 0) {
     context->m_failedLhs = lhs;
     context->m_failedRhs = rhs;
     return r;
@@ -216,17 +214,17 @@ int32_t BaseClass::Compare(const BaseClass* const other,
   return r;
 }
 
-void BaseClass::Swap(const BaseClass* what, BaseClass* with) {
-  // Do NOT call VpiParent(with) here because it invokes OnChildXXX
+void BaseClass::swap(const BaseClass* what, BaseClass* with) {
+  // Do NOT call getParent(with) here because it invokes onChildXXX
   // causing edits to containers that are being iterated on the call stack.
-  if (VpiParent() == what) vpiParent_ = with;
+  if (getParent() == what) m_parent = with;
 }
 
-void BaseClass::Swap(
-  const std::map<const BaseClass *, BaseClass *> &replacements) {
+void BaseClass::swap(
+    const std::map<const BaseClass*, BaseClass*>& replacements) {
   for (auto [what, with] : replacements) {
-    Swap(what, with);
+    swap(what, with);
   }
 }
 
-}  // namespace UHDM
+}  // namespace uhdm

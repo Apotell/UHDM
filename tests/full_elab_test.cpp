@@ -35,7 +35,7 @@
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
 
-using namespace UHDM;
+using namespace uhdm;
 
 //-------------------------------------------
 // This self-contained example demonstrate how one can navigate the Folded Model
@@ -44,127 +44,127 @@ using namespace UHDM;
 //-------------------------------------------
 
 //-------------------------------------------
-// Unit test design
+// Unit test Design
 
 std::vector<vpiHandle> build_designs(Serializer* s) {
   std::vector<vpiHandle> designs;
   // Design building
-  design* d = s->MakeDesign();
-  d->VpiName("design1");
+  Design* d = s->make<Design>();
+  d->setName("design1");
 
   //-------------------------------------------
   // Module definition M1 (non elaborated)
-  module_inst* m1 = s->MakeModule_inst();
+  Module* m1 = s->make<Module>();
   {
-    m1->VpiDefName("M1");
-    m1->VpiParent(d);
-    m1->VpiFile("fake1.sv");
-    m1->VpiLineNo(10);
+    m1->setDefName("M1");
+    m1->setParent(d);
+    m1->setFile("fake1.sv");
+    m1->setStartLine(10);
   }
 
   //-------------------------------------------
   // Module definition M2 (non elaborated)
-  module_inst* m2 = s->MakeModule_inst();
+  Module* m2 = s->make<Module>();
   {
-    m2->VpiDefName("M2");
-    m2->VpiFile("fake2.sv");
-    m2->VpiLineNo(20);
-    m2->VpiParent(d);
+    m2->setDefName("M2");
+    m2->setFile("fake2.sv");
+    m2->setStartLine(20);
+    m2->setParent(d);
 
     // M2 Ports
-    port* p = s->MakePort();
-    p->VpiName("i1");
-    p->VpiDirection(vpiInput);
-    p->VpiParent(m2);
-    p = s->MakePort();
-    p->VpiName("o1");
-    p->VpiDirection(vpiOutput);
-    p->VpiParent(m2);
+    Port* p = s->make<Port>();
+    p->setName("i1");
+    p->setDirection(vpiInput);
+    p->setParent(m2);
+    p = s->make<Port>();
+    p->setName("o1");
+    p->setDirection(vpiOutput);
+    p->setParent(m2);
 
     // M2 Nets
-    logic_net* n = s->MakeLogic_net();
-    n->VpiName("i1");
-    n->VpiParent(m2);
-    n = s->MakeLogic_net();
-    n->VpiName("o1");
-    n->VpiParent(m2);
+    LogicNet* n = s->make<LogicNet>();
+    n->setName("i1");
+    n->setParent(m2);
+    n = s->make<LogicNet>();
+    n->setName("o1");
+    n->setParent(m2);
 
     // M2 continuous assignment
-    cont_assign* cassign = s->MakeCont_assign();
-    cassign->VpiParent(m2);
-    ref_obj* lhs = s->MakeRef_obj();
-    ref_obj* rhs = s->MakeRef_obj();
-    lhs->VpiName("o1");
-    rhs->VpiName("i1");
-    cassign->Lhs(lhs);
-    cassign->Rhs(rhs);
+    ContAssign* cassign = s->make<ContAssign>();
+    cassign->setParent(m2);
+    RefObj* lhs = s->make<RefObj>();
+    RefObj* rhs = s->make<RefObj>();
+    lhs->setName("o1");
+    rhs->setName("i1");
+    cassign->setLhs(lhs);
+    cassign->setRhs(rhs);
   }
 
   //-------------------------------------------
   // Instance tree (Elaborated tree)
   // Top level module
-  module_inst* m3 = s->MakeModule_inst();
-  VectorOfmodule_inst* v1 = s->MakeModule_instVec();
+  Module* m3 = s->make<Module>();
+  ModuleCollection* v1 = s->makeCollection<Module>();
   {
-    m3->VpiDefName("M1");  // Points to the module def (by name)
-    m3->VpiName("M1");     // Instance name
-    m3->VpiTopModule(true);
-    m3->Modules(v1);
-    m3->VpiParent(d);
+    m3->setDefName("M1");  // Points to the module def (by name)
+    m3->setName("M1");     // Instance name
+    m3->setTopModule(true);
+    m3->setModules(v1);
+    m3->setParent(d);
   }
 
   //-------------------------------------------
   // Sub Instance
-  module_inst* m4 = s->MakeModule_inst();
+  Module* m4 = s->make<Module>();
   {
-    m4->VpiDefName("M2");         // Points to the module def (by name)
-    m4->VpiName("inst1");         // Instance name
-    m4->VpiFullName("M1.inst1");  // Instance full name
-    port* p1 = s->MakePort();
-    p1->VpiName("i1");
-    p1->VpiParent(m4);
-    port* p2 = s->MakePort();
-    p2->VpiName("o1");
-    p2->VpiParent(m4);
+    m4->setDefName("M2");         // Points to the module def (by name)
+    m4->setName("inst1");         // Instance name
+    m4->setFullName("M1.inst1");  // Instance full name
+    Port* p1 = s->make<Port>();
+    p1->setName("i1");
+    p1->setParent(m4);
+    Port* p2 = s->make<Port>();
+    p2->setName("o1");
+    p2->setParent(m4);
 
     // M2 Nets
-    logic_net* n = s->MakeLogic_net();
-    n->VpiName("i1");
-    n->VpiFullName("M1.inst.i1");
-    ref_obj* low_conn = s->MakeRef_obj();
-    low_conn->Actual_group(n);
-    low_conn->VpiName("i1");
-    low_conn->VpiParent(p1);
-    p1->Low_conn(low_conn);
-    n->VpiParent(m4);
-    n = s->MakeLogic_net();
-    n->VpiName("o1");
-    n->VpiFullName("M1.inst.o1");
-    low_conn = s->MakeRef_obj();
-    low_conn->Actual_group(n);
-    low_conn->VpiName("o1");
-    low_conn->VpiParent(p2);
-    p2->Low_conn(low_conn);
-    n->VpiParent(m4);
+    LogicNet* n = s->make<LogicNet>();
+    n->setName("i1");
+    n->setFullName("M1.inst.i1");
+    RefObj* low_conn = s->make<RefObj>();
+    low_conn->setActual(n);
+    low_conn->setName("i1");
+    low_conn->setParent(p1);
+    p1->setLowConn(low_conn);
+    n->setParent(m4);
+    n = s->make<LogicNet>();
+    n->setName("o1");
+    n->setFullName("M1.inst.o1");
+    low_conn = s->make<RefObj>();
+    low_conn->setActual(n);
+    low_conn->setName("o1");
+    low_conn->setParent(p2);
+    p2->setLowConn(low_conn);
+    n->setParent(m4);
   }
 
   // Create parent-child relation in between the 2 modules in the instance tree
   v1->push_back(m4);
-  m4->VpiParent(m3);
+  m4->setParent(m3);
 
   //-------------------------------------------
   // Create both non-elaborated and elaborated lists
-  VectorOfmodule_inst* allModules = s->MakeModule_instVec();
-  d->AllModules(allModules);
+  ModuleCollection* allModules = s->makeCollection<Module>();
+  d->setAllModules(allModules);
   allModules->emplace_back(m1);
   allModules->emplace_back(m2);
 
-  VectorOfmodule_inst* topModules = s->MakeModule_instVec();
-  d->TopModules(topModules);
+  ModuleCollection* topModules = s->makeCollection<Module>();
+  d->setTopModules(topModules);
   topModules->emplace_back(
       m3);  // Only m3 goes there as it is the top level module
 
-  vpiHandle dh = s->MakeUhdmHandle(uhdmdesign, d);
+  vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
 
   return designs;
@@ -172,7 +172,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
 
 std::string dumpStats(const Serializer& serializer) {
   std::string result;
-  auto stats = serializer.ObjectStats();
+  auto stats = serializer.getObjectStats();
   for (const auto& stat : stats) {
     if (!stat.second) continue;
     result += stat.first + " " + std::to_string(stat.second) + "\n";
@@ -187,18 +187,18 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   const std::string before = designs_to_string(designs);
 
   bool elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
+  for (auto Design : designs) {
+    elaborated = vpi_get(vpiElaborated, Design) || elaborated;
   }
   EXPECT_FALSE(elaborated);
 
   EXPECT_EQ(dumpStats(serializer),
-            "cont_assign 1\n"
-            "design 1\n"
-            "logic_net 4\n"
-            "module_inst 4\n"
-            "port 4\n"
-            "ref_obj 4\n");
+            "ContAssign 1\n"
+            "Design 1\n"
+            "LogicNet 4\n"
+            "Module 4\n"
+            "Port 4\n"
+            "RefObj 4\n");
 
   ElaboratorContext* elaboratorContext =
       new ElaboratorContext(&serializer, true);
@@ -206,8 +206,8 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   delete elaboratorContext;
 
   elaborated = false;
-  for (auto design : designs) {
-    elaborated = vpi_get(vpiElaborated, design) || elaborated;
+  for (auto Design : designs) {
+    elaborated = vpi_get(vpiElaborated, Design) || elaborated;
   }
   EXPECT_TRUE(elaborated);
 

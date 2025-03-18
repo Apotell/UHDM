@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "event_stmt" formal description
- 
+
 - obj_def: event_stmt
-  - extends: atomic_stmt
-  - property: blocking
-    name: blocking
-    vpi: vpiBlocking
-    type: bool
-    card: 1
-  - obj_ref: named_event
-    name: named event
-    vpi: vpiNamedEvent
-    type: named_event
-    card: 1
+- extends: atomic_stmt
+- property: blocking
+  vpi: vpiBlocking
+  type: bool
+  card: 1
+- obj_ref: named_event
+  vpi: vpiNamedEvent
+  type: named_event
+  card: 1

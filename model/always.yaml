@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "always" formal description
- 
-- obj_def: always
-  - extends: process_stmt
-  - property: always_type
-    name: always type
-    type: int32_t
-    vpi: vpiAlwaysType
-    card: 1
 
+- obj_def: always
+- extends: process_stmt
+- property: always_type
+  type: int32_t
+  vpi: vpiAlwaysType
+  card: 1

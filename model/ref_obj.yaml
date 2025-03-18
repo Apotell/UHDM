@@ -15,35 +15,29 @@
 # Universal Hardware Data Model (UHDM) "ref_obj" formal description
 
 - obj_def: ref_obj
-  - extends: simple_expr
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - property: definition_name
-    name: definition name
-    vpi: vpiDefName
-    type: string
-    card: 1
-  - property: generic
-    name: generic
-    vpi: vpiGeneric
-    type: bool
-    card: 1
-  - group_ref: actual_group
-    name: actual group
-    vpi: vpiActual
-    type: actual_group
-    card: 1
+- extends: simple_expr
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- property: def_name
+  vpi: vpiDefName
+  type: string
+  card: 1
+- property: generic
+  vpi: vpiGeneric
+  type: bool
+  card: 1
+- group_ref: actual
+  vpi: vpiActual
+  type: actual_group
+  card: 1
  # Non Standard: identify reference to a struct member {base : {10'h0, ...  }}
-  - property: is_struct_member
-    name: is struct member
-    vpi: vpiStructMember
-    type: bool
-    card: 1
+- property: struct_member
+  vpi: vpiStructMember
+  type: bool
+  card: 1

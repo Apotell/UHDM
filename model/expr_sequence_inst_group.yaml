@@ -15,5 +15,5 @@
 # Universal Hardware Data Model (UHDM) "expr_sequence_inst_group" formal description
 
 - group_def: expr_sequence_inst_group
-  - class_ref: expr
-  - obj_ref: sequence_inst
+- class_ref: expr
+- obj_ref: sequence_inst

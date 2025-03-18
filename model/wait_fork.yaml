@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "wait fork" formal description
- 
-- obj_def: wait_fork
-  - extends: waits
 
+- obj_def: wait_fork
+- extends: waits

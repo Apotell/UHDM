@@ -13,20 +13,17 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "property_spec" formal description
- 
+
 - obj_def: property_spec
-  - group_ref: vpiDisableCondition
-    name: disable condition
-    vpi: vpiDisableCondition
-    type: expr_dist
-    card: 1
-  - class_ref: vpiClockingEvent
-    name: clocking event
-    vpi: vpiClockingEvent
-    type: expr
-    card: 1   
-  - group_ref: vpiPropertyExpr
-    name: property expr
-    vpi: vpiPropertyExpr
-    type: property_expr_group
-    card: 1
+- group_ref: disable_condition
+  vpi: vpiDisableCondition
+  type: expr_dist
+  card: 1
+- class_ref: clocking_event
+  vpi: vpiClockingEvent
+  type: expr
+  card: 1
+- group_ref: property_expr
+  vpi: vpiPropertyExpr
+  type: property_expr_group
+  card: 1

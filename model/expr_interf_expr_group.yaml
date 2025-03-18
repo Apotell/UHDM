@@ -13,11 +13,9 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "expr_interf_expr_group" formal description
- 
+
 - group_def: expr_interf_expr_group
-  - class_ref: expr
-  - group_ref: interface_expr
-  - group_ref: pattern # Deviate from Standard, allows to model "tagged" 
-  - obj_ref: array_var # Deviated from the Standard, allows to model "empty queue"
-
-
+- class_ref: expr
+- group_ref: interface_expr
+- group_ref: pattern # Deviate from Standard, allows to model "tagged"
+- obj_ref: array_var # Deviated from the Standard, allows to model "empty queue"

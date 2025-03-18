@@ -15,18 +15,15 @@
 # Universal Hardware Data Model (UHDM) "preproc_macro_instance" formal description
 
 - obj_def: preproc_macro_instance
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - obj_ref: preproc_macro_definition
-    name: Preproc Macro Definition
-    vpi: vpiPreprocMacroDefinition
-    type: preproc_macro_definition
-    card: 1
-  - obj_ref: preproc_macro_instance
-    name: Preproc Macro Instances
-    vpi: vpiPreprocMacroInstance
-    type: preproc_macro_instance
-    card: any
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: preproc_macro_definition
+  vpi: vpiPreprocMacroDefinition
+  type: preproc_macro_definition
+  card: 1
+- obj_ref: preproc_macro_instance
+  vpi: vpiPreprocMacroInstance
+  type: preproc_macro_instance
+  card: any

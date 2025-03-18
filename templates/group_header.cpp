@@ -24,31 +24,32 @@
  */
 #include <uhdm/<GROUPNAME>.h>
 
-#include <iostream>
-#include <uhdm/uhdm.h>
+#include <uhdm/uhdm_types.h>
+#include <uhdm/BaseClass.h>
+#include <uhdm/Serializer.h>
 
-namespace UHDM {
-bool <GROUPNAME>GroupCompliant(const any* item) {
+namespace uhdm {
+bool <GROUPNAME>GroupCompliant(const Any* item) {
   if (item == nullptr) {
     return true;
   }
-  UHDM_OBJECT_TYPE uhdmtype = item->UhdmType();
+  UhdmType uhdmType = item->getUhdmType();
   if (<CHECKTYPE>) {
     std::string message;
     message
       .append("Internal Error(")
-      .append(std::to_string(item->UhdmId()))
+      .append(std::to_string(item->getUhdmId()))
       .append(") : adding wrong object type (")
-      .append(UhdmName(uhdmtype))
+      .append(UhdmName(uhdmType))
       .append(") in a <GROUPNAME> group!");
-    item->GetSerializer()->GetErrorHandler()(ErrorType::UHDM_WRONG_OBJECT_TYPE,
+    item->getSerializer()->getErrorHandler()(ErrorType::UHDM_WRONG_OBJECT_TYPE,
                                              message, item, nullptr);
     return false;
   }
   return true;
 }
 
-bool <GROUPNAME>GroupCompliant(const VectorOfany* vec) {
+bool <GROUPNAME>GroupCompliant(const AnyCollection* vec) {
   if (vec != nullptr) {
     for (auto item : *vec) {
       if (!<GROUPNAME>GroupCompliant(item)) {
@@ -59,4 +60,4 @@ bool <GROUPNAME>GroupCompliant(const VectorOfany* vec) {
   return true;
 }
 
-}  // namespace UHDM
+}  // namespace uhdm

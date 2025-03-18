@@ -13,46 +13,37 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "cont_assign_bit" formal description
- 
-- obj_def: cont_assign_bit
-  - property: offset_from_lsb
-    name: offset from LSB
-    vpi: vpiOffset
-    type: int32_t
-    card: 1
-  - property: net_decl_assign
-    name: net decl assign
-    vpi: vpiNetDeclAssign
-    type: bool
-    card: 1
-  - property: strength0
-    name: strength 0
-    vpi: vpiStrength0
-    type: int32_t
-    card: 1
-  - property: strength1
-    name: strength 1
-    vpi: vpiStrength1
-    type: int32_t
-    card: 1
-  - property: vpi_get_value
-    name: vpi_get_value
-    vpi: vpiValue
-    type: value
-    card: 1
-  - class_ref: delay
-    name: delay
-    vpi: vpiDelay
-    type: expr
-    card: 1
-  - class_ref: rhs
-    name: rhs
-    vpi: vpiRhs
-    type: expr
-    card: 1
-  - class_ref: lhs
-    name: lhs
-    vpi: vpiLhs
-    type: expr
-    card: 1
 
+- obj_def: cont_assign_bit
+- property: offset_from_lsb
+  vpi: vpiOffset
+  type: int32_t
+  card: 1
+- property: net_decl_assign
+  vpi: vpiNetDeclAssign
+  type: bool
+  card: 1
+- property: strength0
+  vpi: vpiStrength0
+  type: int32_t
+  card: 1
+- property: strength1
+  vpi: vpiStrength1
+  type: int32_t
+  card: 1
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1
+- class_ref: delay
+  vpi: vpiDelay
+  type: expr
+  card: 1
+- class_ref: rhs
+  vpi: vpiRhs
+  type: expr
+  card: 1
+- class_ref: lhs
+  vpi: vpiLhs
+  type: expr
+  card: 1

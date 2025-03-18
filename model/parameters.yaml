@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "parameters" formal description
- 
+
 - group_def: parameters
-  - obj_ref: parameter
-  - obj_ref: type_parameter
-    
+- obj_ref: parameter
+- obj_ref: type_parameter

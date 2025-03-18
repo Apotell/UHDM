@@ -13,25 +13,21 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "typespec_member" formal description
- 
+
 - obj_def: typespec_member
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: rand_type
-    name: rand type
-    vpi: vpiRandType
-    type: bool
-    card: 1
-  - class_ref: typespec
-    name: typespec
-    vpi: vpiTypespec
-    type: ref_typespec
-    card: 1
-  - class_ref: default_value
-    name: default value
-    vpi: vpiExpr
-    type: expr
-    card: 1
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: rand_type
+  vpi: vpiRandType
+  type: bool
+  card: 1
+- class_ref: typespec
+  vpi: vpiTypespec
+  type: ref_typespec
+  card: 1
+- class_ref: default_value
+  vpi: vpiExpr
+  type: expr
+  card: 1

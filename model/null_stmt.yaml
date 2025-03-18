@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "null_stmt" formal description
- 
-- obj_def: null_stmt
-  - extends: atomic_stmt
 
+- obj_def: null_stmt
+- extends: atomic_stmt

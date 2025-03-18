@@ -13,26 +13,22 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "indexed_part_select" formal description
- 
+
 - obj_def: indexed_part_select
-  - extends: ref_obj
-  - property: constant_selection
-    name: constant selection
-    vpi: vpiConstantSelect
-    type: bool
-    card: 1
-  - property: index_part_select_type
-    name: index part select type
-    vpi: vpiIndexedPartSelectType
-    type: int32_t
-    card: 1
-  - class_ref: base_expr
-    name: base expr
-    vpi: vpiBaseExpr
-    type: expr
-    card: 1
-  - class_ref: width_expr
-    name: width expr
-    vpi: vpiWidthExpr
-    type: expr
-    card: 1
+- extends: ref_obj
+- property: constant_select
+  vpi: vpiConstantSelect
+  type: bool
+  card: 1
+- property: indexed_part_select_type
+  vpi: vpiIndexedPartSelectType
+  type: int32_t
+  card: 1
+- class_ref: base_expr
+  vpi: vpiBaseExpr
+  type: expr
+  card: 1
+- class_ref: width_expr
+  vpi: vpiWidthExpr
+  type: expr
+  card: 1

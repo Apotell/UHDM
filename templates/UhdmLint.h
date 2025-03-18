@@ -24,47 +24,46 @@
  * Created on Jan 3, 2022, 9:03 PM
  */
 
-#ifndef UHDM_LINT_H
-#define UHDM_LINT_H
+#ifndef UHDM_UHDMLINT_H
+#define UHDM_UHDMLINT_H
 
 #include <uhdm/VpiListener.h>
 
-namespace UHDM {
+namespace uhdm {
 class Serializer;
 class UhdmLint final : public VpiListener {
  public:
-  UhdmLint(Serializer* serializer, design* des) : serializer_(serializer), design_(des) {}
+  UhdmLint(Serializer* serializer, Design* des)
+      : m_serializer(serializer), m_design(des) {}
 
  private:
-  void leaveBit_select(const bit_select* object, vpiHandle handle) override;
+  void leaveBitSelect(const BitSelect* object, vpiHandle handle) override;
 
-  void leaveFunction(const function* object, vpiHandle handle) override;
+  void leaveFunction(const Function* object, vpiHandle handle) override;
 
-  void leaveStruct_typespec(const struct_typespec* object,
-                            vpiHandle handle) override;
+  void leaveStructTypespec(const StructTypespec* object,
+                           vpiHandle handle) override;
 
-  void leaveModule_inst(const module_inst* object, vpiHandle handle) override;
+  void leaveModule(const Module* object, vpiHandle handle) override;
 
-  void leaveAssignment(const assignment* object, vpiHandle handle) override;
+  void leaveAssignment(const Assignment* object, vpiHandle handle) override;
 
-  void leaveLogic_net(const logic_net* object, vpiHandle handle) override;
+  void leaveLogicNet(const LogicNet* object, vpiHandle handle) override;
 
-  void leaveEnum_typespec(const enum_typespec* object,
-                          vpiHandle handle) override;
+  void leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) override;
 
-  void leaveProperty_spec(const property_spec* object,
-                          vpiHandle handle) override;
+  void leavePropertySpec(const PropertySpec* object, vpiHandle handle) override;
 
-  void leaveSys_func_call(const sys_func_call* object, vpiHandle handle) override;
+  void leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) override;
 
-  void leavePort(const port* object, vpiHandle handle) override;
+  void leavePort(const Port* object, vpiHandle handle) override;
 
-  void checkMultiContAssign(const std::vector<UHDM::cont_assign*>* assigns);
+  void checkMultiContAssign(const std::vector<ContAssign*>* assigns);
 
-  Serializer* serializer_ = nullptr;
-  design* design_ = nullptr;
+  Serializer* m_serializer = nullptr;
+  Design* m_design = nullptr;
 };
 
-}  // namespace UHDM
+}  // namespace uhdm
 
-#endif
+#endif  // UHDM_UHDMLINT_H

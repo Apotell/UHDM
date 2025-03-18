@@ -113,8 +113,8 @@ part_select.yaml
 indexed_part_select.yaml
 var_select.yaml
 bit_select.yaml
-variable_drivers_group.yaml
-variable_loads_group.yaml
+drivers_group.yaml
+loads_group.yaml
 variables.yaml
 hier_path.yaml
 ref_var.yaml
@@ -212,10 +212,10 @@ class_defn.yaml
 class_obj.yaml
 class_var.yaml
 instance.yaml
-interface_inst.yaml
+interface.yaml
 program.yaml
 package.yaml
-module_inst.yaml
+module.yaml
 checker_decl.yaml
 checker_inst.yaml
 short_real_typespec.yaml

@@ -27,750 +27,713 @@
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
-namespace UHDM {
+namespace uhdm {
 
 BaseClass* clone_tree(const BaseClass* root, CloneContext* context) {
-  return root ? root->DeepClone(nullptr, context) : nullptr;
+  return root ? root->deepClone(nullptr, context) : nullptr;
 }
 
-tf_call* sys_func_call::DeepClone(BaseClass* parent,
-                                  CloneContext* context) const {
-  sys_func_call* const clone = context->m_serializer->MakeSys_func_call();
-  const uint32_t id = clone->UhdmId();
+TFCall* SysFuncCall::deepClone(BaseClass* parent, CloneContext* context) const {
+  SysFuncCall* const clone = context->m_serializer->make<SysFuncCall>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = User_systf())
-    clone->User_systf(obj->DeepClone(clone, context));
-  if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-  if (auto vec = Tf_call_args()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Tf_call_args(clone_vec);
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getUserSystf())
+    clone->setUserSystf(obj->deepClone(clone, context));
+  if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+  if (auto vec = getArguments()) {
+    auto clone_vec = clone->getArguments(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+  if (auto obj = getTypespec())
+    clone->setTypespec(obj->deepClone(clone, context));
 
   return clone;
 }
 
-tf_call* sys_task_call::DeepClone(BaseClass* parent,
-                                  CloneContext* context) const {
-  sys_task_call* const clone = context->m_serializer->MakeSys_task_call();
-  const uint32_t id = clone->UhdmId();
+TFCall* SysTaskCall::deepClone(BaseClass* parent, CloneContext* context) const {
+  SysTaskCall* const clone = context->m_serializer->make<SysTaskCall>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = User_systf())
-    clone->User_systf(obj->DeepClone(clone, context));
-  if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-  if (auto vec = Tf_call_args()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Tf_call_args(clone_vec);
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getUserSystf())
+    clone->setUserSystf(obj->deepClone(clone, context));
+  if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+  if (auto vec = getArguments()) {
+    auto clone_vec = clone->getArguments(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+  if (auto obj = getTypespec())
+    clone->setTypespec(obj->deepClone(clone, context));
 
   return clone;
 }
 
-tf_call* method_func_call::DeepClone(BaseClass* parent,
-                                     CloneContext* context) const {
+TFCall* MethodFuncCall::deepClone(BaseClass* parent,
+                                  CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  const expr* prefix = Prefix();
+      clonecontext_cast<ElaboratorContext>(context);
+  const Expr* prefix = getPrefix();
   if (prefix) {
-    prefix = prefix->DeepClone((BaseClass*)this, context);
+    prefix = prefix->deepClone((BaseClass*)this, context);
   }
   bool is_function =
-      elaboratorContext->m_elaborator.isFunctionCall(VpiName(), prefix);
-  tf_call* the_clone = nullptr;
+      elaboratorContext->m_elaborator.isFunctionCall(getName(), prefix);
+  TFCall* the_clone = nullptr;
   if (is_function) {
-    method_func_call* const clone =
-        context->m_serializer->MakeMethod_func_call();
+    MethodFuncCall* const clone = context->m_serializer->make<MethodFuncCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    if (auto obj = Prefix()) clone->Prefix(obj->DeepClone(clone, context));
-    const ref_obj* ref = any_cast<const ref_obj*>(clone->Prefix());
-    const class_var* varprefix = nullptr;
-    if (ref) varprefix = any_cast<const class_var*>(ref->Actual_group());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    if (auto obj = getPrefix())
+      clone->setPrefix(obj->deepClone(clone, context));
+    const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
+    const ClassVar* varprefix = nullptr;
+    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
-    any* pushedVar = nullptr;
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    Any* pushedVar = nullptr;
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        any* arg = obj->DeepClone(clone, context);
+        Any* arg = obj->deepClone(clone, context);
         // CB callbacks_to_append[$];
         // unique_callbacks_to_append = callbacks_to_append.unique( cb_ )
         // with ( cb_.get_inst_id );
-        if (parent->UhdmType() == UHDM_OBJECT_TYPE::uhdmhier_path) {
-          hier_path* phier = (hier_path*)parent;
-          any* last = phier->Path_elems()->back();
-          if (ref_obj* last_ref = any_cast<ref_obj*>(last)) {
-            if (const any* actual = last_ref->Actual_group()) {
-              if (ref_obj* refarg = any_cast<ref_obj*>(arg)) {
+        if (parent->getUhdmType() == UhdmType::HierPath) {
+          HierPath* phier = (HierPath*)parent;
+          Any* last = phier->getPathElems()->back();
+          if (RefObj* last_ref = any_cast<RefObj>(last)) {
+            if (const Any* actual = last_ref->getActual()) {
+              if (RefObj* refarg = any_cast<RefObj>(arg)) {
                 bool override = false;
-                if (const any* act = refarg->Actual_group()) {
-                  if (act->VpiName() == obj->VpiName()) {
+                if (const Any* act = refarg->getActual()) {
+                  if (act->getName() == obj->getName()) {
                     override = true;
                   }
                 } else {
                   override = true;
                 }
                 if (override) {
-                  if (actual->UhdmType() == UHDM_OBJECT_TYPE::uhdmarray_var) {
-                    array_var* arr = (array_var*)actual;
-                    if (arr->Variables() && !arr->Variables()->empty()) {
-                      variables* var = arr->Variables()->front();
-                      if (variables* varclone =
-                              (variables*)clone_tree(var, context)) {
-                        varclone->VpiName(obj->VpiName());
-                        varclone->VpiParent(const_cast<any*>(obj->VpiParent()));
+                  if (actual->getUhdmType() == UhdmType::ArrayVar) {
+                    ArrayVar* arr = (ArrayVar*)actual;
+                    if (arr->getVariables() && !arr->getVariables()->empty()) {
+                      Variables* var = arr->getVariables()->front();
+                      if (Variables* varclone =
+                              (Variables*)clone_tree(var, context)) {
+                        varclone->setName(obj->getName());
+                        varclone->setParent(obj->getParent());
                         actual = varclone;
                         elaboratorContext->m_elaborator.pushVar(varclone);
                         pushedVar = varclone;
                       }
                     }
                   }
-                  refarg->Actual_group((any*)actual);
+                  refarg->setActual((Any*)actual);
                 }
               }
             }
           }
         }
-        clone_vec->push_back(arg);
+        clone_vec->emplace_back(arg);
       }
     }
-    if (auto obj = With()) clone->With(obj->DeepClone(clone, context));
+    if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
     if (pushedVar) {
       elaboratorContext->m_elaborator.popVar(pushedVar);
     }
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   } else {
-    method_task_call* const clone =
-        context->m_serializer->MakeMethod_task_call();
+    MethodTaskCall* const clone = context->m_serializer->make<MethodTaskCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     //*clone = *this;
-    clone->VpiName(VpiName());
-    clone->Tf_call_args(Tf_call_args());
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    clone->VpiFile(VpiFile());
-    clone->VpiLineNo(VpiLineNo());
-    clone->VpiColumnNo(VpiColumnNo());
-    clone->VpiEndLineNo(VpiEndLineNo());
-    clone->VpiEndColumnNo(VpiEndColumnNo());
-    if (auto obj = Prefix()) clone->Prefix(obj->DeepClone(clone, context));
-    const ref_obj* ref = any_cast<const ref_obj*>(clone->Prefix());
-    const class_var* varprefix = nullptr;
-    if (ref) varprefix = any_cast<const class_var*>(ref->Actual_group());
+    clone->setName(getName());
+    clone->setArguments(getArguments());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    clone->setFile(getFile());
+    clone->setStartLine(getStartLine());
+    clone->setStartColumn(getStartColumn());
+    clone->setEndLine(getEndLine());
+    clone->setEndColumn(getEndColumn());
+    if (auto obj = getPrefix())
+      clone->setPrefix(obj->deepClone(clone, context));
+    const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
+    const ClassVar* varprefix = nullptr;
+    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
-    if (auto obj = With()) clone->With(obj->DeepClone(clone, context));
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   }
   return the_clone;
 }
 
-constant* constant::DeepClone(BaseClass* parent, CloneContext* context) const {
+Constant* Constant::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  if (elaboratorContext->m_elaborator.uniquifyTypespec() || (VpiSize() == -1)) {
-    constant* const clone = context->m_serializer->MakeConstant();
-    const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  if (elaboratorContext->m_elaborator.uniquifyTypespec() || (getSize() == -1)) {
+    Constant* const clone = context->m_serializer->make<Constant>();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
     return clone;
   } else {
-    return (constant*)this;
+    return (Constant*)this;
   }
 }
 
-tagged_pattern* tagged_pattern::DeepClone(BaseClass* parent,
-                                          CloneContext* context) const {
+TaggedPattern* TaggedPattern::deepClone(BaseClass* parent,
+                                        CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
+      clonecontext_cast<ElaboratorContext>(context);
   if (elaboratorContext->m_elaborator.uniquifyTypespec()) {
-    tagged_pattern* const clone = context->m_serializer->MakeTagged_pattern();
-    const uint32_t id = clone->UhdmId();
+    TaggedPattern* const clone = context->m_serializer->make<TaggedPattern>();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
-    if (auto obj = Pattern()) clone->Pattern(obj->DeepClone(clone, context));
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
+    if (auto obj = getPattern())
+      clone->setPattern(obj->deepClone(clone, context));
     return clone;
   } else {
-    return (tagged_pattern*)this;
+    return (TaggedPattern*)this;
   }
 }
 
-tf_call* method_task_call::DeepClone(BaseClass* parent,
-                                     CloneContext* context) const {
+TFCall* MethodTaskCall::deepClone(BaseClass* parent,
+                                  CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  const expr* prefix = Prefix();
+      clonecontext_cast<ElaboratorContext>(context);
+  const Expr* prefix = getPrefix();
   if (prefix) {
-    prefix = prefix->DeepClone((BaseClass*)this, context);
+    prefix = prefix->deepClone((BaseClass*)this, context);
   }
-  bool is_task = elaboratorContext->m_elaborator.isTaskCall(VpiName(), prefix);
-  tf_call* the_clone = nullptr;
+  bool is_task = elaboratorContext->m_elaborator.isTaskCall(getName(), prefix);
+  TFCall* the_clone = nullptr;
   if (is_task) {
-    method_task_call* const clone =
-        context->m_serializer->MakeMethod_task_call();
+    MethodTaskCall* const clone = context->m_serializer->make<MethodTaskCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    if (auto obj = Prefix()) clone->Prefix(obj->DeepClone(clone, context));
-    const ref_obj* ref = any_cast<const ref_obj*>(clone->Prefix());
-    const class_var* varprefix = nullptr;
-    if (ref) varprefix = any_cast<const class_var*>(ref->Actual_group());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    if (auto obj = getPrefix())
+      clone->setPrefix(obj->deepClone(clone, context));
+    const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
+    const ClassVar* varprefix = nullptr;
+    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
-    if (auto obj = With()) clone->With(obj->DeepClone(clone, context));
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   } else {
-    method_func_call* const clone =
-        context->m_serializer->MakeMethod_func_call();
+    MethodFuncCall* const clone = context->m_serializer->make<MethodFuncCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     //*clone = *this;
-    clone->VpiName(VpiName());
-    clone->Tf_call_args(Tf_call_args());
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    clone->VpiFile(VpiFile());
-    clone->VpiLineNo(VpiLineNo());
-    clone->VpiColumnNo(VpiColumnNo());
-    clone->VpiEndLineNo(VpiEndLineNo());
-    clone->VpiEndColumnNo(VpiEndColumnNo());
-    if (auto obj = Prefix()) clone->Prefix(obj->DeepClone(clone, context));
-    const ref_obj* ref = any_cast<const ref_obj*>(clone->Prefix());
-    const class_var* varprefix = nullptr;
-    if (ref) varprefix = any_cast<const class_var*>(ref->Actual_group());
+    clone->setName(getName());
+    clone->setArguments(getArguments());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    clone->setFile(getFile());
+    clone->setStartLine(getStartLine());
+    clone->setStartColumn(getStartColumn());
+    clone->setEndLine(getEndLine());
+    clone->setEndColumn(getEndColumn());
+    if (auto obj = getPrefix())
+      clone->setPrefix(obj->deepClone(clone, context));
+    const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
+    const ClassVar* varprefix = nullptr;
+    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
-    if (auto obj = With()) clone->With(obj->DeepClone(clone, context));
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   }
   return the_clone;
 }
 
-tf_call* func_call::DeepClone(BaseClass* parent, CloneContext* context) const {
+TFCall* FuncCall::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
+      clonecontext_cast<ElaboratorContext>(context);
   bool is_function =
-      elaboratorContext->m_elaborator.isFunctionCall(VpiName(), nullptr);
-  tf_call* the_clone = nullptr;
+      elaboratorContext->m_elaborator.isFunctionCall(getName(), nullptr);
+  TFCall* the_clone = nullptr;
   if (is_function) {
-    func_call* const clone = context->m_serializer->MakeFunc_call();
+    FuncCall* const clone = context->m_serializer->make<FuncCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
+    clone->setUhdmId(id);
+    clone->setParent(parent);
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, nullptr);
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   } else {
-    task_call* const clone = context->m_serializer->MakeTask_call();
+    TaskCall* const clone = context->m_serializer->make<TaskCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     //*clone = *this;
-    clone->VpiName(VpiName());
-    clone->Tf_call_args(Tf_call_args());
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
-    clone->VpiFile(VpiFile());
-    clone->VpiLineNo(VpiLineNo());
-    clone->VpiColumnNo(VpiColumnNo());
-    clone->VpiEndLineNo(VpiEndLineNo());
-    clone->VpiEndColumnNo(VpiEndColumnNo());
+    clone->setName(getName());
+    clone->setArguments(getArguments());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
+    clone->setFile(getFile());
+    clone->setStartLine(getStartLine());
+    clone->setStartColumn(getStartColumn());
+    clone->setEndLine(getEndLine());
+    clone->setEndColumn(getEndColumn());
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, nullptr);
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   }
 
   return the_clone;
 }
 
-tf_call* task_call::DeepClone(BaseClass* parent, CloneContext* context) const {
+TFCall* TaskCall::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  bool is_task = elaboratorContext->m_elaborator.isTaskCall(VpiName(), nullptr);
-  tf_call* the_clone = nullptr;
+      clonecontext_cast<ElaboratorContext>(context);
+  bool is_task = elaboratorContext->m_elaborator.isTaskCall(getName(), nullptr);
+  TFCall* the_clone = nullptr;
   if (is_task) {
-    task_call* const clone = context->m_serializer->MakeTask_call();
+    TaskCall* const clone = context->m_serializer->make<TaskCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     *clone = *this;
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
+    clone->setUhdmId(id);
+    clone->setParent(parent);
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, nullptr);
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   } else {
-    func_call* const clone = context->m_serializer->MakeFunc_call();
+    FuncCall* const clone = context->m_serializer->make<FuncCall>();
     the_clone = clone;
-    const uint32_t id = clone->UhdmId();
+    const uint32_t id = clone->getUhdmId();
     //*clone = *this;
-    clone->VpiName(VpiName());
-    clone->VpiFile(VpiFile());
-    clone->VpiLineNo(VpiLineNo());
-    clone->VpiColumnNo(VpiColumnNo());
-    clone->VpiEndLineNo(VpiEndLineNo());
-    clone->VpiEndColumnNo(VpiEndColumnNo());
-    clone->Tf_call_args(Tf_call_args());
-    clone->UhdmId(id);
-    clone->VpiParent(parent);
+    clone->setName(getName());
+    clone->setFile(getFile());
+    clone->setStartLine(getStartLine());
+    clone->setStartColumn(getStartColumn());
+    clone->setEndLine(getEndLine());
+    clone->setEndColumn(getEndColumn());
+    clone->setArguments(getArguments());
+    clone->setUhdmId(id);
+    clone->setParent(parent);
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, nullptr);
-    if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-    if (auto vec = Tf_call_args()) {
-      auto clone_vec = context->m_serializer->MakeAnyVec();
-      clone->Tf_call_args(clone_vec);
+    if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
+    if (auto vec = getArguments()) {
+      auto clone_vec = clone->getArguments(true);
       for (auto obj : *vec) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       }
     }
-    if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+    if (auto obj = getTypespec())
+      clone->setTypespec(obj->deepClone(clone, context));
   }
   return the_clone;
 }
 
-gen_scope_array* gen_scope_array::DeepClone(BaseClass* parent,
-                                            CloneContext* context) const {
+GenScopeArray* GenScopeArray::deepClone(BaseClass* parent,
+                                        CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  gen_scope_array* const clone = context->m_serializer->MakeGen_scope_array();
-  const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  GenScopeArray* const clone = context->m_serializer->make<GenScopeArray>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = Gen_var()) clone->Gen_var(obj->DeepClone(clone, context));
-  if (auto vec = Gen_scopes()) {
-    auto clone_vec = context->m_serializer->MakeGen_scopeVec();
-    clone->Gen_scopes(clone_vec);
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getGenVar()) clone->setGenVar(obj->deepClone(clone, context));
+  if (auto vec = getGenScopes()) {
+    auto clone_vec = clone->getGenScopes(true);
     for (auto obj : *vec) {
-      elaboratorContext->m_elaborator.enterGen_scope(obj, nullptr);
-      clone_vec->push_back(obj->DeepClone(clone, context));
-      elaboratorContext->m_elaborator.leaveGen_scope(obj, nullptr);
+      elaboratorContext->m_elaborator.enterGenScope(obj, nullptr);
+      clone_vec->emplace_back(obj->deepClone(clone, context));
+      elaboratorContext->m_elaborator.leaveGenScope(obj, nullptr);
     }
   }
-  if (auto obj = VpiInstance())
-    clone->VpiInstance(obj->DeepClone(clone, context));
+  if (auto obj = getInstance())
+    clone->setInstance(obj->deepClone(clone, context));
 
   return clone;
 }
 
-function* function::DeepClone(BaseClass* parent, CloneContext* context) const {
+Function* Function::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  function* const clone = context->m_serializer->MakeFunction();
-  const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  Function* const clone = context->m_serializer->make<Function>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = Left_range())
-    clone->Left_range(obj->DeepClone(clone, context));
-  if (auto obj = Right_range())
-    clone->Right_range(obj->DeepClone(clone, context));
-  if (auto obj = Return()) clone->Return((variables*)obj);
-  if (auto obj = Instance()) clone->Instance((instance*)obj);
-  if (instance* inst = any_cast<instance*>(parent)) clone->Instance(inst);
-  if (auto obj = Class_defn())
-    clone->Class_defn(obj->DeepClone(clone, context));
-  if (auto vec = Io_decls()) {
-    auto clone_vec = context->m_serializer->MakeIo_declVec();
-    clone->Io_decls(clone_vec);
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getLeftExpr())
+    clone->setLeftExpr(obj->deepClone(clone, context));
+  if (auto obj = getRightExpr())
+    clone->setRightExpr(obj->deepClone(clone, context));
+  if (auto obj = getReturn()) clone->setReturn((Variables*)obj);
+  if (auto obj = getInstance()) clone->setInstance((Instance*)obj);
+  if (Instance* inst = any_cast<Instance>(parent)) clone->setInstance(inst);
+  if (auto obj = getClassDefn())
+    clone->setClassDefn(obj->deepClone(clone, context));
+  if (auto vec = getIODecls()) {
+    auto clone_vec = clone->getIODecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Variables()) {
-    auto clone_vec = context->m_serializer->MakeVariablesVec();
-    clone->Variables(clone_vec);
+  if (auto vec = getVariables()) {
+    auto clone_vec = clone->getVariables(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Parameters()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Parameters(clone_vec);
+  if (auto vec = getParameters()) {
+    auto clone_vec = clone->getParameters(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Scopes()) {
-    auto clone_vec = context->m_serializer->MakeScopeVec();
-    clone->Scopes(clone_vec);
+  if (auto vec = getInternalScopes()) {
+    auto clone_vec = clone->getInternalScopes(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Typespecs()) {
-    auto clone_vec = context->m_serializer->MakeTypespecVec();
-    clone->Typespecs(clone_vec);
+  if (auto vec = getTypespecs()) {
+    auto clone_vec = clone->getTypespecs(true);
     for (auto obj : *vec) {
       if (elaboratorContext->m_elaborator.uniquifyTypespec()) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       } else {
-        clone_vec->push_back(obj);
+        clone_vec->emplace_back(obj);
       }
     }
   }
-  elaboratorContext->m_elaborator.enterTask_func(clone, nullptr);
-  if (auto vec = Concurrent_assertions()) {
-    auto clone_vec = context->m_serializer->MakeConcurrent_assertionsVec();
-    clone->Concurrent_assertions(clone_vec);
+  elaboratorContext->m_elaborator.enterTaskFunc(clone, nullptr);
+  if (auto vec = getConcurrentAssertions()) {
+    auto clone_vec = clone->getConcurrentAssertions(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Property_decls()) {
-    auto clone_vec = context->m_serializer->MakeProperty_declVec();
-    clone->Property_decls(clone_vec);
+  if (auto vec = getPropertyDecls()) {
+    auto clone_vec = clone->getPropertyDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Sequence_decls()) {
-    auto clone_vec = context->m_serializer->MakeSequence_declVec();
-    clone->Sequence_decls(clone_vec);
+  if (auto vec = getSequenceDecls()) {
+    auto clone_vec = clone->getSequenceDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Named_events()) {
-    auto clone_vec = context->m_serializer->MakeNamed_eventVec();
-    clone->Named_events(clone_vec);
+  if (auto vec = getNamedEvents()) {
+    auto clone_vec = clone->getNamedEvents(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Named_event_arrays()) {
-    auto clone_vec = context->m_serializer->MakeNamed_event_arrayVec();
-    clone->Named_event_arrays(clone_vec);
+  if (auto vec = getNamedEventArrays()) {
+    auto clone_vec = clone->getNamedEventArrays(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Virtual_interface_vars()) {
-    auto clone_vec = context->m_serializer->MakeVirtual_interface_varVec();
-    clone->Virtual_interface_vars(clone_vec);
+  if (auto vec = getVirtualInterfaceVars()) {
+    auto clone_vec = clone->getVirtualInterfaceVars(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Logic_vars()) {
-    auto clone_vec = context->m_serializer->MakeLogic_varVec();
-    clone->Logic_vars(clone_vec);
+  if (auto vec = getRegs()) {
+    auto clone_vec = clone->getRegs(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Array_vars()) {
-    auto clone_vec = context->m_serializer->MakeArray_varVec();
-    clone->Array_vars(clone_vec);
+  if (auto vec = getRegArrays()) {
+    auto clone_vec = clone->getRegArrays(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Array_var_mems()) {
-    auto clone_vec = context->m_serializer->MakeArray_varVec();
-    clone->Array_var_mems(clone_vec);
+  if (auto vec = getMemorys()) {
+    auto clone_vec = clone->getMemorys(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Param_assigns()) {
-    auto clone_vec = context->m_serializer->MakeParam_assignVec();
-    clone->Param_assigns(clone_vec);
+  if (auto vec = getParamAssigns()) {
+    auto clone_vec = clone->getParamAssigns(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Let_decls()) {
-    auto clone_vec = context->m_serializer->MakeLet_declVec();
-    clone->Let_decls(clone_vec);
+  if (auto vec = getLetDecls()) {
+    auto clone_vec = clone->getLetDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Attributes()) {
-    auto clone_vec = context->m_serializer->MakeAttributeVec();
-    clone->Attributes(clone_vec);
+  if (auto vec = getAttributes()) {
+    auto clone_vec = clone->getAttributes(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Instance_items()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Instance_items(clone_vec);
+  if (auto vec = getInstanceItems()) {
+    auto clone_vec = clone->getInstanceItems(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto obj = Stmt()) clone->Stmt(obj->DeepClone(clone, context));
-  elaboratorContext->m_elaborator.leaveTask_func(clone, nullptr);
+  if (auto obj = getStmt()) clone->setStmt(obj->deepClone(clone, context));
+  elaboratorContext->m_elaborator.leaveTaskFunc(clone, nullptr);
   return clone;
 }
 
-task* task::DeepClone(BaseClass* parent, CloneContext* context) const {
+Task* Task::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  task* const clone = context->m_serializer->MakeTask();
-  const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  Task* const clone = context->m_serializer->make<Task>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = Left_range())
-    clone->Left_range(obj->DeepClone(clone, context));
-  if (auto obj = Right_range())
-    clone->Right_range(obj->DeepClone(clone, context));
-  if (auto obj = Return()) clone->Return(obj->DeepClone(clone, context));
-  if (auto obj = Instance()) clone->Instance((instance*)obj);
-  if (instance* inst = any_cast<instance*>(parent)) clone->Instance(inst);
-  if (auto obj = Class_defn())
-    clone->Class_defn(obj->DeepClone(clone, context));
-  if (auto vec = Io_decls()) {
-    auto clone_vec = context->m_serializer->MakeIo_declVec();
-    clone->Io_decls(clone_vec);
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getLeftExpr())
+    clone->setLeftExpr(obj->deepClone(clone, context));
+  if (auto obj = getRightExpr())
+    clone->setRightExpr(obj->deepClone(clone, context));
+  if (auto obj = getReturn()) clone->setReturn(obj->deepClone(clone, context));
+  if (auto obj = getInstance()) clone->setInstance((Instance*)obj);
+  if (Instance* inst = any_cast<Instance>(parent)) clone->setInstance(inst);
+  if (auto obj = getClassDefn())
+    clone->setClassDefn(obj->deepClone(clone, context));
+  if (auto vec = getIODecls()) {
+    auto clone_vec = clone->getIODecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Variables()) {
-    auto clone_vec = context->m_serializer->MakeVariablesVec();
-    clone->Variables(clone_vec);
+  if (auto vec = getVariables()) {
+    auto clone_vec = clone->getVariables(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Scopes()) {
-    auto clone_vec = context->m_serializer->MakeScopeVec();
-    clone->Scopes(clone_vec);
+  if (auto vec = getInternalScopes()) {
+    auto clone_vec = clone->getInternalScopes(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Typespecs()) {
-    auto clone_vec = context->m_serializer->MakeTypespecVec();
-    clone->Typespecs(clone_vec);
+  if (auto vec = getTypespecs()) {
+    auto clone_vec = clone->getTypespecs(true);
     for (auto obj : *vec) {
       if (elaboratorContext->m_elaborator.uniquifyTypespec()) {
-        clone_vec->push_back(obj->DeepClone(clone, context));
+        clone_vec->emplace_back(obj->deepClone(clone, context));
       } else {
-        clone_vec->push_back(obj);
+        clone_vec->emplace_back(obj);
       }
     }
   }
-  elaboratorContext->m_elaborator.enterTask_func(clone, nullptr);
-  if (auto vec = Concurrent_assertions()) {
-    auto clone_vec = context->m_serializer->MakeConcurrent_assertionsVec();
-    clone->Concurrent_assertions(clone_vec);
+  elaboratorContext->m_elaborator.enterTaskFunc(clone, nullptr);
+  if (auto vec = getConcurrentAssertions()) {
+    auto clone_vec = clone->getConcurrentAssertions(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Property_decls()) {
-    auto clone_vec = context->m_serializer->MakeProperty_declVec();
-    clone->Property_decls(clone_vec);
+  if (auto vec = getPropertyDecls()) {
+    auto clone_vec = clone->getPropertyDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Sequence_decls()) {
-    auto clone_vec = context->m_serializer->MakeSequence_declVec();
-    clone->Sequence_decls(clone_vec);
+  if (auto vec = getSequenceDecls()) {
+    auto clone_vec = clone->getSequenceDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Named_events()) {
-    auto clone_vec = context->m_serializer->MakeNamed_eventVec();
-    clone->Named_events(clone_vec);
+  if (auto vec = getNamedEvents()) {
+    auto clone_vec = clone->getNamedEvents(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Named_event_arrays()) {
-    auto clone_vec = context->m_serializer->MakeNamed_event_arrayVec();
-    clone->Named_event_arrays(clone_vec);
+  if (auto vec = getNamedEventArrays()) {
+    auto clone_vec = clone->getNamedEventArrays(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Virtual_interface_vars()) {
-    auto clone_vec = context->m_serializer->MakeVirtual_interface_varVec();
-    clone->Virtual_interface_vars(clone_vec);
+  if (auto vec = getVirtualInterfaceVars()) {
+    auto clone_vec = clone->getVirtualInterfaceVars(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Logic_vars()) {
-    auto clone_vec = context->m_serializer->MakeLogic_varVec();
-    clone->Logic_vars(clone_vec);
+  if (auto vec = getRegs()) {
+    auto clone_vec = clone->getRegs(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Array_vars()) {
-    auto clone_vec = context->m_serializer->MakeArray_varVec();
-    clone->Array_vars(clone_vec);
+  if (auto vec = getRegArrays()) {
+    auto clone_vec = clone->getRegArrays(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Array_var_mems()) {
-    auto clone_vec = context->m_serializer->MakeArray_varVec();
-    clone->Array_var_mems(clone_vec);
+  if (auto vec = getMemorys()) {
+    auto clone_vec = clone->getMemorys(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Param_assigns()) {
-    auto clone_vec = context->m_serializer->MakeParam_assignVec();
-    clone->Param_assigns(clone_vec);
+  if (auto vec = getParamAssigns()) {
+    auto clone_vec = clone->getParamAssigns(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Let_decls()) {
-    auto clone_vec = context->m_serializer->MakeLet_declVec();
-    clone->Let_decls(clone_vec);
+  if (auto vec = getLetDecls()) {
+    auto clone_vec = clone->getLetDecls(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Attributes()) {
-    auto clone_vec = context->m_serializer->MakeAttributeVec();
-    clone->Attributes(clone_vec);
+  if (auto vec = getAttributes()) {
+    auto clone_vec = clone->getAttributes(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Parameters()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Parameters(clone_vec);
+  if (auto vec = getParameters()) {
+    auto clone_vec = clone->getParameters(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = Instance_items()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Instance_items(clone_vec);
+  if (auto vec = getInstanceItems()) {
+    auto clone_vec = clone->getInstanceItems(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto obj = Stmt()) clone->Stmt(obj->DeepClone(clone, context));
-  elaboratorContext->m_elaborator.leaveTask_func(clone, nullptr);
+  if (auto obj = getStmt()) clone->setStmt(obj->deepClone(clone, context));
+  elaboratorContext->m_elaborator.leaveTaskFunc(clone, nullptr);
   return clone;
 }
 
-cont_assign* cont_assign::DeepClone(BaseClass* parent,
-                                    CloneContext* context) const {
+ContAssign* ContAssign::deepClone(BaseClass* parent,
+                                  CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  cont_assign* const clone = context->m_serializer->MakeCont_assign();
-  const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  ContAssign* const clone = context->m_serializer->make<ContAssign>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = Delay()) clone->Delay(obj->DeepClone(clone, context));
-  expr* lhs = nullptr;
-  if (auto obj = Lhs()) {
-    lhs = obj->DeepClone(clone, context);
-    if (lhs->UhdmType() == uhdmhier_path) {
-      hier_path* path = (hier_path*) lhs;
-      any* last = path->Path_elems()->back();
-      if (ref_obj* ro = any_cast<ref_obj*>(last)) {
-        if (net* n = any_cast<net*>(ro->Actual_group())) {
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto obj = getDelay()) clone->setDelay(obj->deepClone(clone, context));
+  Expr* lhs = nullptr;
+  if (auto obj = getLhs()) {
+    lhs = obj->deepClone(clone, context);
+    if (lhs->getUhdmType() == UhdmType::HierPath) {
+      HierPath* path = (HierPath*)lhs;
+      Any* last = path->getPathElems()->back();
+      if (RefObj* ro = any_cast<RefObj>(last)) {
+        if (Net* n = any_cast<Net>(ro->getActual())) {
           // The net parent has to be the same as a current scope
-          if (n->VpiParent() == parent)
-            lhs = n;
-        } 
+          if (n->getParent() == parent) lhs = n;
+        }
       }
     }
-    clone->Lhs(lhs);
+    clone->setLhs(lhs);
   }
-  if (auto obj = Rhs()) {
-    expr* rhs = obj->DeepClone(clone, context);
-    if (rhs->UhdmType() == uhdmhier_path) {
-      hier_path* path = (hier_path*) rhs;
-      any* last = path->Path_elems()->back();
-      if (ref_obj* ro = any_cast<ref_obj*>(last)) {
-        if (constant* c = any_cast<constant*>(ro->Actual_group())) {
+  if (auto obj = getRhs()) {
+    Expr* rhs = obj->deepClone(clone, context);
+    if (rhs->getUhdmType() == UhdmType::HierPath) {
+      HierPath* path = (HierPath*)rhs;
+      Any* last = path->getPathElems()->back();
+      if (RefObj* ro = any_cast<RefObj>(last)) {
+        if (Constant* c = any_cast<Constant>(ro->getActual())) {
           // The constant parrent's parent has to be the same as a current scope
-          if (c->VpiParent()->VpiParent() == parent)
-            rhs = c;
-        } 
+          if (c->getParent()->getParent() == parent) rhs = c;
+        }
       }
     }
-    clone->Rhs(rhs);
-    if (ref_obj* ro = any_cast<ref_obj*>(lhs)) {
-      if (struct_var* stv = ro->Actual_group<struct_var>()) {
-        if (ref_typespec* rt = stv->Typespec()) {
-          if (typespec* ts = rt->Actual_typespec()) {
+    clone->setRhs(rhs);
+    if (RefObj* ro = any_cast<RefObj>(lhs)) {
+      if (StructVar* stv = ro->getActual<StructVar>()) {
+        if (RefTypespec* rt = stv->getTypespec()) {
+          if (Typespec* ts = rt->getActualTypespec()) {
             ExprEval eval(elaboratorContext->m_elaborator.muteErrors());
-            if (expr* res = eval.flattenPatternAssignments(
+            if (Expr* res = eval.flattenPatternAssignments(
                     *context->m_serializer, ts, rhs)) {
-              if (res->UhdmType() == UHDM_OBJECT_TYPE::uhdmoperation) {
-                ((operation*)rhs)->Operands(((operation*)res)->Operands());
+              if (res->getUhdmType() == UhdmType::Operation) {
+                ((Operation*)rhs)
+                    ->setOperands(((Operation*)res)->getOperands());
               }
             }
           }
@@ -778,27 +741,26 @@ cont_assign* cont_assign::DeepClone(BaseClass* parent,
       }
     }
   }
-  if (auto vec = Cont_assign_bits()) {
-    auto clone_vec = context->m_serializer->MakeCont_assign_bitVec();
-    clone->Cont_assign_bits(clone_vec);
+  if (auto vec = getBits()) {
+    auto clone_vec = clone->getBits(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
 
   return clone;
 }
 
-any* bindClassTypespec(class_typespec* ctps, any* current,
-                       std::string_view name, bool& found) {
-  any* previous = nullptr;
-  const class_defn* defn = ctps->Class_defn();
+Any* bindClassTypespec(ClassTypespec* ctps, Any* current, std::string_view name,
+                       bool& found) {
+  Any* previous = nullptr;
+  const ClassDefn* defn = ctps->getClassDefn();
   while (defn) {
-    if (defn->Variables()) {
-      for (variables* var : *defn->Variables()) {
-        if (var->VpiName() == name) {
-          if (ref_obj* ro = any_cast<ref_obj*>(current)) {
-            ro->Actual_group(var);
+    if (defn->getVariables()) {
+      for (Variables* var : *defn->getVariables()) {
+        if (var->getName() == name) {
+          if (RefObj* ro = any_cast<RefObj>(current)) {
+            ro->setActual(var);
           }
           previous = var;
           found = true;
@@ -806,11 +768,11 @@ any* bindClassTypespec(class_typespec* ctps, any* current,
         }
       }
     }
-    if (defn->Named_events()) {
-      for (named_event* event : *defn->Named_events()) {
-        if (event->VpiName() == name) {
-          if (ref_obj* ro = any_cast<ref_obj*>(current)) {
-            ro->Actual_group(event);
+    if (defn->getNamedEvents()) {
+      for (NamedEvent* event : *defn->getNamedEvents()) {
+        if (event->getName() == name) {
+          if (RefObj* ro = any_cast<RefObj>(current)) {
+            ro->setActual(event);
           }
           previous = event;
           found = true;
@@ -818,19 +780,17 @@ any* bindClassTypespec(class_typespec* ctps, any* current,
         }
       }
     }
-    if (defn->Task_funcs()) {
-      for (task_func* tf : *defn->Task_funcs()) {
-        if (tf->VpiName() == name) {
-          if (ref_obj* ro = any_cast<ref_obj*>(current)) {
-            ro->Actual_group(tf);
-          } else if (current->UhdmType() ==
-                     UHDM_OBJECT_TYPE::uhdmmethod_func_call) {
-            if (tf->UhdmType() == UHDM_OBJECT_TYPE::uhdmfunction)
-              ((method_func_call*)current)->Function((function*)tf);
-          } else if (current->UhdmType() ==
-                     UHDM_OBJECT_TYPE::uhdmmethod_task_call) {
-            if (tf->UhdmType() == UHDM_OBJECT_TYPE::uhdmtask)
-              ((method_task_call*)current)->Task((task*)tf);
+    if (defn->getMethods()) {
+      for (TaskFunc* tf : *defn->getMethods()) {
+        if (tf->getName() == name) {
+          if (RefObj* ro = any_cast<RefObj>(current)) {
+            ro->setActual(tf);
+          } else if (current->getUhdmType() == UhdmType::MethodFuncCall) {
+            if (tf->getUhdmType() == UhdmType::Function)
+              ((MethodFuncCall*)current)->setFunction((Function*)tf);
+          } else if (current->getUhdmType() == UhdmType::MethodTaskCall) {
+            if (tf->getUhdmType() == UhdmType::Task)
+              ((MethodTaskCall*)current)->setTask((Task*)tf);
           }
           previous = tf;
           found = true;
@@ -840,11 +800,11 @@ any* bindClassTypespec(class_typespec* ctps, any* current,
     }
     if (found) break;
 
-    const class_defn* base_defn = nullptr;
-    if (const extends* ext = defn->Extends()) {
-      if (const ref_typespec* rt = ext->Class_typespec()) {
-        if (const class_typespec* tp = rt->Actual_typespec<class_typespec>()) {
-          base_defn = tp->Class_defn();
+    const ClassDefn* base_defn = nullptr;
+    if (const Extends* ext = defn->getExtends()) {
+      if (const RefTypespec* rt = ext->getClassTypespec()) {
+        if (const ClassTypespec* tp = rt->getActualTypespec<ClassTypespec>()) {
+          base_defn = tp->getClassDefn();
         }
       }
     }
@@ -853,44 +813,42 @@ any* bindClassTypespec(class_typespec* ctps, any* current,
   return previous;
 }
 
-hier_path* hier_path::DeepClone(BaseClass* parent,
-                                CloneContext* context) const {
+HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
   ElaboratorContext* const elaboratorContext =
-      clonecontext_cast<ElaboratorContext*>(context);
-  hier_path* const clone = context->m_serializer->MakeHier_path();
-  const uint32_t id = clone->UhdmId();
+      clonecontext_cast<ElaboratorContext>(context);
+  HierPath* const clone = context->m_serializer->make<HierPath>();
+  const uint32_t id = clone->getUhdmId();
   *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto vec = Path_elems()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Path_elems(clone_vec);
-    any* previous = nullptr;
+  clone->setUhdmId(id);
+  clone->setParent(parent);
+  if (auto vec = getPathElems()) {
+    auto clone_vec = clone->getPathElems(true);
+    Any* previous = nullptr;
     for (auto obj : *vec) {
-      any* current = obj->DeepClone(clone, context);
-      clone_vec->push_back(current);
+      Any* current = obj->deepClone(clone, context);
+      clone_vec->emplace_back(current);
       bool found = false;
-      if (ref_obj* ref = any_cast<ref_obj*>(current)) {
-        if (current->VpiName() == "this") {
-          const any* tmp = current;
+      if (RefObj* ref = any_cast<RefObj>(current)) {
+        if (current->getName() == "this") {
+          const Any* tmp = current;
           while (tmp) {
-            if (tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdmclass_defn) {
-              ref->Actual_group((any*)tmp);
+            if (tmp->getUhdmType() == UhdmType::ClassDefn) {
+              ref->setActual((Any*)tmp);
               found = true;
               break;
             }
-            tmp = tmp->VpiParent();
+            tmp = tmp->getParent();
           }
-        } else if (current->VpiName() == "super") {
-          const any* tmp = current;
+        } else if (current->getName() == "super") {
+          const Any* tmp = current;
           while (tmp) {
-            if (tmp->UhdmType() == UHDM_OBJECT_TYPE::uhdmclass_defn) {
-              class_defn* def = (class_defn*)tmp;
-              if (const extends* ext = def->Extends()) {
-                if (const ref_typespec* rt = ext->Class_typespec()) {
-                  if (const class_typespec* ctps =
-                          rt->Actual_typespec<class_typespec>()) {
-                    ref->Actual_group((any*)ctps->Class_defn());
+            if (tmp->getUhdmType() == UhdmType::ClassDefn) {
+              ClassDefn* def = (ClassDefn*)tmp;
+              if (const Extends* ext = def->getExtends()) {
+                if (const RefTypespec* rt = ext->getClassTypespec()) {
+                  if (const ClassTypespec* ctps =
+                          rt->getActualTypespec<ClassTypespec>()) {
+                    ref->setActual((Any*)ctps->getClassDefn());
                     found = true;
                     break;
                   }
@@ -898,53 +856,53 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
               }
               break;
             }
-            tmp = tmp->VpiParent();
+            tmp = tmp->getParent();
           }
         }
       }
       if (previous) {
-        std::string_view name = obj->VpiName();
+        std::string_view name = obj->getName();
         if (name.empty() || name.find('[') == 0) {
-          if (ref_obj* ro = any_cast<ref_obj*>(obj)) {
-            if (const any* actual = ro->Actual_group()) {
-              name = actual->VpiName();
+          if (RefObj* ro = any_cast<RefObj>(obj)) {
+            if (const Any* actual = ro->getActual()) {
+              name = actual->getName();
             }
             //  a[i][j]
-            if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_select) {
-              bit_select* prev = (bit_select*)previous;
-              ro->Actual_group((any*)prev->Actual_group());
+            if (previous->getUhdmType() == UhdmType::BitSelect) {
+              BitSelect* prev = (BitSelect*)previous;
+              ro->setActual((Any*)prev->getActual());
               found = true;
             }
           }
         }
         std::string nameIndexed(name);
-        if (obj->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_select) {
-          bit_select* bs = static_cast<bit_select*>(obj);
-          const expr* index = bs->VpiIndex();
-          std::string_view indexName = index->VpiDecompile();
+        if (obj->getUhdmType() == UhdmType::BitSelect) {
+          BitSelect* bs = static_cast<BitSelect*>(obj);
+          const Expr* index = bs->getIndex();
+          std::string_view indexName = index->getDecompile();
           if (!indexName.empty()) {
             nameIndexed.append("[").append(indexName).append("]");
           }
         }
-        if (ref_obj* pro = any_cast<ref_obj*>(previous)) {
-          const any* actual = pro->Actual_group();
-          if ((actual == nullptr) && (previous->VpiName() == "$root")) {
+        if (RefObj* pro = any_cast<RefObj>(previous)) {
+          const Any* actual = pro->getActual();
+          if ((actual == nullptr) && (previous->getName() == "$root")) {
             actual = elaboratorContext->m_elaborator.currentDesign();
           }
           if (actual) {
-            UHDM_OBJECT_TYPE actual_type = actual->UhdmType();
+            UhdmType actual_type = actual->getUhdmType();
             switch (actual_type) {
-              case UHDM_OBJECT_TYPE::uhdmdesign: {
-                design* scope = (design*)actual;
-                if (scope->TopModules()) {
-                  for (auto m : *scope->TopModules()) {
-                    const std::string_view modName = m->VpiName();
+              case UhdmType::Design: {
+                Design* scope = (Design*)actual;
+                if (scope->getTopModules()) {
+                  for (auto m : *scope->getTopModules()) {
+                    const std::string_view modName = m->getName();
                     if (modName == name || modName == nameIndexed ||
                         modName == std::string("work@").append(name)) {
                       found = true;
                       previous = m;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(m);
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(m);
                       }
                       break;
                     }
@@ -952,90 +910,89 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmgen_scope: {
-                gen_scope* scope = (gen_scope*)actual;
-                if (obj->UhdmType() == UHDM_OBJECT_TYPE::uhdmmethod_func_call) {
-                  method_func_call* call = (method_func_call*)current;
-                  if (scope->Task_funcs()) {
-                    for (auto tf : *scope->Task_funcs()) {
-                      if (tf->VpiName() == name) {
-                        call->Function(any_cast<function*>(tf));
-                        previous = (any*)call->Function();
+              case UhdmType::GenScope: {
+                GenScope* scope = (GenScope*)actual;
+                if (obj->getUhdmType() == UhdmType::MethodFuncCall) {
+                  MethodFuncCall* call = (MethodFuncCall*)current;
+                  if (scope->getTaskFuncs()) {
+                    for (auto tf : *scope->getTaskFuncs()) {
+                      if (tf->getName() == name) {
+                        call->setFunction(any_cast<Function>(tf));
+                        previous = (Any*)call->getFunction();
                         found = true;
                         break;
                       }
                     }
                   }
-                } else if (obj->UhdmType() ==
-                           UHDM_OBJECT_TYPE::uhdmmethod_task_call) {
-                  method_task_call* call = (method_task_call*)current;
-                  if (scope->Task_funcs()) {
-                    for (auto tf : *scope->Task_funcs()) {
-                      if (tf->VpiName() == name) {
-                        call->Task(any_cast<task*>(tf));
+                } else if (obj->getUhdmType() == UhdmType::MethodTaskCall) {
+                  MethodTaskCall* call = (MethodTaskCall*)current;
+                  if (scope->getTaskFuncs()) {
+                    for (auto tf : *scope->getTaskFuncs()) {
+                      if (tf->getName() == name) {
+                        call->setTask(any_cast<Task>(tf));
                         found = true;
-                        previous = (any*)call->Task();
+                        previous = (Any*)call->getTask();
                         break;
                       }
                     }
                   }
                 } else {
-                  if (!found && scope->Modules()) {
-                    for (auto m : *scope->Modules()) {
-                      if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                  if (!found && scope->getModules()) {
+                    for (auto m : *scope->getModules()) {
+                      if (m->getName() == name || m->getName() == nameIndexed) {
                         found = true;
                         previous = m;
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(m);
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(m);
                         }
                         break;
                       }
                     }
                   }
-                  if (!found && scope->Nets()) {
-                    for (auto m : *scope->Nets()) {
-                      if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                  if (!found && scope->getNets()) {
+                    for (auto m : *scope->getNets()) {
+                      if (m->getName() == name || m->getName() == nameIndexed) {
                         found = true;
                         previous = m;
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(m);
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(m);
                         }
                         break;
                       }
                     }
                   }
-                  if (!found && scope->Array_nets()) {
-                    for (auto m : *scope->Array_nets()) {
-                      if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                  if (!found && scope->getArrayNets()) {
+                    for (auto m : *scope->getArrayNets()) {
+                      if (m->getName() == name || m->getName() == nameIndexed) {
                         found = true;
                         previous = m;
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(m);
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(m);
                         }
                         break;
                       }
                     }
                   }
-                  if (!found && scope->Variables()) {
-                    for (auto m : *scope->Variables()) {
-                      if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                  if (!found && scope->getVariables()) {
+                    for (auto m : *scope->getVariables()) {
+                      if (m->getName() == name || m->getName() == nameIndexed) {
                         found = true;
                         previous = m;
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(m);
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(m);
                         }
                         break;
                       }
                     }
                   }
-                  if (!found && scope->Gen_scope_arrays()) {
-                    for (auto gsa : *scope->Gen_scope_arrays()) {
-                      if (gsa->VpiName() == name ||
-                          gsa->VpiName() == nameIndexed) {
-                        if (!gsa->Gen_scopes()->empty()) {
-                          auto gs = gsa->Gen_scopes()->front();
-                          if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                            cro->Actual_group(gs);
+                  if (!found && scope->getGenScopeArrays()) {
+                    for (auto gsa : *scope->getGenScopeArrays()) {
+                      if (gsa->getName() == name ||
+                          gsa->getName() == nameIndexed) {
+                        if (!gsa->getGenScopes()->empty()) {
+                          auto gs = gsa->getGenScopes()->front();
+                          if (RefObj* cro = any_cast<RefObj>(current)) {
+                            cro->setActual(gs);
                           }
                           previous = gs;
                           found = true;
@@ -1046,128 +1003,128 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmmodport: {
-                modport* mp = (modport*)actual;
-                if (mp->Io_decls()) {
-                  for (io_decl* decl : *mp->Io_decls()) {
-                    if (decl->VpiName() == name) {
+              case UhdmType::Modport: {
+                Modport* mp = (Modport*)actual;
+                if (mp->getIODecls()) {
+                  for (IODecl* decl : *mp->getIODecls()) {
+                    if (decl->getName() == name) {
                       found = true;
                       previous = decl;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(decl);
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(decl);
                       }
                     }
                   }
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmnamed_event: {
+              case UhdmType::NamedEvent: {
                 if (name == "triggered") {
                   // Builtin
                   found = true;
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmarray_net: {
-                array_net* anet = (array_net*)actual;
-                VectorOfnet* vars = anet->Nets();
+              case UhdmType::ArrayNet: {
+                ArrayNet* anet = (ArrayNet*)actual;
+                NetCollection* vars = anet->getNets();
                 if (vars && vars->size()) {
                   actual = vars->at(0);
-                  actual_type = actual->UhdmType();
+                  actual_type = actual->getUhdmType();
                 }
                 if (name == "size" || name == "exists" || name == "find" ||
                     name == "max" || name == "min") {
-                  func_call* call = context->m_serializer->MakeFunc_call();
-                  call->VpiName(name);
-                  call->VpiParent(clone);
-                  if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                    cro->Actual_group(call);
+                  FuncCall* call = context->m_serializer->make<FuncCall>();
+                  call->setName(name);
+                  call->setParent(clone);
+                  if (RefObj* cro = any_cast<RefObj>(current)) {
+                    cro->setActual(call);
                   }
                   // Builtin method
                   found = true;
-                  previous = (any*)call;
+                  previous = (Any*)call;
                 } else if (name == "") {
                   // One of the Index(es)
                   found = true;
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmarray_var:
-              case UHDM_OBJECT_TYPE::uhdmpacked_array_var: {
-                const typespec* tps = nullptr;
-                if (actual_type == UHDM_OBJECT_TYPE::uhdmpacked_array_var) {
-                  packed_array_var* avar = (packed_array_var*)actual;
-                  if (VectorOfany* vars = avar->Elements()) {
+              case UhdmType::ArrayVar:
+              case UhdmType::PackedArrayVar: {
+                const Typespec* tps = nullptr;
+                if (actual_type == UhdmType::PackedArrayVar) {
+                  PackedArrayVar* avar = (PackedArrayVar*)actual;
+                  if (AnyCollection* vars = avar->getElements()) {
                     if (!vars->empty()) {
                       actual = vars->front();
-                      actual_type = actual->UhdmType();
+                      actual_type = actual->getUhdmType();
                     }
                   }
-                  if (const ref_typespec* rt = avar->Typespec()) {
-                    tps = rt->Actual_typespec();
-                    if (const packed_array_typespec* ptps =
-                            rt->Actual_typespec<packed_array_typespec>()) {
-                      if (const ref_typespec* ert = ptps->Elem_typespec()) {
-                        tps = ert->Actual_typespec();
+                  if (const RefTypespec* rt = avar->getTypespec()) {
+                    tps = rt->getActualTypespec();
+                    if (const PackedArrayTypespec* ptps =
+                            rt->getActualTypespec<PackedArrayTypespec>()) {
+                      if (const RefTypespec* ert = ptps->getElemTypespec()) {
+                        tps = ert->getActualTypespec();
                       }
                     }
                   }
                 } else {
-                  array_var* avar = (array_var*)actual;
-                  if (VectorOfvariables* vars = avar->Variables()) {
+                  ArrayVar* avar = (ArrayVar*)actual;
+                  if (VariablesCollection* vars = avar->getVariables()) {
                     if (!vars->empty()) {
                       actual = vars->front();
-                      actual_type = actual->UhdmType();
+                      actual_type = actual->getUhdmType();
                     }
                   }
-                  if (const ref_typespec* rt = avar->Typespec()) {
-                    tps = rt->Actual_typespec();
-                    if (const array_typespec* atps =
-                            rt->Actual_typespec<array_typespec>()) {
-                      if (const ref_typespec* ert = atps->Elem_typespec()) {
-                        tps = ert->Actual_typespec();
+                  if (const RefTypespec* rt = avar->getTypespec()) {
+                    tps = rt->getActualTypespec();
+                    if (const ArrayTypespec* atps =
+                            rt->getActualTypespec<ArrayTypespec>()) {
+                      if (const RefTypespec* ert = atps->getElemTypespec()) {
+                        tps = ert->getActualTypespec();
                       }
                     }
                   }
                 }
                 if (name == "size" || name == "exists" || name == "find" ||
                     name == "max" || name == "min") {
-                  func_call* call = context->m_serializer->MakeFunc_call();
-                  call->VpiName(name);
-                  call->VpiParent(clone);
-                  if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                    cro->Actual_group(call);
+                  FuncCall* call = context->m_serializer->make<FuncCall>();
+                  call->setName(name);
+                  call->setParent(clone);
+                  if (RefObj* cro = any_cast<RefObj>(current)) {
+                    cro->setActual(call);
                   }
                   // Builtin method
                   found = true;
-                  previous = (any*)call;
+                  previous = (Any*)call;
                 }
                 if (found == false) {
                   if (tps) {
-                    UHDM_OBJECT_TYPE ttype = tps->UhdmType();
-                    if (ttype == UHDM_OBJECT_TYPE::uhdmpacked_array_typespec) {
-                      packed_array_typespec* ptps = (packed_array_typespec*)tps;
-                      tps = (typespec*)ptps->Elem_typespec();
-                      if (tps) ttype = tps->UhdmType();
-                    } else if (ttype == UHDM_OBJECT_TYPE::uhdmarray_typespec) {
-                      array_typespec* ptps = (array_typespec*)tps;
-                      tps = (typespec*)ptps->Elem_typespec();
-                      if (tps) ttype = tps->UhdmType();
+                    UhdmType ttype = tps->getUhdmType();
+                    if (ttype == UhdmType::PackedArrayTypespec) {
+                      PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
+                      tps = (Typespec*)ptps->getElemTypespec();
+                      if (tps) ttype = tps->getUhdmType();
+                    } else if (ttype == UhdmType::ArrayTypespec) {
+                      ArrayTypespec* ptps = (ArrayTypespec*)tps;
+                      tps = (Typespec*)ptps->getElemTypespec();
+                      if (tps) ttype = tps->getUhdmType();
                     }
-                    if (ttype == UHDM_OBJECT_TYPE::uhdmstring_typespec) {
+                    if (ttype == UhdmType::StringTypespec) {
                       found = true;
-                    } else if (ttype == UHDM_OBJECT_TYPE::uhdmclass_typespec) {
-                      class_typespec* ctps = (class_typespec*)tps;
-                      any* tmp = bindClassTypespec(ctps, current, name, found);
+                    } else if (ttype == UhdmType::ClassTypespec) {
+                      ClassTypespec* ctps = (ClassTypespec*)tps;
+                      Any* tmp = bindClassTypespec(ctps, current, name, found);
                       if (found) {
                         previous = tmp;
                       }
-                    } else if (ttype == UHDM_OBJECT_TYPE::uhdmstruct_typespec) {
-                      struct_typespec* stpt = (struct_typespec*)tps;
-                      for (typespec_member* member : *stpt->Members()) {
-                        if (member->VpiName() == name) {
-                          if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                            cro->Actual_group(member);
+                    } else if (ttype == UhdmType::StructTypespec) {
+                      StructTypespec* stpt = (StructTypespec*)tps;
+                      for (TypespecMember* member : *stpt->getMembers()) {
+                        if (member->getName() == name) {
+                          if (RefObj* cro = any_cast<RefObj>(current)) {
+                            cro->setActual(member);
                           }
                           previous = member;
                           found = true;
@@ -1178,17 +1135,17 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                         // Builtin introspection
                         found = true;
                       }
-                    } else if (ttype == UHDM_OBJECT_TYPE::uhdmenum_typespec) {
+                    } else if (ttype == UhdmType::EnumTypespec) {
                       if (name == "name") {
                         // Builtin introspection
                         found = true;
                       }
-                    } else if (ttype == UHDM_OBJECT_TYPE::uhdmunion_typespec) {
-                      union_typespec* stpt = (union_typespec*)tps;
-                      for (typespec_member* member : *stpt->Members()) {
-                        if (member->VpiName() == name) {
-                          if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                            cro->Actual_group(member);
+                    } else if (ttype == UhdmType::UnionTypespec) {
+                      UnionTypespec* stpt = (UnionTypespec*)tps;
+                      for (TypespecMember* member : *stpt->getMembers()) {
+                        if (member->getName() == name) {
+                          if (RefObj* cro = any_cast<RefObj>(current)) {
+                            cro->setActual(member);
                           }
                           previous = member;
                           found = true;
@@ -1204,24 +1161,24 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmpacked_array_net: {
-                packed_array_net* avar = (packed_array_net*)actual;
-                VectorOfany* vars = avar->Elements();
+              case UhdmType::PackedArrayNet: {
+                PackedArrayNet* avar = (PackedArrayNet*)actual;
+                AnyCollection* vars = avar->getElements();
                 if (vars && vars->size()) {
                   actual = vars->at(0);
-                  actual_type = actual->UhdmType();
+                  actual_type = actual->getUhdmType();
                 }
                 if (name == "size" || name == "exists" || name == "exists" ||
                     name == "max" || name == "min") {
-                  func_call* call = context->m_serializer->MakeFunc_call();
-                  call->VpiName(name);
-                  call->VpiParent(clone);
-                  if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                    cro->Actual_group(call);
+                  FuncCall* call = context->m_serializer->make<FuncCall>();
+                  call->setName(name);
+                  call->setParent(clone);
+                  if (RefObj* cro = any_cast<RefObj>(current)) {
+                    cro->setActual(call);
                   }
                   // Builtin method
                   found = true;
-                  previous = (any*)call;
+                  previous = (Any*)call;
                 }
                 break;
               }
@@ -1230,27 +1187,27 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
             }
 
             switch (actual_type) {
-              case UHDM_OBJECT_TYPE::uhdmclocking_block: {
-                clocking_block* block = (clocking_block*)actual;
-                if (block->Clocking_io_decls()) {
-                  for (clocking_io_decl* decl : *block->Clocking_io_decls()) {
-                    if (decl->VpiName() == name) {
+              case UhdmType::ClockingBlock: {
+                ClockingBlock* block = (ClockingBlock*)actual;
+                if (block->getClockingIODecls()) {
+                  for (ClockingIODecl* decl : *block->getClockingIODecls()) {
+                    if (decl->getName() == name) {
                       found = true;
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(decl);
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(decl);
                       }
                     }
                   }
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmmodule_inst: {
-                module_inst* mod = (module_inst*)actual;
-                if (!found && mod->Variables()) {
-                  for (variables* var : *mod->Variables()) {
-                    if (var->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(var);
+              case UhdmType::Module: {
+                Module* mod = (Module*)actual;
+                if (!found && mod->getVariables()) {
+                  for (Variables* var : *mod->getVariables()) {
+                    if (var->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(var);
                       }
                       previous = var;
                       found = true;
@@ -1258,11 +1215,11 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && mod->Nets()) {
-                  for (nets* n : *mod->Nets()) {
-                    if (n->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(n);
+                if (!found && mod->getNets()) {
+                  for (Nets* n : *mod->getNets()) {
+                    if (n->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(n);
                       }
                       previous = n;
                       found = true;
@@ -1270,32 +1227,32 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && mod->Modules()) {
-                  for (auto m : *mod->Modules()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                if (!found && mod->getModules()) {
+                  for (auto m : *mod->getModules()) {
+                    if (m->getName() == name || m->getName() == nameIndexed) {
                       found = true;
                       previous = m;
                       break;
                     }
                   }
                 }
-                if (!found && mod->Interfaces()) {
-                  for (auto m : *mod->Interfaces()) {
-                    if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+                if (!found && mod->getInterfaces()) {
+                  for (auto m : *mod->getInterfaces()) {
+                    if (m->getName() == name || m->getName() == nameIndexed) {
                       found = true;
                       previous = m;
                       break;
                     }
                   }
                 }
-                if (!found && mod->Gen_scope_arrays()) {
-                  for (auto gsa : *mod->Gen_scope_arrays()) {
-                    if (gsa->VpiName() == name ||
-                        gsa->VpiName() == nameIndexed) {
-                      if (!gsa->Gen_scopes()->empty()) {
-                        auto gs = gsa->Gen_scopes()->front();
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(gs);
+                if (!found && mod->getGenScopeArrays()) {
+                  for (auto gsa : *mod->getGenScopeArrays()) {
+                    if (gsa->getName() == name ||
+                        gsa->getName() == nameIndexed) {
+                      if (!gsa->getGenScopes()->empty()) {
+                        auto gs = gsa->getGenScopes()->front();
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(gs);
                         }
                         previous = gs;
                         found = true;
@@ -1303,24 +1260,24 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && mod->Task_funcs()) {
-                  for (auto tsf : *mod->Task_funcs()) {
-                    if (tsf->VpiName() == name ||
-                        tsf->VpiName() == nameIndexed) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(tsf);
+                if (!found && mod->getTaskFuncs()) {
+                  for (auto tsf : *mod->getTaskFuncs()) {
+                    if (tsf->getName() == name ||
+                        tsf->getName() == nameIndexed) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(tsf);
                       }
                       previous = tsf;
                       found = true;
                     }
                   }
                 }
-                if (!found && mod->Param_assigns()) {
-                  for (auto pa : *mod->Param_assigns()) {
-                    if (pa->Lhs()->VpiName() == name ||
-                        pa->Lhs()->VpiName() == nameIndexed) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(pa->Rhs());
+                if (!found && mod->getParamAssigns()) {
+                  for (auto pa : *mod->getParamAssigns()) {
+                    if (pa->getLhs()->getName() == name ||
+                        pa->getLhs()->getName() == nameIndexed) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(pa->getRhs());
                       }
                       previous = pa;
                       found = true;
@@ -1329,25 +1286,26 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmclass_var: {
-                const typespec* tps = nullptr;
-                if (const ref_typespec* rt = ((class_var*)actual)->Typespec()) {
-                  tps = rt->Actual_typespec();
+              case UhdmType::ClassVar: {
+                const Typespec* tps = nullptr;
+                if (const RefTypespec* rt =
+                        ((ClassVar*)actual)->getTypespec()) {
+                  tps = rt->getActualTypespec();
                 }
                 if (tps == nullptr) break;
-                UHDM_OBJECT_TYPE ttype = tps->UhdmType();
-                if (ttype == UHDM_OBJECT_TYPE::uhdmclass_typespec) {
-                  class_typespec* ctps = (class_typespec*)tps;
-                  any* tmp = bindClassTypespec(ctps, current, name, found);
+                UhdmType ttype = tps->getUhdmType();
+                if (ttype == UhdmType::ClassTypespec) {
+                  ClassTypespec* ctps = (ClassTypespec*)tps;
+                  Any* tmp = bindClassTypespec(ctps, current, name, found);
                   if (found) {
                     previous = tmp;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmstruct_typespec) {
-                  struct_typespec* stpt = (struct_typespec*)tps;
-                  for (typespec_member* member : *stpt->Members()) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                } else if (ttype == UhdmType::StructTypespec) {
+                  StructTypespec* stpt = (StructTypespec*)tps;
+                  for (TypespecMember* member : *stpt->getMembers()) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1355,39 +1313,37 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (current->UhdmType() ==
-                    UHDM_OBJECT_TYPE::uhdmmethod_func_call) {
+                if (current->getUhdmType() == UhdmType::MethodFuncCall) {
                   found = true;
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmstruct_net:
-              case UHDM_OBJECT_TYPE::uhdmstruct_var: {
-                VectorOftypespec_member* members = nullptr;
-                if (actual->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_net) {
-                  if (ref_typespec* rt = ((struct_net*)actual)->Typespec()) {
-                    if (struct_typespec* sts =
-                            rt->Actual_typespec<struct_typespec>()) {
-                      members = sts->Members();
-                    } else if (union_typespec* uts =
-                                   rt->Actual_typespec<union_typespec>()) {
-                      members = uts->Members();
+              case UhdmType::StructNet:
+              case UhdmType::StructVar: {
+                TypespecMemberCollection* members = nullptr;
+                if (actual->getUhdmType() == UhdmType::StructNet) {
+                  if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
+                    if (StructTypespec* sts =
+                            rt->getActualTypespec<StructTypespec>()) {
+                      members = sts->getMembers();
+                    } else if (UnionTypespec* uts =
+                                   rt->getActualTypespec<UnionTypespec>()) {
+                      members = uts->getMembers();
                     }
                   }
-                } else if (actual->UhdmType() ==
-                           UHDM_OBJECT_TYPE::uhdmstruct_var) {
-                  if (ref_typespec* rt = ((struct_var*)actual)->Typespec()) {
-                    if (struct_typespec* sts =
-                            rt->Actual_typespec<struct_typespec>()) {
-                      members = sts->Members();
+                } else if (actual->getUhdmType() == UhdmType::StructVar) {
+                  if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
+                    if (StructTypespec* sts =
+                            rt->getActualTypespec<StructTypespec>()) {
+                      members = sts->getMembers();
                     }
                   }
                 }
                 if (members) {
-                  for (typespec_member* member : *members) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                  for (TypespecMember* member : *members) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1397,16 +1353,16 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmunion_var: {
-                union_typespec* stpt = nullptr;
-                if (ref_typespec* rt = ((union_var*)actual)->Typespec()) {
-                  stpt = rt->Actual_typespec<union_typespec>();
+              case UhdmType::UnionVar: {
+                UnionTypespec* stpt = nullptr;
+                if (RefTypespec* rt = ((UnionVar*)actual)->getTypespec()) {
+                  stpt = rt->getActualTypespec<UnionTypespec>();
                 }
                 if (stpt == nullptr) break;
-                for (typespec_member* member : *stpt->Members()) {
-                  if (member->VpiName() == name) {
-                    if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                      cro->Actual_group(member);
+                for (TypespecMember* member : *stpt->getMembers()) {
+                  if (member->getName() == name) {
+                    if (RefObj* cro = any_cast<RefObj>(current)) {
+                      cro->setActual(member);
                     }
                     previous = member;
                     found = true;
@@ -1415,13 +1371,13 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdminterface_inst: {
-                interface_inst* interf = (interface_inst*)actual;
-                if (!found && interf->Variables()) {
-                  for (variables* var : *interf->Variables()) {
-                    if (var->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(var);
+              case UhdmType::Interface: {
+                Interface* interf = (Interface*)actual;
+                if (!found && interf->getVariables()) {
+                  for (Variables* var : *interf->getVariables()) {
+                    if (var->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(var);
                       }
                       previous = var;
                       found = true;
@@ -1429,11 +1385,11 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && interf->Parameters()) {
-                  for (any* var : *interf->Parameters()) {
-                    if (var->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(var);
+                if (!found && interf->getParameters()) {
+                  for (Any* var : *interf->getParameters()) {
+                    if (var->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(var);
                       }
                       previous = var;
                       found = true;
@@ -1441,41 +1397,40 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && interf->Task_funcs()) {
-                  for (auto tf : *interf->Task_funcs()) {
-                    if (tf->VpiName() == name) {
-                      previous = any_cast<function*>(tf);
+                if (!found && interf->getTaskFuncs()) {
+                  for (auto tf : *interf->getTaskFuncs()) {
+                    if (tf->getName() == name) {
+                      previous = any_cast<Function>(tf);
                       found = true;
                       break;
                     }
                   }
                 }
-                if (!found && interf->Modports()) {
-                  for (modport* mport : *interf->Modports()) {
-                    if (mport->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(mport);
+                if (!found && interf->getModports()) {
+                  for (Modport* mport : *interf->getModports()) {
+                    if (mport->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(mport);
                       }
                       previous = mport;
                       found = true;
                       break;
                     }
-                    if (mport->Io_decls()) {
-                      for (io_decl* decl : *mport->Io_decls()) {
-                        if (decl->VpiName() == name) {
-                          any* actual_decl = decl;
-                          if (any* exp = decl->Expr()) {
+                    if (mport->getIODecls()) {
+                      for (IODecl* decl : *mport->getIODecls()) {
+                        if (decl->getName() == name) {
+                          Any* actual_decl = decl;
+                          if (Any* exp = decl->getExpr()) {
                             actual_decl = exp;
                           }
-                          if (actual_decl->UhdmType() ==
-                              UHDM_OBJECT_TYPE::uhdmref_obj) {
-                            ref_obj* ref = (ref_obj*)actual_decl;
-                            if (const any* act = ref->Actual_group()) {
-                              actual_decl = (any*)act;
+                          if (actual_decl->getUhdmType() == UhdmType::RefObj) {
+                            RefObj* ref = (RefObj*)actual_decl;
+                            if (const Any* act = ref->getActual()) {
+                              actual_decl = (Any*)act;
                             }
                           }
-                          if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                            cro->Actual_group(actual_decl);
+                          if (RefObj* cro = any_cast<RefObj>(current)) {
+                            cro->setActual(actual_decl);
                           }
                           previous = actual_decl;
                           found = true;
@@ -1486,11 +1441,11 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     if (found) break;
                   }
                 }
-                if (!found && interf->Nets()) {
-                  for (nets* n : *interf->Nets()) {
-                    if (n->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(n);
+                if (!found && interf->getNets()) {
+                  for (Nets* n : *interf->getNets()) {
+                    if (n->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(n);
                       }
                       previous = n;
                       found = true;
@@ -1498,14 +1453,14 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && interf->Ports()) {
-                  for (port* p : *interf->Ports()) {
-                    if (p->VpiName() == name) {
-                      if (any* ref = p->Low_conn()) {
-                        if (ref_obj* nref = any_cast<ref_obj*>(ref)) {
-                          any* n = nref->Actual_group();
-                          if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                            cro->Actual_group(n);
+                if (!found && interf->getPorts()) {
+                  for (Port* p : *interf->getPorts()) {
+                    if (p->getName() == name) {
+                      if (Any* ref = p->getLowConn()) {
+                        if (RefObj* nref = any_cast<RefObj>(ref)) {
+                          Any* n = nref->getActual();
+                          if (RefObj* cro = any_cast<RefObj>(current)) {
+                            cro->setActual(n);
                           }
                           previous = n;
                           found = true;
@@ -1515,14 +1470,14 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                   }
                 }
-                if (!found && interf->Gen_scope_arrays()) {
-                  for (auto gsa : *interf->Gen_scope_arrays()) {
-                    if (gsa->VpiName() == name ||
-                        gsa->VpiName() == nameIndexed) {
-                      if (!gsa->Gen_scopes()->empty()) {
-                        auto gs = gsa->Gen_scopes()->front();
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(gs);
+                if (!found && interf->getGenScopeArrays()) {
+                  for (auto gsa : *interf->getGenScopeArrays()) {
+                    if (gsa->getName() == name ||
+                        gsa->getName() == nameIndexed) {
+                      if (!gsa->getGenScopes()->empty()) {
+                        auto gs = gsa->getGenScopes()->front();
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(gs);
                         }
                         previous = gs;
                         found = true;
@@ -1532,54 +1487,50 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmarray_var: {
-                if (current->UhdmType() ==
-                    UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+              case UhdmType::ArrayVar: {
+                if (current->getUhdmType() == UhdmType::MethodFuncCall)
                   found = true;
-                else if (current->UhdmType() ==
-                         UHDM_OBJECT_TYPE::uhdmbit_select)
+                else if (current->getUhdmType() == UhdmType::BitSelect)
                   found = true;
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmstring_var: {
-                if (current->UhdmType() ==
-                    UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+              case UhdmType::StringVar: {
+                if (current->getUhdmType() == UhdmType::MethodFuncCall)
                   found = true;
-                else if (current->UhdmType() ==
-                         UHDM_OBJECT_TYPE::uhdmbit_select)
+                else if (current->getUhdmType() == UhdmType::BitSelect)
                   found = true;
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmclass_typespec: {
-                class_typespec* ctps = (class_typespec*)actual;
-                any* tmp = bindClassTypespec(ctps, current, name, found);
+              case UhdmType::ClassTypespec: {
+                ClassTypespec* ctps = (ClassTypespec*)actual;
+                Any* tmp = bindClassTypespec(ctps, current, name, found);
                 if (found) {
                   previous = tmp;
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmio_decl: {
-                io_decl* decl = (io_decl*)actual;
-                typespec* tps = nullptr;
-                if (ref_typespec* rt = decl->Typespec()) {
-                  tps = rt->Actual_typespec();
+              case UhdmType::IODecl: {
+                IODecl* decl = (IODecl*)actual;
+                Typespec* tps = nullptr;
+                if (RefTypespec* rt = decl->getTypespec()) {
+                  tps = rt->getActualTypespec();
                 }
                 if (tps == nullptr) break;
-                UHDM_OBJECT_TYPE ttype = tps->UhdmType();
-                if (ttype == UHDM_OBJECT_TYPE::uhdmstring_typespec) {
+                UhdmType ttype = tps->getUhdmType();
+                if (ttype == UhdmType::StringTypespec) {
                   found = true;
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmclass_typespec) {
-                  class_typespec* ctps = (class_typespec*)tps;
-                  any* tmp = bindClassTypespec(ctps, current, name, found);
+                } else if (ttype == UhdmType::ClassTypespec) {
+                  ClassTypespec* ctps = (ClassTypespec*)tps;
+                  Any* tmp = bindClassTypespec(ctps, current, name, found);
                   if (found) {
                     previous = tmp;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmstruct_typespec) {
-                  struct_typespec* stpt = (struct_typespec*)tps;
-                  for (typespec_member* member : *stpt->Members()) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                } else if (ttype == UhdmType::StructTypespec) {
+                  StructTypespec* stpt = (StructTypespec*)tps;
+                  for (TypespecMember* member : *stpt->getMembers()) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1590,17 +1541,17 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     // Builtin introspection
                     found = true;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmenum_typespec) {
+                } else if (ttype == UhdmType::EnumTypespec) {
                   if (name == "name") {
                     // Builtin introspection
                     found = true;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmunion_typespec) {
-                  union_typespec* stpt = (union_typespec*)tps;
-                  for (typespec_member* member : *stpt->Members()) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                } else if (ttype == UhdmType::UnionTypespec) {
+                  UnionTypespec* stpt = (UnionTypespec*)tps;
+                  for (TypespecMember* member : *stpt->getMembers()) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1612,59 +1563,56 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     found = true;
                   }
                 }
-                if (decl->Ranges()) {
-                  if (current->UhdmType() ==
-                      UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+                if (decl->getRanges()) {
+                  if (current->getUhdmType() == UhdmType::MethodFuncCall)
                     found = true;
-                  else if (current->UhdmType() ==
-                           UHDM_OBJECT_TYPE::uhdmbit_select)
+                  else if (current->getUhdmType() == UhdmType::BitSelect)
                     found = true;
                 }
                 // TODO: class method support
-                if (current->UhdmType() ==
-                    UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+                if (current->getUhdmType() == UhdmType::MethodFuncCall)
                   found = true;
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmparameter: {
-                parameter* param = (parameter*)actual;
-                const typespec* tps = nullptr;
-                if (const ref_typespec* rt = param->Typespec()) {
-                  tps = rt->Actual_typespec();
+              case UhdmType::Parameter: {
+                Parameter* param = (Parameter*)actual;
+                const Typespec* tps = nullptr;
+                if (const RefTypespec* rt = param->getTypespec()) {
+                  tps = rt->getActualTypespec();
                 }
                 if (tps == nullptr) break;
-                UHDM_OBJECT_TYPE ttype = tps->UhdmType();
-                if (ttype == UHDM_OBJECT_TYPE::uhdmpacked_array_typespec) {
-                  packed_array_typespec* ptps = (packed_array_typespec*)tps;
-                  if (const ref_typespec* ert = ptps->Elem_typespec()) {
-                    if (const typespec* ets = ert->Actual_typespec()) {
+                UhdmType ttype = tps->getUhdmType();
+                if (ttype == UhdmType::PackedArrayTypespec) {
+                  PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
+                  if (const RefTypespec* ert = ptps->getElemTypespec()) {
+                    if (const Typespec* ets = ert->getActualTypespec()) {
                       tps = ets;
-                      ttype = ets->UhdmType();
+                      ttype = ets->getUhdmType();
                     }
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmarray_typespec) {
-                  array_typespec* ptps = (array_typespec*)tps;
-                  if (const ref_typespec* ert = ptps->Elem_typespec()) {
-                    if (const typespec* ets = ert->Actual_typespec()) {
+                } else if (ttype == UhdmType::ArrayTypespec) {
+                  ArrayTypespec* ptps = (ArrayTypespec*)tps;
+                  if (const RefTypespec* ert = ptps->getElemTypespec()) {
+                    if (const Typespec* ets = ert->getActualTypespec()) {
                       tps = ets;
-                      ttype = ets->UhdmType();
+                      ttype = ets->getUhdmType();
                     }
                   }
                 }
-                if (ttype == UHDM_OBJECT_TYPE::uhdmstring_typespec) {
+                if (ttype == UhdmType::StringTypespec) {
                   found = true;
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmclass_typespec) {
-                  class_typespec* ctps = (class_typespec*)tps;
-                  any* tmp = bindClassTypespec(ctps, current, name, found);
+                } else if (ttype == UhdmType::ClassTypespec) {
+                  ClassTypespec* ctps = (ClassTypespec*)tps;
+                  Any* tmp = bindClassTypespec(ctps, current, name, found);
                   if (found) {
                     previous = tmp;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmstruct_typespec) {
-                  struct_typespec* stpt = (struct_typespec*)tps;
-                  for (typespec_member* member : *stpt->Members()) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                } else if (ttype == UhdmType::StructTypespec) {
+                  StructTypespec* stpt = (StructTypespec*)tps;
+                  for (TypespecMember* member : *stpt->getMembers()) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1675,17 +1623,17 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     // Builtin introspection
                     found = true;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmenum_typespec) {
+                } else if (ttype == UhdmType::EnumTypespec) {
                   if (name == "name") {
                     // Builtin introspection
                     found = true;
                   }
-                } else if (ttype == UHDM_OBJECT_TYPE::uhdmunion_typespec) {
-                  union_typespec* stpt = (union_typespec*)tps;
-                  for (typespec_member* member : *stpt->Members()) {
-                    if (member->VpiName() == name) {
-                      if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                        cro->Actual_group(member);
+                } else if (ttype == UhdmType::UnionTypespec) {
+                  UnionTypespec* stpt = (UnionTypespec*)tps;
+                  for (TypespecMember* member : *stpt->getMembers()) {
+                    if (member->getName() == name) {
+                      if (RefObj* cro = any_cast<RefObj>(current)) {
+                        cro->setActual(member);
                       }
                       previous = member;
                       found = true;
@@ -1697,48 +1645,45 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     found = true;
                   }
                 }
-                if (param->Ranges()) {
-                  if (current->UhdmType() ==
-                      UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+                if (param->getRanges()) {
+                  if (current->getUhdmType() == UhdmType::MethodFuncCall)
                     found = true;
-                  else if (current->UhdmType() ==
-                           UHDM_OBJECT_TYPE::uhdmbit_select)
+                  else if (current->getUhdmType() == UhdmType::BitSelect)
                     found = true;
                 }
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmoperation: {
-                operation* op = (operation*)actual;
-                if (op->VpiOpType() != vpiAssignmentPatternOp) {
+              case UhdmType::Operation: {
+                Operation* op = (Operation*)actual;
+                if (op->getOpType() != vpiAssignmentPatternOp) {
                   break;
                 }
-                const struct_typespec* stps = nullptr;
-                if (const ref_typespec* rt = op->Typespec()) {
-                  stps = rt->Actual_typespec<struct_typespec>();
+                const StructTypespec* stps = nullptr;
+                if (const RefTypespec* rt = op->getTypespec()) {
+                  stps = rt->getActualTypespec<StructTypespec>();
                 }
                 if (stps == nullptr) break;
                 std::vector<std::string_view> fieldNames;
-                std::vector<const typespec*> fieldTypes;
-                for (typespec_member* memb : *stps->Members()) {
-                  if (const ref_typespec* rt = memb->Typespec()) {
-                    fieldNames.emplace_back(memb->VpiName());
-                    fieldTypes.emplace_back(rt->Actual_typespec());
+                std::vector<const Typespec*> fieldTypes;
+                for (TypespecMember* memb : *stps->getMembers()) {
+                  if (const RefTypespec* rt = memb->getTypespec()) {
+                    fieldNames.emplace_back(memb->getName());
+                    fieldTypes.emplace_back(rt->getActualTypespec());
                   }
                 }
-                std::vector<any*> tmp(fieldNames.size());
-                VectorOfany* orig = op->Operands();
-                any* defaultOp = nullptr;
-                any* res = nullptr;
+                std::vector<Any*> tmp(fieldNames.size());
+                AnyCollection* orig = op->getOperands();
+                Any* defaultOp = nullptr;
+                Any* res = nullptr;
                 int32_t index = 0;
                 for (auto oper : *orig) {
-                  if (oper->UhdmType() ==
-                      UHDM_OBJECT_TYPE::uhdmtagged_pattern) {
-                    tagged_pattern* tp = (tagged_pattern*)oper;
-                    const typespec* ttp = nullptr;
-                    if (const ref_typespec* rt = tp->Typespec()) {
-                      ttp = rt->Actual_typespec();
+                  if (oper->getUhdmType() == UhdmType::TaggedPattern) {
+                    TaggedPattern* tp = (TaggedPattern*)oper;
+                    const Typespec* ttp = nullptr;
+                    if (const RefTypespec* rt = tp->getTypespec()) {
+                      ttp = rt->getActualTypespec();
                     }
-                    const std::string_view tname = ttp->VpiName();
+                    const std::string_view tname = ttp->getName();
                     bool oper_found = false;
                     if (tname == "default") {
                       defaultOp = oper;
@@ -1754,7 +1699,8 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                     }
                     if (oper_found == false) {
                       for (uint32_t i = 0; i < fieldTypes.size(); i++) {
-                        if (ttp->UhdmType() == fieldTypes[i]->UhdmType()) {
+                        if (ttp->getUhdmType() ==
+                            fieldTypes[i]->getUhdmType()) {
                           tmp[i] = oper;
                           oper_found = true;
                           res = tmp[i];
@@ -1779,23 +1725,22 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
                 previous = res;
                 break;
               }
-              case UHDM_OBJECT_TYPE::uhdmref_var: {
+              case UhdmType::RefVar: {
                 found = true;
                 // TODO: class var support
                 break;
               }
               default:
                 // TODO: class method support
-                if (current->UhdmType() ==
-                    UHDM_OBJECT_TYPE::uhdmmethod_func_call)
+                if (current->getUhdmType() == UhdmType::MethodFuncCall)
                   found = true;
                 break;
             }
             if (!found) {
               if ((!elaboratorContext->m_elaborator.muteErrors()) &&
                   (!elaboratorContext->m_elaborator.isInUhdmAllIterator())) {
-                const std::string errMsg(VpiName());
-                context->m_serializer->GetErrorHandler()(
+                const std::string errMsg(getName());
+                context->m_serializer->getErrorHandler()(
                     ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, this,
                     nullptr);
               }
@@ -1803,99 +1748,97 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
           } else {
             if ((!elaboratorContext->m_elaborator.muteErrors()) &&
                 (!elaboratorContext->m_elaborator.isInUhdmAllIterator())) {
-              if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_select) {
+              if (previous->getUhdmType() == UhdmType::BitSelect) {
                 break;
               }
-              const std::string errMsg(VpiName());
-              context->m_serializer->GetErrorHandler()(
+              const std::string errMsg(getName());
+              context->m_serializer->getErrorHandler()(
                   ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, this, nullptr);
             }
           }
-        } else if (previous->UhdmType() ==
-                   UHDM_OBJECT_TYPE::uhdmtypespec_member) {
-          typespec_member* member = (typespec_member*)previous;
-          const typespec* tps = nullptr;
-          if (const ref_typespec* rt = member->Typespec()) {
-            tps = rt->Actual_typespec();
+        } else if (previous->getUhdmType() == UhdmType::TypespecMember) {
+          TypespecMember* member = (TypespecMember*)previous;
+          const Typespec* tps = nullptr;
+          if (const RefTypespec* rt = member->getTypespec()) {
+            tps = rt->getActualTypespec();
           }
           if (tps == nullptr) break;
-          UHDM_OBJECT_TYPE ttype = tps->UhdmType();
-          if (ttype == UHDM_OBJECT_TYPE::uhdmpacked_array_typespec) {
-            packed_array_typespec* ptps = (packed_array_typespec*)tps;
-            if (const ref_typespec* rt = ptps->Elem_typespec()) {
-              tps = rt->Actual_typespec();
-              ttype = tps->UhdmType();
+          UhdmType ttype = tps->getUhdmType();
+          if (ttype == UhdmType::PackedArrayTypespec) {
+            PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
+            if (const RefTypespec* rt = ptps->getElemTypespec()) {
+              tps = rt->getActualTypespec();
+              ttype = tps->getUhdmType();
             }
-          } else if (ttype == UHDM_OBJECT_TYPE::uhdmarray_typespec) {
-            array_typespec* ptps = (array_typespec*)tps;
-            if (const ref_typespec* rt = ptps->Elem_typespec()) {
-              tps = rt->Actual_typespec();
-              ttype = tps->UhdmType();
+          } else if (ttype == UhdmType::ArrayTypespec) {
+            ArrayTypespec* ptps = (ArrayTypespec*)tps;
+            if (const RefTypespec* rt = ptps->getElemTypespec()) {
+              tps = rt->getActualTypespec();
+              ttype = tps->getUhdmType();
             }
           }
-          if (ttype == UHDM_OBJECT_TYPE::uhdmstruct_typespec) {
-            struct_typespec* stpt = (struct_typespec*)tps;
-            for (typespec_member* tsmember : *stpt->Members()) {
-              if (tsmember->VpiName() == name) {
-                if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                  cro->Actual_group(tsmember);
+          if (ttype == UhdmType::StructTypespec) {
+            StructTypespec* stpt = (StructTypespec*)tps;
+            for (TypespecMember* tsmember : *stpt->getMembers()) {
+              if (tsmember->getName() == name) {
+                if (RefObj* cro = any_cast<RefObj>(current)) {
+                  cro->setActual(tsmember);
                   previous = tsmember;
                   found = true;
                   break;
                 }
               }
             }
-          } else if (ttype == UHDM_OBJECT_TYPE::uhdmunion_typespec) {
-            union_typespec* stpt = (union_typespec*)tps;
-            for (typespec_member* tsmember : *stpt->Members()) {
-              if (tsmember->VpiName() == name) {
-                if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                  cro->Actual_group(tsmember);
+          } else if (ttype == UhdmType::UnionTypespec) {
+            UnionTypespec* stpt = (UnionTypespec*)tps;
+            for (TypespecMember* tsmember : *stpt->getMembers()) {
+              if (tsmember->getName() == name) {
+                if (RefObj* cro = any_cast<RefObj>(current)) {
+                  cro->setActual(tsmember);
                   previous = tsmember;
                   found = true;
                   break;
                 }
               }
             }
-          } else if (ttype == UHDM_OBJECT_TYPE::uhdmstring_typespec) {
+          } else if (ttype == UhdmType::StringTypespec) {
             if (name == "len") {
               found = true;
             }
           }
-        } else if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmarray_var) {
-          array_var* avar = (array_var*)previous;
-          if (VectorOfvariables* vars = avar->Variables()) {
+        } else if (previous->getUhdmType() == UhdmType::ArrayVar) {
+          ArrayVar* avar = (ArrayVar*)previous;
+          if (VariablesCollection* vars = avar->getVariables()) {
             if (!vars->empty()) {
-              variables* actual = vars->front();
-              UHDM_OBJECT_TYPE actual_type = actual->UhdmType();
+              Variables* actual = vars->front();
+              UhdmType actual_type = actual->getUhdmType();
               switch (actual_type) {
-                case UHDM_OBJECT_TYPE::uhdmstruct_net:
-                case UHDM_OBJECT_TYPE::uhdmstruct_var: {
-                  VectorOftypespec_member* members = nullptr;
-                  if (actual->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_net) {
-                    if (ref_typespec* rt = ((struct_net*)actual)->Typespec()) {
-                      if (struct_typespec* sts =
-                              rt->Actual_typespec<struct_typespec>()) {
-                        members = sts->Members();
-                      } else if (union_typespec* uts =
-                                     rt->Actual_typespec<union_typespec>()) {
-                        members = uts->Members();
+                case UhdmType::StructNet:
+                case UhdmType::StructVar: {
+                  TypespecMemberCollection* members = nullptr;
+                  if (actual->getUhdmType() == UhdmType::StructNet) {
+                    if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
+                      if (StructTypespec* sts =
+                              rt->getActualTypespec<StructTypespec>()) {
+                        members = sts->getMembers();
+                      } else if (UnionTypespec* uts =
+                                     rt->getActualTypespec<UnionTypespec>()) {
+                        members = uts->getMembers();
                       }
                     }
-                  } else if (actual->UhdmType() ==
-                             UHDM_OBJECT_TYPE::uhdmstruct_var) {
-                    if (ref_typespec* rt = ((struct_var*)actual)->Typespec()) {
-                      if (struct_typespec* sts =
-                              rt->Actual_typespec<struct_typespec>()) {
-                        members = sts->Members();
+                  } else if (actual->getUhdmType() == UhdmType::StructVar) {
+                    if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
+                      if (StructTypespec* sts =
+                              rt->getActualTypespec<StructTypespec>()) {
+                        members = sts->getMembers();
                       }
                     }
                   }
                   if (members) {
-                    for (typespec_member* member : *members) {
-                      if (member->VpiName() == name) {
-                        if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                          cro->Actual_group(member);
+                    for (TypespecMember* member : *members) {
+                      if (member->getName() == name) {
+                        if (RefObj* cro = any_cast<RefObj>(current)) {
+                          cro->setActual(member);
                         }
                         previous = member;
                         found = true;
@@ -1910,32 +1853,32 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
               }
             }
           }
-        } else if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_var ||
-                   previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_net) {
-          VectorOftypespec_member* members = nullptr;
-          if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_net) {
-            if (ref_typespec* rt = ((struct_net*)previous)->Typespec()) {
-              if (struct_typespec* sts =
-                      rt->Actual_typespec<struct_typespec>()) {
-                members = sts->Members();
-              } else if (union_typespec* uts =
-                             rt->Actual_typespec<union_typespec>()) {
-                members = uts->Members();
+        } else if (previous->getUhdmType() == UhdmType::StructVar ||
+                   previous->getUhdmType() == UhdmType::StructNet) {
+          TypespecMemberCollection* members = nullptr;
+          if (previous->getUhdmType() == UhdmType::StructNet) {
+            if (RefTypespec* rt = ((StructNet*)previous)->getTypespec()) {
+              if (StructTypespec* sts =
+                      rt->getActualTypespec<StructTypespec>()) {
+                members = sts->getMembers();
+              } else if (UnionTypespec* uts =
+                             rt->getActualTypespec<UnionTypespec>()) {
+                members = uts->getMembers();
               }
             }
-          } else if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmstruct_var) {
-            if (ref_typespec* rt = ((struct_var*)previous)->Typespec()) {
-              if (struct_typespec* sts =
-                      rt->Actual_typespec<struct_typespec>()) {
-                members = sts->Members();
+          } else if (previous->getUhdmType() == UhdmType::StructVar) {
+            if (RefTypespec* rt = ((StructVar*)previous)->getTypespec()) {
+              if (StructTypespec* sts =
+                      rt->getActualTypespec<StructTypespec>()) {
+                members = sts->getMembers();
               }
             }
           }
           if (members) {
-            for (typespec_member* member : *members) {
-              if (member->VpiName() == name) {
-                if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                  cro->Actual_group(member);
+            for (TypespecMember* member : *members) {
+              if (member->getName() == name) {
+                if (RefObj* cro = any_cast<RefObj>(current)) {
+                  cro->setActual(member);
                 }
                 previous = member;
                 found = true;
@@ -1943,13 +1886,13 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
               }
             }
           }
-        } else if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmmodule_inst) {
-          module_inst* mod = (module_inst*)previous;
-          if (mod->Variables()) {
-            for (variables* var : *mod->Variables()) {
-              if (var->VpiName() == name) {
-                if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                  cro->Actual_group(var);
+        } else if (previous->getUhdmType() == UhdmType::Module) {
+          Module* mod = (Module*)previous;
+          if (mod->getVariables()) {
+            for (Variables* var : *mod->getVariables()) {
+              if (var->getName() == name) {
+                if (RefObj* cro = any_cast<RefObj>(current)) {
+                  cro->setActual(var);
                 }
                 previous = var;
                 found = true;
@@ -1958,11 +1901,11 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
             }
           }
 
-          if (!found && mod->Nets()) {
-            for (nets* n : *mod->Nets()) {
-              if (n->VpiName() == name) {
-                if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                  cro->Actual_group(n);
+          if (!found && mod->getNets()) {
+            for (Nets* n : *mod->getNets()) {
+              if (n->getName() == name) {
+                if (RefObj* cro = any_cast<RefObj>(current)) {
+                  cro->setActual(n);
                 }
                 previous = n;
                 found = true;
@@ -1970,9 +1913,9 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
               }
             }
           }
-          if (!found && mod->Modules()) {
-            for (auto m : *mod->Modules()) {
-              if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+          if (!found && mod->getModules()) {
+            for (auto m : *mod->getModules()) {
+              if (m->getName() == name || m->getName() == nameIndexed) {
                 found = true;
                 previous = m;
                 break;
@@ -1980,41 +1923,40 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
             }
           }
           break;
-        } else if (previous->UhdmType() == UHDM_OBJECT_TYPE::uhdmgen_scope) {
-          gen_scope* scope = (gen_scope*)previous;
-          if (obj->UhdmType() == UHDM_OBJECT_TYPE::uhdmmethod_func_call) {
-            method_func_call* call = (method_func_call*)current;
-            if (scope->Task_funcs()) {
-              for (auto tf : *scope->Task_funcs()) {
-                if (tf->VpiName() == name) {
-                  call->Function(any_cast<function*>(tf));
-                  previous = (any*)call->Function();
+        } else if (previous->getUhdmType() == UhdmType::GenScope) {
+          GenScope* scope = (GenScope*)previous;
+          if (obj->getUhdmType() == UhdmType::MethodFuncCall) {
+            MethodFuncCall* call = (MethodFuncCall*)current;
+            if (scope->getTaskFuncs()) {
+              for (auto tf : *scope->getTaskFuncs()) {
+                if (tf->getName() == name) {
+                  call->setFunction(any_cast<Function>(tf));
+                  previous = (Any*)call->getFunction();
                   found = true;
                   break;
                 }
               }
             }
-          } else if (obj->UhdmType() ==
-                     UHDM_OBJECT_TYPE::uhdmmethod_task_call) {
-            method_task_call* call = (method_task_call*)current;
-            if (scope->Task_funcs()) {
-              for (auto tf : *scope->Task_funcs()) {
-                if (tf->VpiName() == name) {
-                  call->Task(any_cast<task*>(tf));
+          } else if (obj->getUhdmType() == UhdmType::MethodTaskCall) {
+            MethodTaskCall* call = (MethodTaskCall*)current;
+            if (scope->getTaskFuncs()) {
+              for (auto tf : *scope->getTaskFuncs()) {
+                if (tf->getName() == name) {
+                  call->setTask(any_cast<Task>(tf));
                   found = true;
-                  previous = (any*)call->Task();
+                  previous = (Any*)call->getTask();
                   break;
                 }
               }
             }
           } else {
-            if (scope->Modules()) {
-              for (auto m : *scope->Modules()) {
-                if (m->VpiName() == name || m->VpiName() == nameIndexed) {
+            if (scope->getModules()) {
+              for (auto m : *scope->getModules()) {
+                if (m->getName() == name || m->getName() == nameIndexed) {
                   found = true;
                   previous = m;
-                  if (ref_obj* cro = any_cast<ref_obj*>(current)) {
-                    cro->Actual_group(m);
+                  if (RefObj* cro = any_cast<RefObj>(current)) {
+                    cro->setActual(m);
                   }
                   break;
                 }
@@ -2026,14 +1968,14 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
       if (!found) previous = current;
     }
   }
-  if (auto vec = VpiUses()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->VpiUses(clone_vec);
+  if (auto vec = getUses()) {
+    auto clone_vec = clone->getUses(true);
     for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
+      clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
+  if (auto obj = getTypespec())
+    clone->setTypespec(obj->deepClone(clone, context));
   return clone;
 }
-}  // namespace UHDM
+}  // namespace uhdm

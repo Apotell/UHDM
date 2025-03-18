@@ -28,9 +28,10 @@
 
 #include <vector>
 #include <uhdm/uhdm_forward_decl.h>
+#include <uhdm/SymbolId.h>
 
-namespace UHDM {
+namespace uhdm {
 <CONTAINERS>
-};
+} // namespace uhdm
 
-#endif
+#endif  // UHDM_CONTAINERS_H

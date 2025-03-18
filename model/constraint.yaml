@@ -13,51 +13,41 @@
 # limitations under the License.
 
 # Universal Hardware Data Model (UHDM) "constraint" formal description
- 
+
 - obj_def: constraint
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: full_name
-    name: full name
-    vpi: vpiFullName
-    type: string
-    card: 1
-  - property: virtual
-    name: virtual
-    vpi: vpiVirtual
-    type: bool
-    card: 1
-  - property: declared_lifetime
-    name: declared lifetime
-    vpi: vpiAutomatic
-    type: bool
-    card: 1
-  - property: memory_allocation
-    name: memory allocation
-    vpi: vpiAllocScheme
-    type: int32_t
-    card: 1
-  - property: access
-    name: access
-    vpi: vpiAccessType
-    type: int32_t
-    card: 1
-  - obj_ref: attributes
-    name: attributes
-    vpi: vpiAttribute
-    type: attribute
-    card: any
-  - property: active
-    name: active
-    vpi: vpiIsConstraintEnabled
-    type: bool
-    card: 1
-  - group_ref: constraint_item
-    name: constraint item
-    vpi: vpiConstraintItem
-    type: constraint_item_group
-    card: any
- 
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: full_name
+  vpi: vpiFullName
+  type: string
+  card: 1
+- property: virtual
+  vpi: vpiVirtual
+  type: bool
+  card: 1
+- property: automatic
+  vpi: vpiAutomatic
+  type: bool
+  card: 1
+- property: alloc_scheme
+  vpi: vpiAllocScheme
+  type: int32_t
+  card: 1
+- property: access_type
+  vpi: vpiAccessType
+  type: int32_t
+  card: 1
+- obj_ref: attribute
+  vpi: vpiAttribute
+  type: attribute
+  card: any
+- property: is_constraint_enabled
+  vpi: vpiIsConstraintEnabled
+  type: bool
+  card: 1
+- group_ref: constraint_item
+  vpi: vpiConstraintItem
+  type: constraint_item_group
+  card: any
