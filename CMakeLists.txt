@@ -158,6 +158,7 @@ set(uhdm_SRC
     ${PROJECT_SOURCE_DIR}/src/clone_tree.cpp
     ${PROJECT_SOURCE_DIR}/src/ExprEval.cpp
     ${PROJECT_SOURCE_DIR}/src/NumUtils.cpp
+    ${PROJECT_SOURCE_DIR}/src/Reducer.cpp
     ${PROJECT_SOURCE_DIR}/src/SymbolFactory.cpp
     ${PROJECT_SOURCE_DIR}/src/SymbolId.cpp
     ${PROJECT_SOURCE_DIR}/src/SynthSubset.cpp
@@ -344,6 +345,9 @@ target_link_libraries(uhdm-hier PRIVATE uhdm)
 add_executable(uhdm-lint ${PROJECT_SOURCE_DIR}/util/uhdm-lint.cpp)
 target_link_libraries(uhdm-lint PRIVATE uhdm)
 
+add_executable(uhdm-reduce ${PROJECT_SOURCE_DIR}/util/uhdm-reduce.cpp)
+target_link_libraries(uhdm-reduce PRIVATE uhdm)
+
 # Installation tester
 # TODO: once we have a cmake package (find_package(uhdm)), this installation
 # tester should use that.
@@ -383,7 +387,7 @@ endif()
 
 # Installation target
 install(
-  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-hier uhdm-lint
+  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-hier uhdm-lint uhdm-reduce
   EXPORT uhdmTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -85,6 +85,7 @@ void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
 class Factory final {
   friend Serializer;
 
+ public:
   using objects_t = std::vector<Any*>;
   using collections_t = std::vector<objects_t*>;
 
@@ -179,6 +180,11 @@ class Serializer final {
   ErrorHandler getErrorHandler() { return m_errorHandler; }
 
   IdMap getAllObjects() const;
+
+  template<typename T>
+  Factory *getFactory() {
+    return m_factories[T::kUhdmType];
+  }
 #endif
 
   const std::vector<vpiHandle> restore(const std::filesystem::path& filepath);
