@@ -34,6 +34,7 @@
 #endif
 
 #include <uhdm/ElaboratorListener.h>
+#include <uhdm/UhdmVisitor.h>
 #include <uhdm/VpiListener.h>
 #include <uhdm/uhdm-version.h>
 #include <uhdm/uhdm.h>
@@ -145,8 +146,20 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   std::cout << uhdmFile << ": Restored design Pre-Elab: " << std::endl;
-  vpi_show_ids(true);
-  visit_designs(restoredDesigns, std::cout);
+  // vpi_show_ids(true);
+  // visit_designs(restoredDesigns, std::cout);
+
+  if (UhdmVisitor *const visitor = new UhdmVisitor(std::cout)) {
+    visitor->showIds(true);
+
+    for (vpiHandle h : restoredDesigns) {
+      const uhdm_handle *const handle = (const uhdm_handle *)h;
+      const BaseClass *const object = (const BaseClass *)handle->object;
+      visitor->visit(object);
+    }
+
+    delete visitor;
+  }
 
   if (!goldenFile.empty()) {
     std::stringstream restored;
@@ -167,4 +180,4 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   return 0;
-};
+}

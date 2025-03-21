@@ -73,7 +73,7 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   ClassTypespec* tps = s->make<ClassTypespec>();
   RefTypespec* rt = s->make<RefTypespec>();
   tps->setParent(child);
-  rt->setActualTypespec(tps);
+  rt->setActual(tps);
   rt->setParent(extends);
   extends->setParent(child);
   extends->setClassTypespec(rt);

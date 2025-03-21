@@ -41,7 +41,7 @@ std::vector<vpiHandle> build_designs_MinusOp(Serializer* s) {
     typespecs->emplace_back(tps);
 
     RefTypespec* tps_rt = s->make<RefTypespec>();
-    tps_rt->setActualTypespec(tps);
+    tps_rt->setActual(tps);
     tps_rt->setParent(p);
     p->setTypespec(tps_rt);
 
@@ -117,7 +117,7 @@ TEST(exprVal, prettyPrint_MinusOp) {
   for (auto m : *d->getTopModules()) {
     for (auto p : *m->getPorts()) {
       const RefTypespec* rt = p->getTypespec();
-      const LogicTypespec* typespec = rt->getActualTypespec<LogicTypespec>();
+      const LogicTypespec* typespec = rt->getActual<LogicTypespec>();
       RangeCollection* ranges = typespec->getRanges();
       for (auto range : *ranges) {
         Expr* left = (Expr*)range->getLeftExpr();

@@ -308,7 +308,7 @@ void SynthSubset::leaveClassTypespec(const ClassTypespec* object,
 
 void SynthSubset::leaveClassVar(const ClassVar* object, vpiHandle handle) {
   if (const RefTypespec* rt = object->getTypespec()) {
-    if (const ClassTypespec* spec = rt->getActualTypespec<ClassTypespec>()) {
+    if (const ClassTypespec* spec = rt->getActual<ClassTypespec>()) {
       if (const ClassDefn* def = spec->getClassDefn()) {
         if (reportedParent(def)) {
           mark(object);
@@ -347,8 +347,7 @@ bool SynthSubset::reportedParent(const Any* object) {
 // typespec incorrectly.
 void SynthSubset::leaveRefTypespec(const RefTypespec* object,
                                    vpiHandle handle) {
-  if (const TypedefTypespec* actual =
-          object->getActualTypespec<TypedefTypespec>()) {
+  if (const TypedefTypespec* actual = object->getActual<TypedefTypespec>()) {
     if (const RefTypespec* ref_alias = actual->getTypedefAlias()) {
       // Make the typespec point to the aliased typespec if they are of the same
       // type:
@@ -356,11 +355,9 @@ void SynthSubset::leaveRefTypespec(const RefTypespec* object,
       // When extra dimensions are added using a packed_array_typespec like in:
       //  typedef lc_tx_e [1:0] lc_tx_t;
       //  We will need to uniquify and create a new typespec instance
-      if ((ref_alias->getActualTypespec()->getUhdmType() ==
-           actual->getUhdmType()) &&
-          !ref_alias->getActualTypespec()->getName().empty()) {
-        ((RefTypespec*)object)
-            ->setActualTypespec((Typespec*)ref_alias->getActualTypespec());
+      if ((ref_alias->getActual()->getUhdmType() == actual->getUhdmType()) &&
+          !ref_alias->getActual()->getName().empty()) {
+        ((RefTypespec*)object)->setActual((Typespec*)ref_alias->getActual());
       }
     }
   }
@@ -546,7 +543,7 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
             var->setSigned(false);
             if (const RefTypespec* tps = var->getTypespec()) {
               if (const LogicTypespec* ltps =
-                      any_cast<LogicTypespec>(tps->getActualTypespec())) {
+                      any_cast<LogicTypespec>(tps->getActual())) {
                 ((LogicTypespec*)ltps)->setSigned(false);
               }
             }
@@ -559,7 +556,7 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
             var->setSigned(false);
             if (const RefTypespec* tps = var->getTypespec()) {
               if (const LogicTypespec* ltps =
-                      any_cast<LogicTypespec>(tps->getActualTypespec())) {
+                      any_cast<LogicTypespec>(tps->getActual())) {
                 ((LogicTypespec*)ltps)->setSigned(false);
               }
             }
@@ -718,7 +715,7 @@ void SynthSubset::leaveArrayVar(const ArrayVar* object, vpiHandle handle) {
   Variables* var = vars->at(0);
   const RefTypespec* ref_tps = var->getTypespec();
   if (!ref_tps) return;
-  const Typespec* tps = ref_tps->getActualTypespec();
+  const Typespec* tps = ref_tps->getActual();
   if (tps->getUhdmType() == UhdmType::LogicTypespec) {
     LogicTypespec* ltps = (LogicTypespec*)tps;
     if ((tps->getName().empty())) {
@@ -731,7 +728,7 @@ void SynthSubset::leaveArrayVar(const ArrayVar* object, vpiHandle handle) {
         LogicTypespec* clone =
             (LogicTypespec*)clone_tree(ltps, &elaboratorContext);
         clone->setName("");
-        ((RefTypespec*)ref_tps)->setActualTypespec(clone);
+        ((RefTypespec*)ref_tps)->setActual(clone);
         ((ArrayVar*)object)->setTypespec((RefTypespec*)ref_tps);
       }
     }

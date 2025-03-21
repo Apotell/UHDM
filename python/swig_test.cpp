@@ -49,7 +49,7 @@ std::vector<vpiHandle> buildTestTypedef(uhdm::Serializer* s) {
   BitTypespec* btps = s->make<BitTypespec>();
 
   RefTypespec* btps_rt = s->make<RefTypespec>();
-  btps_rt->setActualTypespec(btps);
+  btps_rt->setActual(btps);
   member1->setTypespec(btps_rt);
 
   RangeCollection* ranges = s->makeCollection<Range>();
@@ -82,7 +82,7 @@ std::vector<vpiHandle> buildTestTypedef(uhdm::Serializer* s) {
   btps = s->make<BitTypespec>();
 
   btps_rt = s->make<RefTypespec>();
-  btps_rt->setActualTypespec(btps);
+  btps_rt->setActual(btps);
   member2->setTypespec(btps_rt);
 
   ranges = s->makeCollection<Range>();

@@ -195,7 +195,7 @@ void UhdmLint::leaveAssignment(const Assignment* object, vpiHandle handle) {
 
 void UhdmLint::leaveLogicNet(const LogicNet* object, vpiHandle handle) {
   if (const RefTypespec* rt = object->getTypespec()) {
-    if (const LogicTypespec* tps = rt->getActualTypespec<LogicTypespec>()) {
+    if (const LogicTypespec* tps = rt->getActual<LogicTypespec>()) {
       if (const RangeCollection* ranges = tps->getRanges()) {
         Range* r0 = ranges->at(0);
         if (const Constant* c = r0->getRightExpr<Constant>()) {
@@ -213,7 +213,7 @@ void UhdmLint::leaveLogicNet(const LogicNet* object, vpiHandle handle) {
 void UhdmLint::leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) {
   const Typespec* baseType = nullptr;
   if (const RefTypespec* rt = object->getBaseTypespec()) {
-    baseType = rt->getActualTypespec();
+    baseType = rt->getActual();
   }
   if (!baseType) return;
   static std::regex r("^[0-9]*'");

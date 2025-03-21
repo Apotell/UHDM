@@ -28,7 +28,7 @@
   vpi: vpiDefName
   type: string
   card: 1
-- class_ref: actual_typespec
+- class_ref: actual
   vpi: vpiActual
   type: typespec
   card: 1

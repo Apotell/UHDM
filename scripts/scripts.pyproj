@@ -42,6 +42,7 @@
     <Compile Include="uhdm_forward_decl_h.py" />
     <Compile Include="uhdm_h.py" />
     <Compile Include="uhdm_types_h.py" />
+    <Compile Include="UhdmVisitor.py" />
     <Compile Include="VpiListenerTracer_h.py" />
     <Compile Include="vpi_user_cpp.py" />
     <Content Include="collections\**\*.json" />

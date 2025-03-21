@@ -57,7 +57,7 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
       }
       if (const Extends* ext = defn->getExtends()) {
         if (const RefTypespec* rt = ext->getClassTypespec()) {
-          propagateParamAssign(pass, rt->getActualTypespec<ClassTypespec>());
+          propagateParamAssign(pass, rt->getActual<ClassTypespec>());
         }
       }
       if (const auto vars = defn->getVariables()) {
@@ -70,7 +70,7 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
     case UhdmType::ClassVar: {
       ClassVar* var = (ClassVar*)target;
       if (const RefTypespec* rt = var->getTypespec()) {
-        propagateParamAssign(pass, rt->getActualTypespec());
+        propagateParamAssign(pass, rt->getActual());
       }
       break;
     }
@@ -114,8 +114,7 @@ void ElaboratorListener::enterVariables(const Variables* object,
     if (const RefTypespec* tps = cv->getTypespec()) {
       RefTypespec* ctps = tps->deepClone(rw_cv, m_context);
       rw_cv->setTypespec(ctps);
-      if (const ClassTypespec* cctps =
-              ctps->getActualTypespec<ClassTypespec>()) {
+      if (const ClassTypespec* cctps = ctps->getActual<ClassTypespec>()) {
         if (ParamAssignCollection* params = cctps->getParamAssigns()) {
           for (ParamAssign* pass : *params) {
             propagateParamAssign(pass, cctps->getClassDefn());
@@ -181,8 +180,7 @@ void ElaboratorListener::enterModule(const Module* object, vpiHandle handle) {
         if (var->getUhdmType() == UhdmType::EnumVar) {
           EnumVar* evar = (EnumVar*)var;
           if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps =
-                    rt->getActualTypespec<EnumTypespec>()) {
+            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
               for (auto c : *etps->getEnumConsts()) {
                 if (!c->getName().empty()) {
                   netMap.emplace(c->getName(), c);
@@ -463,8 +461,7 @@ void ElaboratorListener::enterPackage(const Package* object, vpiHandle handle) {
       if (var->getUhdmType() == UhdmType::EnumVar) {
         EnumVar* evar = (EnumVar*)var;
         if (const RefTypespec* rt = evar->getTypespec()) {
-          if (const EnumTypespec* etps =
-                  rt->getActualTypespec<EnumTypespec>()) {
+          if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
             for (auto c : *etps->getEnumConsts()) {
               if (!c->getName().empty()) {
                 netMap.emplace(c->getName(), c);
@@ -546,8 +543,7 @@ void ElaboratorListener::enterClassDefn(const ClassDefn* object,
         if (var->getUhdmType() == UhdmType::EnumVar) {
           EnumVar* evar = (EnumVar*)var;
           if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps =
-                    rt->getActualTypespec<EnumTypespec>()) {
+            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
               for (auto c : *etps->getEnumConsts()) {
                 if (!c->getName().empty()) {
                   varMap.emplace(c->getName(), c);
@@ -591,8 +587,7 @@ void ElaboratorListener::enterClassDefn(const ClassDefn* object,
     const ClassDefn* base_defn = nullptr;
     if (const Extends* ext = defn->getExtends()) {
       if (const RefTypespec* rt = ext->getClassTypespec()) {
-        if (const ClassTypespec* ctps =
-                rt->getActualTypespec<ClassTypespec>()) {
+        if (const ClassTypespec* ctps = rt->getActual<ClassTypespec>()) {
           base_defn = ctps->getClassDefn();
         }
       }
@@ -697,8 +692,7 @@ void ElaboratorListener::enterInterface(const Interface* object,
         if (var->getUhdmType() == UhdmType::EnumVar) {
           EnumVar* evar = (EnumVar*)var;
           if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps =
-                    rt->getActualTypespec<EnumTypespec>()) {
+            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
               for (auto c : *etps->getEnumConsts()) {
                 if (!c->getName().empty()) {
                   netMap.emplace(c->getName(), c);
@@ -975,7 +969,7 @@ Any* ElaboratorListener::bindTaskFunc(std::string_view name,
   }
   if (prefix) {
     if (const RefTypespec* rt = prefix->getTypespec()) {
-      if (const ClassTypespec* tps = rt->getActualTypespec<ClassTypespec>()) {
+      if (const ClassTypespec* tps = rt->getActual<ClassTypespec>()) {
         const ClassDefn* defn = tps->getClassDefn();
         while (defn) {
           if (defn->getMethods()) {
@@ -988,7 +982,7 @@ Any* ElaboratorListener::bindTaskFunc(std::string_view name,
           if (const Extends* ext = defn->getExtends()) {
             if (const RefTypespec* ctps_rt = ext->getClassTypespec()) {
               if (const ClassTypespec* ctps =
-                      ctps_rt->getActualTypespec<ClassTypespec>()) {
+                      ctps_rt->getActual<ClassTypespec>()) {
                 base_defn = ctps->getClassDefn();
               }
             }
@@ -1082,8 +1076,7 @@ void ElaboratorListener::enterTaskFunc(const TaskFunc* object,
         const ClassDefn* base_defn = nullptr;
         if (const Extends* ext = defn->getExtends()) {
           if (const RefTypespec* rt = ext->getClassTypespec()) {
-            if (const ClassTypespec* ctps =
-                    rt->getActualTypespec<ClassTypespec>()) {
+            if (const ClassTypespec* ctps = rt->getActual<ClassTypespec>()) {
               base_defn = ctps->getClassDefn();
             }
           }

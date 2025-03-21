@@ -51,7 +51,7 @@ const Any* UhdmAdjuster::resize(const Any* object, int32_t maxsize,
       int32_t constType = c->getConstType();
       bool is_signed = false;
       if (const RefTypespec* rt = c->getTypespec()) {
-        if (const IntTypespec* itps = rt->getActualTypespec<IntTypespec>()) {
+        if (const IntTypespec* itps = rt->getActual<IntTypespec>()) {
           if (itps->getSigned()) {
             is_signed = true;
           }
@@ -126,7 +126,7 @@ void UhdmAdjuster::leaveCaseStmt(const CaseStmt* object, vpiHandle handle) {
         maxsize = std::max(ccond->getSize(), maxsize);
         bool is_signed = false;
         if (const RefTypespec* rt = ccond->getTypespec()) {
-          if (const IntTypespec* itps = rt->getActualTypespec<IntTypespec>()) {
+          if (const IntTypespec* itps = rt->getActual<IntTypespec>()) {
             if (itps->getSigned()) {
               is_signed = true;
             }
@@ -259,7 +259,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
               if (actual->getUhdmType() == UhdmType::TypespecMember) {
                 TypespecMember* member = (TypespecMember*)actual;
                 if (const RefTypespec* rt = member->getTypespec()) {
-                  if (const Typespec* tps = rt->getActualTypespec()) {
+                  if (const Typespec* tps = rt->getActual()) {
                     uint64_t tmp =
                         eval.size(tps, invalidValue, m_currentInstance, assign,
                                   true, true);

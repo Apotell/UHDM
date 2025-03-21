@@ -727,7 +727,7 @@ ContAssign* ContAssign::deepClone(BaseClass* parent,
     if (RefObj* ro = any_cast<RefObj>(lhs)) {
       if (StructVar* stv = ro->getActual<StructVar>()) {
         if (RefTypespec* rt = stv->getTypespec()) {
-          if (Typespec* ts = rt->getActualTypespec()) {
+          if (Typespec* ts = rt->getActual()) {
             ExprEval eval(elaboratorContext->m_elaborator.muteErrors());
             if (Expr* res = eval.flattenPatternAssignments(
                     *context->m_serializer, ts, rhs)) {
@@ -803,7 +803,7 @@ Any* bindClassTypespec(ClassTypespec* ctps, Any* current, std::string_view name,
     const ClassDefn* base_defn = nullptr;
     if (const Extends* ext = defn->getExtends()) {
       if (const RefTypespec* rt = ext->getClassTypespec()) {
-        if (const ClassTypespec* tp = rt->getActualTypespec<ClassTypespec>()) {
+        if (const ClassTypespec* tp = rt->getActual<ClassTypespec>()) {
           base_defn = tp->getClassDefn();
         }
       }
@@ -847,7 +847,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
               if (const Extends* ext = def->getExtends()) {
                 if (const RefTypespec* rt = ext->getClassTypespec()) {
                   if (const ClassTypespec* ctps =
-                          rt->getActualTypespec<ClassTypespec>()) {
+                          rt->getActual<ClassTypespec>()) {
                     ref->setActual((Any*)ctps->getClassDefn());
                     found = true;
                     break;
@@ -1061,11 +1061,11 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                     }
                   }
                   if (const RefTypespec* rt = avar->getTypespec()) {
-                    tps = rt->getActualTypespec();
+                    tps = rt->getActual();
                     if (const PackedArrayTypespec* ptps =
-                            rt->getActualTypespec<PackedArrayTypespec>()) {
+                            rt->getActual<PackedArrayTypespec>()) {
                       if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                        tps = ert->getActualTypespec();
+                        tps = ert->getActual();
                       }
                     }
                   }
@@ -1078,11 +1078,11 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                     }
                   }
                   if (const RefTypespec* rt = avar->getTypespec()) {
-                    tps = rt->getActualTypespec();
+                    tps = rt->getActual();
                     if (const ArrayTypespec* atps =
-                            rt->getActualTypespec<ArrayTypespec>()) {
+                            rt->getActual<ArrayTypespec>()) {
                       if (const RefTypespec* ert = atps->getElemTypespec()) {
-                        tps = ert->getActualTypespec();
+                        tps = ert->getActual();
                       }
                     }
                   }
@@ -1290,7 +1290,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 const Typespec* tps = nullptr;
                 if (const RefTypespec* rt =
                         ((ClassVar*)actual)->getTypespec()) {
-                  tps = rt->getActualTypespec();
+                  tps = rt->getActual();
                 }
                 if (tps == nullptr) break;
                 UhdmType ttype = tps->getUhdmType();
@@ -1323,18 +1323,16 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 TypespecMemberCollection* members = nullptr;
                 if (actual->getUhdmType() == UhdmType::StructNet) {
                   if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
-                    if (StructTypespec* sts =
-                            rt->getActualTypespec<StructTypespec>()) {
+                    if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
                       members = sts->getMembers();
                     } else if (UnionTypespec* uts =
-                                   rt->getActualTypespec<UnionTypespec>()) {
+                                   rt->getActual<UnionTypespec>()) {
                       members = uts->getMembers();
                     }
                   }
                 } else if (actual->getUhdmType() == UhdmType::StructVar) {
                   if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
-                    if (StructTypespec* sts =
-                            rt->getActualTypespec<StructTypespec>()) {
+                    if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
                       members = sts->getMembers();
                     }
                   }
@@ -1356,7 +1354,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
               case UhdmType::UnionVar: {
                 UnionTypespec* stpt = nullptr;
                 if (RefTypespec* rt = ((UnionVar*)actual)->getTypespec()) {
-                  stpt = rt->getActualTypespec<UnionTypespec>();
+                  stpt = rt->getActual<UnionTypespec>();
                 }
                 if (stpt == nullptr) break;
                 for (TypespecMember* member : *stpt->getMembers()) {
@@ -1513,7 +1511,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 IODecl* decl = (IODecl*)actual;
                 Typespec* tps = nullptr;
                 if (RefTypespec* rt = decl->getTypespec()) {
-                  tps = rt->getActualTypespec();
+                  tps = rt->getActual();
                 }
                 if (tps == nullptr) break;
                 UhdmType ttype = tps->getUhdmType();
@@ -1578,14 +1576,14 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 Parameter* param = (Parameter*)actual;
                 const Typespec* tps = nullptr;
                 if (const RefTypespec* rt = param->getTypespec()) {
-                  tps = rt->getActualTypespec();
+                  tps = rt->getActual();
                 }
                 if (tps == nullptr) break;
                 UhdmType ttype = tps->getUhdmType();
                 if (ttype == UhdmType::PackedArrayTypespec) {
                   PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
                   if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                    if (const Typespec* ets = ert->getActualTypespec()) {
+                    if (const Typespec* ets = ert->getActual()) {
                       tps = ets;
                       ttype = ets->getUhdmType();
                     }
@@ -1593,7 +1591,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 } else if (ttype == UhdmType::ArrayTypespec) {
                   ArrayTypespec* ptps = (ArrayTypespec*)tps;
                   if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                    if (const Typespec* ets = ert->getActualTypespec()) {
+                    if (const Typespec* ets = ert->getActual()) {
                       tps = ets;
                       ttype = ets->getUhdmType();
                     }
@@ -1660,7 +1658,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 const StructTypespec* stps = nullptr;
                 if (const RefTypespec* rt = op->getTypespec()) {
-                  stps = rt->getActualTypespec<StructTypespec>();
+                  stps = rt->getActual<StructTypespec>();
                 }
                 if (stps == nullptr) break;
                 std::vector<std::string_view> fieldNames;
@@ -1668,7 +1666,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 for (TypespecMember* memb : *stps->getMembers()) {
                   if (const RefTypespec* rt = memb->getTypespec()) {
                     fieldNames.emplace_back(memb->getName());
-                    fieldTypes.emplace_back(rt->getActualTypespec());
+                    fieldTypes.emplace_back(rt->getActual());
                   }
                 }
                 std::vector<Any*> tmp(fieldNames.size());
@@ -1681,7 +1679,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                     TaggedPattern* tp = (TaggedPattern*)oper;
                     const Typespec* ttp = nullptr;
                     if (const RefTypespec* rt = tp->getTypespec()) {
-                      ttp = rt->getActualTypespec();
+                      ttp = rt->getActual();
                     }
                     const std::string_view tname = ttp->getName();
                     bool oper_found = false;
@@ -1760,20 +1758,20 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
           TypespecMember* member = (TypespecMember*)previous;
           const Typespec* tps = nullptr;
           if (const RefTypespec* rt = member->getTypespec()) {
-            tps = rt->getActualTypespec();
+            tps = rt->getActual();
           }
           if (tps == nullptr) break;
           UhdmType ttype = tps->getUhdmType();
           if (ttype == UhdmType::PackedArrayTypespec) {
             PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
             if (const RefTypespec* rt = ptps->getElemTypespec()) {
-              tps = rt->getActualTypespec();
+              tps = rt->getActual();
               ttype = tps->getUhdmType();
             }
           } else if (ttype == UhdmType::ArrayTypespec) {
             ArrayTypespec* ptps = (ArrayTypespec*)tps;
             if (const RefTypespec* rt = ptps->getElemTypespec()) {
-              tps = rt->getActualTypespec();
+              tps = rt->getActual();
               ttype = tps->getUhdmType();
             }
           }
@@ -1819,17 +1817,17 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                   if (actual->getUhdmType() == UhdmType::StructNet) {
                     if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
                       if (StructTypespec* sts =
-                              rt->getActualTypespec<StructTypespec>()) {
+                              rt->getActual<StructTypespec>()) {
                         members = sts->getMembers();
                       } else if (UnionTypespec* uts =
-                                     rt->getActualTypespec<UnionTypespec>()) {
+                                     rt->getActual<UnionTypespec>()) {
                         members = uts->getMembers();
                       }
                     }
                   } else if (actual->getUhdmType() == UhdmType::StructVar) {
                     if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
                       if (StructTypespec* sts =
-                              rt->getActualTypespec<StructTypespec>()) {
+                              rt->getActual<StructTypespec>()) {
                         members = sts->getMembers();
                       }
                     }
@@ -1858,18 +1856,15 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
           TypespecMemberCollection* members = nullptr;
           if (previous->getUhdmType() == UhdmType::StructNet) {
             if (RefTypespec* rt = ((StructNet*)previous)->getTypespec()) {
-              if (StructTypespec* sts =
-                      rt->getActualTypespec<StructTypespec>()) {
+              if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
                 members = sts->getMembers();
-              } else if (UnionTypespec* uts =
-                             rt->getActualTypespec<UnionTypespec>()) {
+              } else if (UnionTypespec* uts = rt->getActual<UnionTypespec>()) {
                 members = uts->getMembers();
               }
             }
           } else if (previous->getUhdmType() == UhdmType::StructVar) {
             if (RefTypespec* rt = ((StructVar*)previous)->getTypespec()) {
-              if (StructTypespec* sts =
-                      rt->getActualTypespec<StructTypespec>()) {
+              if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
                 members = sts->getMembers();
               }
             }
