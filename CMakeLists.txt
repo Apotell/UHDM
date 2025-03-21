@@ -167,6 +167,7 @@ set(uhdm-GENERATED_SRC
     ${GENDIR}/src/UhdmLint.cpp
     ${GENDIR}/src/UhdmAdjuster.cpp
     ${GENDIR}/src/UhdmListener.cpp
+    ${GENDIR}/src/UhdmVisitor.cpp
     ${GENDIR}/src/VpiListener.cpp
     ${GENDIR}/src/vpi_user.cpp
     ${GENDIR}/src/vpi_visitor.cpp
