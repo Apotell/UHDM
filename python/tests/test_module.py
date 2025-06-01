@@ -55,12 +55,12 @@ class  test_module(unittest.TestCase):
             self.assertEqual(invalidValue,False)
 
     def test_visit_designs(self):
-        ref = '''design: 
+        ref = '''Design: 
 |uhdmallModules:
-\_module_inst: (module1)
+\_Module: (module1)
   |vpiName:module1
 |uhdmallModules:
-\_module_inst: (module2)
+\_Module: (module2)
   |vpiName:module2
 '''
         s  = uhdm.Serializer()

@@ -5,6 +5,45 @@ import file_utils
 import uhdm_types_h
 
 
+def _make_class_name(name: str) -> str:
+  overrides = {
+    'AliasStmt': 'Alias',
+    'AliasStmts': 'Aliases',
+    'AssertStmt': 'Assert',
+    'AssertStmts': 'Asserts',
+    'ClockingIoDecl': 'ClockingIODecl',
+    'ClockingIoDecls': 'ClockingIODecls',
+    'ClockingIoDecls': 'ClockingIODecls',
+    'InterfaceInst': 'Interface',
+    'InterfaceInsts': 'Interfaces',
+    'InterfaceTfDecl': 'InterfaceTFDecl',
+    'InterfaceTfDecls': 'InterfaceTFDecls',
+    'Indexes': 'Indicies',
+    'IoDecl': 'IODecl',
+    'IoDecls': 'IODecls',
+    'ModuleInst': 'Module',
+    'ModuleInsts': 'Modules',
+    'ProcessStmt': 'Process',
+    'ProcessStmts': 'Processes',
+    'TableEntrys': 'TableEntries',
+    'TfCall': 'TFCall',
+    'TfCalls': 'TFCalls',
+    'ThreadObj': 'Thread',
+    'ThreadObjs': 'Threads',
+  }
+  underscore = True
+  Name = ''
+  for ch in name:
+    if ch == '_':
+      underscore = True
+    elif underscore:
+      Name += ch.upper()
+      underscore = False
+    else:
+      Name += ch
+  return overrides.get(Name, Name)
+
+
 def generate(models):
     factory_data_members = []
     factory_function_declarations = []
@@ -53,7 +92,7 @@ def generate(models):
             factory_purge.append(f'  {classname}Maker.Purge();')
             if classname != 'package':
                 factory_gc.append(f'  {classname}Maker.EraseIfNotIn(visited);')
-            factory_stats.append(f'  stats.insert(std::make_pair("{classname}", {classname}Maker.objects_.size()));')
+            factory_stats.append(f'  stats.insert(std::make_pair("{_make_class_name(classname)}", {classname}Maker.objects_.size()));')
 
         factory_data_members.append(f'  VectorOf{classname}Factory {classname}VectMaker;')
         factory_function_declarations.append(f'  std::vector<{classname}*>* Make{Classname_}Vec();')
@@ -156,7 +195,7 @@ def generate(models):
         restore_adapters.append('  }')
         restore_adapters.append('')
 
-    uhdm_name_map = [ f'    case UHDM_OBJECT_TYPE::{name} /* = {id} */: return "{name[4:]}";' for name, id in uhdm_types_h.get_type_map(models).items() ]
+    uhdm_name_map = [ f'    case UHDM_OBJECT_TYPE::{name} /* = {id} */: return "{_make_class_name(name[4:])}";' for name, id in uhdm_types_h.get_type_map(models).items() ]
 
     # Serializer.h
     with open(config.get_template_filepath('Serializer.h'), 'rt') as strm:
