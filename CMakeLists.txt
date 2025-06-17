@@ -128,7 +128,7 @@ set(model-GENERATED_UHDM ${GENDIR}/src/UHDM.capnp)
 set_source_files_properties(${model-GENERATED_UHDM} PROPERTIES GENERATED TRUE)
 
 file(GLOB py_SRC ${PROJECT_SOURCE_DIR}/scripts/*.py)
-if(NOT EXISTS ${model-GENERATED_UHDM})
+if(NOT EXISTS ${model-GENERATED_UHDM} OR NOT UHDM_USE_HOST_CAPNP)
 add_custom_command(
   OUTPUT ${model-GENERATED_UHDM}
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate.py --source-dirpath=${UHDM_SOURCE_DIR} -output-dirpath=${GENDIR}

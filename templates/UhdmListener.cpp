@@ -29,7 +29,7 @@
 #include <map>
 
 namespace uhdm {
-ScopedVpiHandle::ScopedVpiHandle(const Any* const any)
+ScopedVpiHandle::ScopedVpiHandle(const Any* any)
     : handle(NewVpiHandle(any)) {}
 
 ScopedVpiHandle::~ScopedVpiHandle() {
@@ -60,7 +60,7 @@ bool UhdmListener::didVisitAll(const Serializer& serializer) const {
   return diffObjects.empty();
 }
 
-void UhdmListener::listenAny_(const Any* const object) {
+void UhdmListener::listenAny_(const Any* object) {
   // NOTE(HS): Don't want upwards. When initiating calls from non-design
   // objects, the intended behavior to walk the subtree but enabling this
   // walks the entire deisgn.
@@ -71,7 +71,7 @@ void UhdmListener::listenAny_(const Any* const object) {
 
 <UHDM_PRIVATE_LISTEN_IMPLEMENTATIONS>
 <UHDM_PUBLIC_LISTEN_IMPLEMENTATIONS>
-void UhdmListener::listenAny(const Any* const object, uint32_t vpiRelation) {
+void UhdmListener::listenAny(const Any* object, uint32_t vpiRelation) {
   const bool revisiting = m_visited.find(object) != m_visited.end();
   if (!revisiting) enterAny(object, vpiRelation);
 

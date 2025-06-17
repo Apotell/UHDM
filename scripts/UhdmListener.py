@@ -44,8 +44,8 @@ def generate(models):
         BaseName = config.make_class_name(basename)
 
         if model.get('subclasses') or modeltype == 'obj_def':
-            private_declarations.append(f'  void listen{ClassName}_(const {ClassName}* const object);')
-            private_implementations.append(f'void UhdmListener::listen{ClassName}_(const {ClassName}* const object) {{')
+            private_declarations.append(f'  void listen{ClassName}_(const {ClassName}* object);')
+            private_implementations.append(f'void UhdmListener::listen{ClassName}_(const {ClassName}* object) {{')
             private_implementations.append(f'  listen{BaseName}_(object);')
 
             for key, value in model.allitems():
@@ -66,9 +66,9 @@ def generate(models):
         if modeltype != 'class_def':
             ClassNames.add(ClassName)
 
-            public_declarations.append(f'  void listen{ClassName}(const {ClassName} *const object, uint32_t vpiRelation = 0);')
+            public_declarations.append(f'  void listen{ClassName}(const {ClassName}* object, uint32_t vpiRelation = 0);')
 
-            public_implementations.append(f'void UhdmListener::listen{ClassName}(const {ClassName}* const object, uint32_t vpiRelation /* = 0 */) {{')
+            public_implementations.append(f'void UhdmListener::listen{ClassName}(const {ClassName}* object, uint32_t vpiRelation /* = 0 */) {{')
             public_implementations.append(f'  enter{ClassName}(object, vpiRelation);')
             public_implementations.append( '  if (m_visited.insert(object).second) {')
             public_implementations.append(f'    listen{ClassName}_(object);')
@@ -82,15 +82,15 @@ def generate(models):
     for ClassName in sorted(ClassNames):
         any_implementation.append(f'  case UhdmType::{ClassName}: listen{ClassName}(static_cast<const {ClassName} *>(object), vpiRelation); break;')
 
-        enter_leave_declarations.append(f'  virtual void enter{ClassName}(const {ClassName}* const object, uint32_t vpiRelation = 0) {{}}')
-        enter_leave_declarations.append(f'  virtual void leave{ClassName}(const {ClassName}* const object, uint32_t vpiRelation = 0) {{}}')
+        enter_leave_declarations.append(f'  virtual void enter{ClassName}(const {ClassName}* object, uint32_t vpiRelation = 0) {{}}')
+        enter_leave_declarations.append(f'  virtual void leave{ClassName}(const {ClassName}* object, uint32_t vpiRelation = 0) {{}}')
         enter_leave_declarations.append( '')
 
     enter_leave_collection_declarations = []
     for TypeName in sorted(uhdm_types_h.get_type_map(models).keys()):
         if TypeName != 'BaseClass':
-            enter_leave_collection_declarations.append(f'  virtual void enter{TypeName}Collection(const Any* const object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
-            enter_leave_collection_declarations.append(f'  virtual void leave{TypeName}Collection(const Any* const object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
+            enter_leave_collection_declarations.append(f'  virtual void enter{TypeName}Collection(const Any* object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
+            enter_leave_collection_declarations.append(f'  virtual void leave{TypeName}Collection(const Any* object, const {TypeName}Collection& objects, uint32_t vpiRelation) {{}}')
             enter_leave_collection_declarations.append( '')
 
     private_declarations = sorted(private_declarations)

@@ -42,7 +42,7 @@ class Serializer;
 
 class ScopedVpiHandle final {
  public:
-  ScopedVpiHandle(const Any *const any);
+  ScopedVpiHandle(const Any *any);
   ~ScopedVpiHandle();
 
   operator vpiHandle() const { return handle; }
@@ -70,7 +70,7 @@ public:
 
   const any_stack_t &getCallstack() const { return m_callstack; }
 
-  bool isOnCallstack(const Any *const what) const {
+  bool isOnCallstack(const Any* what) const {
     return std::find(m_callstack.crbegin(), m_callstack.crend(), what) !=
            m_callstack.rend();
   }
@@ -84,16 +84,16 @@ public:
 
   bool didVisitAll(const Serializer &serializer) const;
 
-  void listenAny(const Any *const object, uint32_t vpiRelation = 0);
+  void listenAny(const Any* object, uint32_t vpiRelation = 0);
 <UHDM_PUBLIC_LISTEN_DECLARATIONS>
 
-  virtual void enterAny(const Any* const object, uint32_t vpiRelation = 0) {}
-  virtual void leaveAny(const Any* const object, uint32_t vpiRelation = 0) {}
+  virtual void enterAny(const Any* object, uint32_t vpiRelation = 0) {}
+  virtual void leaveAny(const Any* object, uint32_t vpiRelation = 0) {}
 
 <UHDM_ENTER_LEAVE_DECLARATIONS>
 <UHDM_ENTER_LEAVE_COLLECTION_DECLARATIONS>
 private:
-  void listenAny_(const Any *const object);
+  void listenAny_(const Any* object);
 <UHDM_PRIVATE_LISTEN_DECLARATIONS>
 };
 }  // namespace uhdm
