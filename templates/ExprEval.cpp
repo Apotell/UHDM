@@ -5347,10 +5347,8 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args,
     }
   }
   Typespec *funcReturnTypespec = nullptr;
-  if (Variables *r = func->getReturn()) {
-    if (RefTypespec *rt = r->getTypespec()) {
-      funcReturnTypespec = rt->getActual();
-    }
+  if (RefTypespec *rt = func->getReturn()) {
+    funcReturnTypespec = rt->getActual();
   }
   if (funcReturnTypespec == nullptr) {
     funcReturnTypespec = s.make<LogicTypespec>();
@@ -5423,10 +5421,8 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args,
           }
         }
         const Typespec *tps = nullptr;
-        if (const Variables *r = func->getReturn()) {
-          if (const RefTypespec *rt = r->getTypespec()) {
-            tps = rt->getActual();
-          }
+        if (const RefTypespec *rt = func->getReturn()) {
+          tps = rt->getActual();
         }
         if (tps && (tps->getUhdmType() == UhdmType::LogicTypespec)) {
           LogicTypespec *ltps = (LogicTypespec *)tps;

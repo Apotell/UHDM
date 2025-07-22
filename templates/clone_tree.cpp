@@ -439,7 +439,7 @@ Function* Function::deepClone(BaseClass* parent, CloneContext* context) const {
     clone->setLeftExpr(obj->deepClone(clone, context));
   if (auto obj = getRightExpr())
     clone->setRightExpr(obj->deepClone(clone, context));
-  if (auto obj = getReturn()) clone->setReturn((Variables*)obj);
+  if (auto obj = getReturn()) clone->setReturn((RefTypespec*)obj);
   if (auto obj = getInstance()) clone->setInstance((Instance*)obj);
   if (Instance* inst = any_cast<Instance>(parent)) clone->setInstance(inst);
   if (auto obj = getClassDefn())

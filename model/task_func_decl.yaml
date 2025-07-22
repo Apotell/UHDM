@@ -69,7 +69,7 @@
   card: 1
 - class_ref: return
   vpi: vpiReturn
-  type: variables
+  type: ref_typespec
   card: 1
 - obj_ref: class_defn
   vpi: vpiClassDefn
