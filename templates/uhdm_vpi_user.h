@@ -85,10 +85,6 @@
 #define vpiGenFor                 5015 // Handle to for-generate for folded (Non-elaborated) model
 #define vpiGenCase                5016 // Handle to case-generate for folded (Non-elaborated) model
 #define vpiGenRegion              5017 // Handle to generate region for folded (Non-elaborated) model
-#define vpiModuleTypespec         5018 /* !!! NOT Standard !!! */
-#define vpiRefTypespec            5019 /* !!! NOT Standard !!! */
-#define vpiTypedefTypespec        5020 /* !!! NOT Standard !!! */
-#define vpiImportTypespecItem     5021 /* !!! NOT Standard !!! */
 
 // Preprocessor directives
 #define vpiPreprocMacroDefinition   6000
