@@ -16,3 +16,11 @@
 
 - obj_def: module_typespec
 - extends: typespec
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
+- obj_ref: module
+  vpi: vpiModule
+  type: module
+  card: 1

@@ -16,6 +16,10 @@
 
 - obj_def: typedef_typespec
 - extends: typespec
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - class_ref: typedef_alias
   vpi: vpiTypedefAlias
   type: ref_typespec

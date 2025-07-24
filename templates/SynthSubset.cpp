@@ -963,7 +963,6 @@ void SynthSubset::leaveArrayVar(const ArrayVar* object, vpiHandle handle) {
         ElaboratorContext elaboratorContext(m_serializer);
         LogicTypespec* clone =
             (LogicTypespec*)clone_tree(ltps, &elaboratorContext);
-        clone->setName("");
         ((RefTypespec*)ref_tps)->setActual(clone);
         ((ArrayVar*)object)->setTypespec((RefTypespec*)ref_tps);
       }

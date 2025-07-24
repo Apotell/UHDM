@@ -16,6 +16,10 @@
 
 - obj_def: unsupported_typespec
 - extends: typespec
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - property: packed
   vpi: vpiPacked
   type: bool

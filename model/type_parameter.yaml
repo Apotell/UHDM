@@ -16,13 +16,17 @@
 
 - obj_def: type_parameter
 - extends: typespec
-- property: local_param
-  vpi: vpiLocalParam
-  type: bool
+- property: name
+  vpi: vpiName
+  type: string
   card: 1
 - property: full_name
   vpi: vpiFullName
   type: string
+  card: 1
+- property: local_param
+  vpi: vpiLocalParam
+  type: bool
   card: 1
 - class_ref: typespec
   vpi: vpiTypespec

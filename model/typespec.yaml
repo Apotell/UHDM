@@ -15,10 +15,6 @@
 # Universal Hardware Data Model (UHDM) "typespec" formal description
 
 - class_def: typespec
-- property: name
-  vpi: vpiName
-  type: string
-  card: 1
 - class_ref: instance
   vpi: vpiInstance
   type: instance

@@ -16,6 +16,10 @@
 
 - obj_def: import_typespec
 - extends: typespec
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - obj_ref: item
   vpi: vpiImportTypespecItem
   type: constant

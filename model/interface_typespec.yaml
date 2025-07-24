@@ -16,8 +16,8 @@
 
 - obj_def: interface_typespec
 - extends: typespec
-- property: def_name
-  vpi: vpiDefName
+- property: name
+  vpi: vpiName
   type: string
   card: 1
 - property: is_modport
