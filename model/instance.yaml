@@ -96,6 +96,10 @@
   vpi: vpiTaskFunc
   type: task_func
   card: any
+- class_ref: task_func_decl
+  vpi: vpiTaskFuncDecl
+  type: task_func_decl
+  card: any
 - class_ref: net
   vpi: vpiNet
   type: net

@@ -65,6 +65,7 @@ _collector_class_types = {
         ( 'class_typespec', 'ClassTypespecs' ),
         ( 'constraint', 'Constraints' ),
         ( 'task_func', 'Methods' ),
+        ( 'task_func_decl', 'TaskFuncDecls' ),
     ]),
     'ClassObj': set([
         ( 'constraint', 'Constraints' ),
@@ -80,6 +81,7 @@ _collector_class_types = {
         ( 'program_array', 'ProgramArrays' ),
         ( 'spec_param', 'SpecParams' ),
         ( 'task_func', 'TaskFuncs' ),
+        ( 'task_func_decl', 'TaskFuncDecls' ),
     ]),
     'CheckerDecl': set([
         ( 'checker_port', 'Ports' ),
