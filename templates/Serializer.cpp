@@ -185,7 +185,11 @@ void Serializer::purge() {
 }
 
 #ifndef SWIG
-void Serializer::pushScope(Any* s) { m_scopeStack.emplace_back(s); }
+void Serializer::pushScope(Any* s) {
+  if ((any_cast<Scope>(s) != nullptr) || (any_cast<Design>(s) != nullptr)) {
+    m_scopeStack.emplace_back(s);
+  }
+}
 
 bool Serializer::popScope(Any* s) {
   if (!m_scopeStack.empty() && (m_scopeStack.back() == s)) {
