@@ -24,6 +24,7 @@
  */
 #include <uhdm/BaseClass.h>
 #include <uhdm/Serializer.h>
+#include <uhdm/UhdmComparer.h>
 
 namespace uhdm {
 std::string_view BaseClass::getFile() const {
@@ -195,47 +196,60 @@ std::string BaseClass::computeFullName() const {
 }
 
 int32_t BaseClass::compare(const BaseClass* const other,
-                           CompareContext* context) const {
-  int32_t r = 0;
-
+                           UhdmComparer* comparer) const {
   const thistype_t* const lhs = this;
   const thistype_t* const rhs = other;
 
-  if ((r = getVpiType() - rhs->getVpiType()) != 0) {
-    context->m_failedLhs = lhs;
-    context->m_failedRhs = rhs;
+  int32_t r = 0;
+
+  if ((r = comparer->compare(lhs, getVpiType(), rhs, rhs->getVpiType(), vpiType,
+                             r)) != 0) {
     return r;
   }
-  if ((r = getName().compare(rhs->getName())) != 0) {
-    context->m_failedLhs = lhs;
-    context->m_failedRhs = rhs;
+  if ((r = comparer->compare(lhs, getName(), rhs, rhs->getName(), vpiName,
+                             r)) != 0) {
     return r;
   }
-  if ((r = getDefName().compare(rhs->getDefName())) != 0) {
-    context->m_failedLhs = lhs;
-    context->m_failedRhs = rhs;
+  if ((r = comparer->compare(lhs, getDefName(), rhs, rhs->getDefName(),
+                             vpiDefName, r)) != 0) {
+    return r;
+  }
+  if ((r = comparer->compare(lhs, getFile(), rhs, rhs->getFile(), vpiFile,
+                             r)) != 0) {
+    return r;
+  }
+  if ((r = comparer->compare(lhs, m_startLine, rhs, rhs->m_startLine,
+                             vpiStartLine, r)) != 0) {
+    return r;
+  }
+  if ((r = comparer->compare(lhs, m_startColumn, rhs, rhs->m_startColumn,
+                             vpiStartColumn, r)) != 0) {
+    return r;
+  }
+  if ((r = comparer->compare(lhs, m_endLine, rhs, rhs->m_endLine, vpiEndLine,
+                             r)) != 0) {
+    return r;
+  }
+  if ((r = comparer->compare(lhs, m_endColumn, rhs, rhs->m_endColumn,
+                             vpiEndColumn, r)) != 0) {
     return r;
   }
 
   return r;
 }
 
-void BaseClass::swap(const BaseClass* what, BaseClass* with,
-                     AnySet& visited) {
+void BaseClass::swap(const BaseClass* what, BaseClass* with) {
   // Do NOT call setParent(with) here because it invokes onChildXXX
   // causing edits to containers that are being iterated on the call stack.
   if (m_parent == what) m_parent = with;
 }
 
-void BaseClass::swap(const BaseClass *what, BaseClass *with) {
-  AnySet visited;
-  swap(what, with, visited);
-}
-
 void BaseClass::swap(
     const std::map<const BaseClass*, BaseClass*>& replacements) {
-  for (auto [what, with] : replacements) {
-    swap(what, with);
+  // Do NOT call setParent(with) here because it invokes onChildXXX
+  // causing edits to containers that are being iterated on the call stack.
+  if (auto it = replacements.find(m_parent); it != replacements.cend()) {
+    m_parent = it->second;
   }
 }
 

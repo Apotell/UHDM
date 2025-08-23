@@ -14,12 +14,14 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   // Design building
   Design* d = s->make<Design>();
   d->setName("design3");
+
   Module* m1 = s->make<Module>();
   m1->setTopModule(true);
   m1->setDefName("M1");
   m1->setParent(d);
   m1->setFile("fake1.sv");
   m1->setStartLine(10);
+
   Module* m2 = s->make<Module>();
   m2->setDefName("M2");
   m2->setName("u1");
@@ -31,42 +33,54 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   m2->setStartLine(20);
 
   Initial* init = s->make<Initial>();
-  ProcessCollection* processes = s->makeCollection<Process>();
-  processes->push_back(init);
+  init->setParent(m2);
+
   Begin* begin_block = s->make<Begin>();
   init->setStmt(begin_block);
-  AnyCollection* statements = s->makeCollection<Any>();
+  begin_block->setParent(init);
+  AnyCollection* statements = begin_block->getStmts(true);
+
   RefObj* lhs_rf = s->make<RefObj>();
   lhs_rf->setName("out");
+
   Assignment* assign1 = s->make<Assignment>();
   assign1->setLhs(lhs_rf);
+  assign1->setParent(begin_block);
+  lhs_rf->setParent(assign1);
+
   Constant* c1 = s->make<Constant>();
   c1->setValue("INT:0");
+  c1->setParent(assign1);
   assign1->setRhs(m1);  // Triggers error handler!
-  statements->push_back(assign1);
+  statements->emplace_back(assign1);
 
   Assignment* assign2 = s->make<Assignment>();
   assign2->setLhs(lhs_rf);
+  assign2->setParent(begin_block);
+
   Constant* c2 = s->make<Constant>();
   c2->setValue("STRING:a string");
+  c2->setParent(assign2);
   assign2->setRhs(c2);
-  statements->push_back(assign2);
+  statements->emplace_back(assign2);
 
   DelayControl* dc = s->make<DelayControl>();
   dc->setVpiDelay("#100");
 
   Assignment* assign3 = s->make<Assignment>();
   assign3->setLhs(lhs_rf);
+  assign3->setParent(dc);
+
   Constant* c3 = s->make<Constant>();
   s_vpi_value val;
   val.format = vpiIntVal;
   val.value.integer = 1;
   c3->setValue(VpiValue2String(&val));
+  c3->setParent(assign3);
   assign3->setRhs(c3);
   dc->setStmt(assign3);
-  statements->push_back(dc);
-  begin_block->setStmts(statements);
-  m2->setProcesses(processes);
+  dc->setParent(begin_block);
+  statements->emplace_back(dc);
 
   Module* m3 = s->make<Module>();
   m3->setDefName("M3");
@@ -77,19 +91,11 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   m3->setModule(m1);
   m3->setFile("fake3.sv");
   m3->setStartLine(30);
-  ModuleCollection* v1 = s->makeCollection<Module>();
-  v1->push_back(m1);
-  d->setAllModules(v1);
-  ModuleCollection* v2 = s->makeCollection<Module>();
-  v2->push_back(m2);
-  v2->push_back(m3);
-  m1->setModules(v2);
+
   Package* p1 = s->make<Package>();
   p1->setDefName("P0");
-  PackageCollection* v3 = s->makeCollection<Package>();
-  v3->push_back(p1);
-  d->setAllPackages(v3);
-  designs.push_back(s->makeUhdmHandle(UhdmType::Design, d));
+  p1->setParent(d);
+  designs.emplace_back(s->makeUhdmHandle(UhdmType::Design, d));
 
   return designs;
 }

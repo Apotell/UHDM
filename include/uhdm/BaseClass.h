@@ -31,6 +31,7 @@
 #include <uhdm/SymbolFactory.h>
 #include <uhdm/uhdm_types.h>
 
+#include <algorithm>
 #include <map>
 #include <string_view>
 #include <tuple>
@@ -40,6 +41,8 @@
 namespace uhdm {
 class BaseClass;
 class Serializer;
+class UhdmComparer;
+
 #ifndef SWIG
 static inline constexpr std::string_view kEmpty("");
 #endif
@@ -63,22 +66,6 @@ class CloneContext : public RTTI {
  private:
   CloneContext(const CloneContext& rhs) = delete;
   CloneContext& operator=(const CloneContext& rhs) = delete;
-};
-
-class CompareContext : public RTTI {
-  UHDM_IMPLEMENT_RTTI(CompareContext, RTTI)
-
- public:
-  CompareContext() = default;
-  virtual ~CompareContext() = default;
-
-  AnySet m_visited;
-  const BaseClass* m_failedLhs = nullptr;
-  const BaseClass* m_failedRhs = nullptr;
-
- private:
-  CompareContext(const CompareContext& rhs) = delete;
-  CompareContext& operator=(const CompareContext& rhs) = delete;
 };
 
 class BaseClass : public RTTI {
@@ -166,11 +153,7 @@ class BaseClass : public RTTI {
                                CloneContext* context) const = 0;
 
   virtual int32_t compare(const BaseClass* other,
-                          CompareContext* context) const;
-
-  void swap(const BaseClass* what, BaseClass* with);
-  void swap(const std::map<const BaseClass*, BaseClass*>& replacements);
-  virtual void swap(const BaseClass* what, BaseClass* with, AnySet& visited);
+                          UhdmComparer* comparer) const;
 
  protected:
   void deepCopy(BaseClass* clone, BaseClass* parent,
@@ -178,52 +161,58 @@ class BaseClass : public RTTI {
 
   std::string computeFullName() const;
 
-  void setSerializer(Serializer* serial) { m_serializer = serial; }
+  void setSerializer(Serializer* serializer) { m_serializer = serializer; }
 
-  virtual void onChildAdded(BaseClass* child) {}
-  virtual void onChildRemoved(BaseClass* child) {}
+  virtual void swap(const BaseClass* what, BaseClass* with);
+  virtual void swap(const std::map<const BaseClass*, BaseClass*>& replacements);
 
-  static int32_t safeCompare(const BaseClass* lhs, const BaseClass* rhs,
-                             CompareContext* context) {
-    if ((lhs != nullptr) && (rhs != nullptr)) {
-      return lhs->compare(rhs, context);
-    } else if ((lhs != nullptr) && (rhs == nullptr)) {
-      context->m_failedLhs = lhs;
-      return 1;
-    } else if ((lhs == nullptr) && (rhs != nullptr)) {
-      context->m_failedRhs = rhs;
-      return -1;
+  template <typename T>
+  static void swapT(std::vector<T*>& collection, const BaseClass* what,
+                    BaseClass* with) {
+    auto it = std::find(collection.begin(), collection.end(), what);
+    if (it != collection.end()) {
+      if (with == nullptr) {
+        collection.erase(it);
+      } else if (T* const withT = with->template Cast<T>()) {
+        *it = withT;
+      } else {
+        collection.erase(it);
+      }
     }
-    return 0;
   }
 
   template <typename T>
-  static int32_t safeCompare(const BaseClass* lhs_obj,
-                             const std::vector<T*>* lhs,
-                             const BaseClass* rhs_obj,
-                             const std::vector<T*>* rhs,
-                             CompareContext* context) {
-    if ((lhs != nullptr) && (rhs != nullptr)) {
-      int32_t r = 0;
-      if ((r = static_cast<int32_t>(lhs->size() - rhs->size())) != 0) {
-        context->m_failedLhs = lhs_obj;
-        context->m_failedRhs = rhs_obj;
-        return 1;
-      }
-      for (size_t i = 0, n = lhs->size(); i < n; ++i) {
-        if ((r = safeCompare(lhs->at(i), rhs->at(i), context)) != 0) return r;
-      }
-    } else if ((lhs != nullptr) && !lhs->empty() && (rhs == nullptr)) {
-      context->m_failedLhs = lhs_obj;
-      context->m_failedRhs = rhs_obj;
-      return 1;
-    } else if ((lhs == nullptr) && (rhs != nullptr) && !rhs->empty()) {
-      context->m_failedLhs = lhs_obj;
-      context->m_failedRhs = rhs_obj;
-      return -1;
+  static void swapT(
+      std::vector<T*>& collection,
+      const std::map<const BaseClass*, BaseClass*>& replacements) {
+    if (!std::any_of(collection.cbegin(), collection.cend(),
+                     [&replacements](const BaseClass* const any) {
+                       return replacements.find(any) != replacements.cend();
+                     })) {
+      return;
     }
-    return 0;
+
+    AnySet unique;
+    const std::vector<T*> ordered = std::move(collection);
+    for (auto whatT : ordered) {
+      if (auto it = replacements.find(whatT); it != replacements.cend()) {
+        if (it->second != nullptr) {
+          if (T* const withT = it->second->template Cast<T>()) {
+            if (unique.emplace(it->second).second) {
+              collection.emplace_back(withT);
+            }
+          } else {
+            if (unique.emplace(whatT).second) collection.emplace_back(whatT);
+          }
+        }
+      } else {
+        if (unique.emplace(whatT).second) collection.emplace_back(whatT);
+      }
+    }
   }
+
+  virtual void onChildAdded(BaseClass* child) {}
+  virtual void onChildRemoved(BaseClass* child) {}
 
  protected:
   Serializer* m_serializer = nullptr;
@@ -243,7 +232,6 @@ using Any = BaseClass;
 }  // namespace uhdm
 
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(clonecontext_cast, uhdm::CloneContext)
-UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(comparecontext_cast, uhdm::CompareContext)
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(any_cast, uhdm::BaseClass)
 
 #endif  // UHDM_BASECLASS_H

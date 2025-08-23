@@ -92,6 +92,8 @@ extern "C" {
 #define vpiRefTypespec                        769 /* !!! NOT Standard !!! */
 #define vpiTypedefTypespec                    770 /* !!! NOT Standard !!! */
 #define vpiImportTypespecItem                 771 /* !!! NOT Standard !!! */
+#define vpiProgramTypespec                    772 /* !!! NOT Standard !!! */
+#define vpiUdpDefnTypespec                    773 /* !!! NOT Standard !!! */
 
 #define vpiLabel                              791
 #define vpiEndLabel                           792
@@ -328,7 +330,7 @@ extern "C" {
 
 #define vpiPackedArrayMember                  655
 #define vpiStartLine                          661
-#define vpiColumn                             662
+#define vpiStartColumn                        662
 #define vpiEndLine                            663
 #define vpiEndColumn                          664
 

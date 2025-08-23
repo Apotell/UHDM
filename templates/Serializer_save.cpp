@@ -82,7 +82,7 @@ struct Serializer::SaveAdapter {
 };
 
 void Serializer::save(const std::filesystem::path& filepath) {
-    save(filepath.string());
+  save(filepath.string());
 }
 
 void Serializer::save(const std::string& filepath) {

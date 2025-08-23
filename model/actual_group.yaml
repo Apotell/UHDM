@@ -16,30 +16,30 @@
 # Parameters, enum_const, io_decl are not in the actual group in the Standard, we add them to the group for binding convenience
 
 - group_def: actual_group
+- class_ref: expr
+- class_ref: nets
+- class_ref: scope
+- class_ref: task_func
+- class_ref: variables
+- obj_ref: clocking_io_decl
+- obj_ref: constraint
+- obj_ref: enum_const
+- obj_ref: gen_var
 - obj_ref: interface
 - obj_ref: interface_array
+- obj_ref: io_decl
 - obj_ref: modport
-- class_ref: nets
-- class_ref: variables
 - obj_ref: named_event
 - obj_ref: named_event_array
-- obj_ref: part_select
 - obj_ref: parameter
-- obj_ref: type_parameter
-- obj_ref: enum_const
-- obj_ref: io_decl
-- obj_ref: clocking_io_decl
-- class_ref: expr
- # bit select, indexed_part_select and ref_obj added for hier_path
-- obj_ref: bit_select
-- obj_ref: ref_obj
-- obj_ref: indexed_part_select
-- obj_ref: typespec_member
-- class_ref: task_func
-- class_ref: scope
-- obj_ref: property_decl
-- obj_ref: sequence_decl
+- obj_ref: part_select
 - obj_ref: port
-- obj_ref: constraint
+- obj_ref: property_decl
 - obj_ref: ref_module
-- obj_ref: gen_var
+- obj_ref: sequence_decl
+- obj_ref: type_parameter
+- obj_ref: typespec_member
+# Following added for hier_path
+- obj_ref: bit_select
+- obj_ref: indexed_part_select
+- obj_ref: typedef_typespec

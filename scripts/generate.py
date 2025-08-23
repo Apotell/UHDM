@@ -21,6 +21,7 @@ import vpi_user_cpp
 import vpi_visitor
 import VpiListener
 import VpiListenerTracer_h
+import UhdmComparer
 
 
 def _worker(params):
@@ -73,6 +74,9 @@ def _worker(params):
     elif key == 'VpiListenerTracer_h':
         return VpiListenerTracer_h.generate(*args)
 
+    elif key == 'UhdmComparer':
+      return UhdmComparer.generate(*args)
+
     config.log('ERROR: Unknown key "{key}"')
     return False
 
@@ -123,6 +127,7 @@ def _main():
         ('vpi_visitor', [models]),
         ('VpiListener', [models]),
         ('VpiListenerTracer_h', [models]),
+        ('UhdmComparer', [models]),
     ]
 
     if args.parallel:

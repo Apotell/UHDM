@@ -180,6 +180,9 @@ class Serializer final {
   std::map<std::string, uint32_t, std::less<>> getObjectStats() const;
   void printStats(std::ostream& strm, std::string_view infoText) const;
 
+  void swap(const Any* what, Any* with);
+  void swap(const std::map<const Any*, Any*>& replacements);
+
 #ifndef SWIG
  private:
   template <typename T>
@@ -231,6 +234,16 @@ class Serializer final {
   bool popScope(Any* s);
   Any* topScope() const {
     return m_scopeStack.empty() ? nullptr : m_scopeStack.back();
+  }
+
+  Any* topDesign() const {
+    for (auto it = m_scopeStack.rbegin(), end = m_scopeStack.rend(); it != end;
+         ++it) {
+      if ((*it)->getUhdmType() == UhdmType::Design) {
+        return *it;
+      }
+    }
+    return nullptr;
   }
 
   friend class ScopedScope;

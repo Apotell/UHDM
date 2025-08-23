@@ -25,6 +25,7 @@ static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   // Design building
   Design* d = s->make<Design>();
   d->setName("design1");
+
   // Module
   Module* m1 = s->make<Module>();
   m1->setTopModule(true);
@@ -34,11 +35,9 @@ static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   m1->setFile("fake1.sv");
   m1->setStartLine(10);
 
-  auto vars = s->makeCollection<Variables>();
-  m1->setVariables(vars);
   LogicVar* lvar = s->make<LogicVar>();
-  vars->push_back(lvar);
   lvar->setFullName("top::M1::v1");
+  lvar->setParent(m1);
 
   // Module
   Module* m2 = s->make<Module>();
@@ -49,16 +48,13 @@ static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   m2->setStartLine(20);
 
   // Ports
-  PortCollection* vp = s->makeCollection<Port>();
   Port* p = s->make<Port>();
   p->setName("i1");
   p->setDirection(vpiInput);
-  vp->push_back(p);
+  p->setParent(m2);
   p = s->make<Port>();
   p->setName("o1");
   p->setDirection(vpiOutput);
-  vp->push_back(p);
-  m2->setPorts(vp);
 
   // Module
   Module* m3 = s->make<Module>();
@@ -72,53 +68,46 @@ static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   Module* m4 = s->make<Module>();
   m4->setDefName("M4");
   m4->setName("u3");
-  m4->setPorts(vp);
   m4->setParent(m3);
   m4->setInstance(m3);
-  ModuleCollection* v1 = s->makeCollection<Module>();
-  v1->push_back(m1);
-  d->setAllModules(v1);
-  ModuleCollection* v2 = s->makeCollection<Module>();
-  v2->push_back(m2);
-  v2->push_back(m3);
-  m1->setModules(v2);
+  p->setParent(m4);
 
   // Package
   Package* p1 = s->make<Package>();
   p1->setName("P1");
   p1->setDefName("P0");
-  PackageCollection* v3 = s->makeCollection<Package>();
-  v3->push_back(p1);
-  d->setAllPackages(v3);
+  p1->setParent(d);
+
   // Function
   Function* f1 = s->make<Function>();
   f1->setName("MyFunc1");
   f1->setSize(100);
+  f1->setParent(m1);
+
   Function* f2 = s->make<Function>();
   f2->setName("MyFunc2");
   f2->setSize(200);
-  TaskFuncCollection* v4 = s->makeCollection<TaskFunc>();
-  v4->push_back(f1);
-  v4->push_back(f2);
-  p1->setTaskFuncs(v4);
+  f2->setParent(m1);
+
+  TaskFuncCollection* v4 = p1->getTaskFuncs(true);
+  v4->emplace_back(f1);
+  v4->emplace_back(f2);
 
   // Instance items, illustrates the use of groups
   Program* pr1 = s->make<Program>();
   pr1->setDefName("PR1");
   pr1->setParent(m1);
-  AnyCollection* inst_items = s->makeCollection<Any>();
-  inst_items->push_back(pr1);
+
   Function* f3 = s->make<Function>();
   f3->setName("MyFunc3");
   f3->setSize(300);
   f3->setParent(m1);
-  inst_items->push_back(f3);
-  m1->setInstanceItems(inst_items);
+
   MyPayLoad* pl = new MyPayLoad(10);
   m1->setClientData(pl);
 
   vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
-  designs.push_back(dh);
+  designs.emplace_back(dh);
 
   {
     char name[]{"P1"};

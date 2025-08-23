@@ -21,19 +21,25 @@ static std::vector<vpiHandle> build_tfCallDesign(Serializer* s) {
 
   Initial* init = s->make<Initial>();
   ProcessCollection* processes = s->makeCollection<Process>();
-  processes->push_back(init);
+  //processes->push_back(init);
+  init->setParent(m1);
   Begin* begin_block = s->make<Begin>();
   init->setStmt(begin_block);
+  begin_block->setParent(init);
   AnyCollection* statements = s->makeCollection<Any>();
 
   SysFuncCall* display = s->make<SysFuncCall>();
   display->setName("display");
+  display->setParent(begin_block);
   AnyCollection* arguments = s->makeCollection<Any>();
   Constant* cA = s->make<Constant>();
   cA->setValue("INT:0");
+  cA->setParent(display);
   arguments->push_back(cA);
   Constant* cA1 = s->make<Constant>();
   cA1->setValue("INT:8");
+  cA1->setParent(display);
+
   arguments->push_back(cA1);
   display->setArguments(arguments);
   statements->push_back(display);
@@ -42,15 +48,19 @@ static std::vector<vpiHandle> build_tfCallDesign(Serializer* s) {
   Function* my_func = s->make<Function>();
   my_func->setName("a_func");
   my_func_call->setFunction(my_func);
+  my_func->setParent(begin_block);
   AnyCollection* arguments2 = s->makeCollection<Any>();
   Constant* cA2 = s->make<Constant>();
   cA2->setValue("INT:1");
   arguments2->push_back(cA2);
+  cA2->setParent(my_func);
   Constant* cA3 = s->make<Constant>();
   cA3->setValue("INT:2");
   arguments2->push_back(cA3);
+  cA3->setParent(my_func);
   my_func_call->setArguments(arguments2);
-  statements->push_back(my_func_call);
+
+  statements->push_back(my_func);
 
   begin_block->setStmts(statements);
   m1->setProcesses(processes);
@@ -61,6 +71,7 @@ static std::vector<vpiHandle> build_tfCallDesign(Serializer* s) {
 
   Package* p1 = s->make<Package>();
   p1->setDefName("P0");
+  p1->setParent(d);
   PackageCollection* v3 = s->makeCollection<Package>();
   v3->push_back(p1);
   d->setAllPackages(v3);

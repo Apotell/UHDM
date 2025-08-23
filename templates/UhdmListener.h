@@ -58,6 +58,7 @@ protected:
 
   any_set_t m_visited;
   any_stack_t m_callstack;
+  bool m_abortRequested = false;
 
 public:
   // Use implicit constructor to initialize all members
@@ -81,6 +82,8 @@ public:
                           return types.find(which->getUhdmType()) != types.end();
                         }) != m_callstack.rend();
   }
+
+  void requestAbort() { m_abortRequested = true; }
 
   bool didVisitAll(const Serializer &serializer) const;
 

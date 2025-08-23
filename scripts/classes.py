@@ -105,6 +105,9 @@ _collector_class_types = {
         ( 'process_stmt', 'Processes' ),
         ( 'tf_call', 'SysTaskCalls' ),
     ]),
+    'Modport': set([
+      ( 'io_decl', 'IODecls' ),
+    ]),
     'Module': set([
         ( 'alias_stmt', 'Aliases' ),
         ( 'clocking_block', 'ClockingBlocks' ),
@@ -147,7 +150,6 @@ _special_parenting_types = set([
     'CheckerInstPort',
     'ClassDefn',
     'ConcurrentAssertions',
-    'Constraint',
     'ContAssign',
     'DefParam',
     'GenScopeArray',
@@ -700,67 +702,29 @@ def _get_getVpiPropertyValue_implementation(model, models):
 
 
 def _get_compare_implementation(model):
-    vpi_blacklist = [
-        'uhdmId',
-        'uhdmType',
-        'vpiBodyStartColumn',
-        'vpiDefFile',
-        'vpiDefLine',
-        'vpiEndColumn',
-        'vpiEndLine',
-        'vpiFile',
-        'vpiFullName',
-        'vpiIncludedFile',
-        'vpiNameStartColumn',
-        'vpiSectionEndColumn',
-        'vpiSectionEndLine',
-        'vpiSectionStartColumn',
-        'vpiSectionStartLine',
-        'vpiSourceEndColumn',
-        'vpiSourceEndLine',
-        'vpiSourceStartColumn',
-        'vpiSourceStartLine',
-        'vpiStartColumn',
-        'vpiStartLine',
-    ]
-
     classname = model['name']
     ClassName = config.make_class_name(classname)
     modeltype = model['type']
 
-    includes = set()
+    includes = set(['UhdmComparer'])
     content = [
-        f'int32_t {ClassName}::compare(const BaseClass *other, CompareContext* context) const {{',
-         '  int32_t r = 0;'
-    ]
-
-    if modeltype == 'obj_def':
-        if model['subclasses']:
-            content.append('  if ((r = getVpiType() - other->getVpiType()) != 0) {')
-            content.append('    context->m_failedLhs = this;')
-            content.append('    context->m_failedRhs = other;')
-            content.append('    return r;')
-            content.append('  }')
-        content.append('  if (!context->m_visited.insert(this).second) return r;')
-
-    content.extend([
-         '  if ((r = basetype_t::compare(other, context)) != 0) return r;',
+        f'int32_t {ClassName}::compare(const BaseClass *other, UhdmComparer* comparer) const {{',
+         '  int32_t r = 0;',
+         '',
+         '  if ((r = basetype_t::compare(other, comparer)) != 0) return r;',
          ''
-    ])
+    ]
 
     var_declared = False
     for key, value in model.allitems():
         if key not in ['property', 'obj_ref', 'class_ref', 'class', 'group_ref']:
             continue
 
-        vpi = value.get('vpi')
-        if vpi in vpi_blacklist:
-            continue
-
         type = value.get('type')
         if type in ['value', 'delay']:
             continue
 
+        vpi = value.get('vpi')
         name = value.get('name')
         card = value.get('card')
 
@@ -775,43 +739,19 @@ def _get_compare_implementation(model):
 
         if card == '1':
             if type == 'string':
-                content.extend([
-                  f'  if ((r = lhs->get{FuncName}().compare(rhs->get{FuncName}())) != 0) {{',
-                   '    context->m_failedLhs = lhs;',
-                   '    context->m_failedRhs = rhs;',
-                   '    return r;',
-                   '  }',
-                ])
+                content.append(f'  if ((r = comparer->compare(lhs, get{FuncName}(), rhs, rhs->get{FuncName}(), {vpi}, r)) != 0) return r;')
 
-            elif type in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t']:
-                content.extend([
-                  f'  if ((r = lhs->m_{varName} - rhs->m_{varName}) != 0) {{',
-                   '    context->m_failedLhs = lhs;',
-                   '    context->m_failedRhs = rhs;',
-                   '    return r;',
-                   '  }',
-                ])
-
-            elif type == 'bool':
-                content.extend([
-                  f'  if ((r = (lhs->m_{varName} == rhs->m_{varName}) ? 0 : (lhs->m_{varName} ? 1 : -1)) != 0) {{',
-                   '    context->m_failedLhs = lhs;',
-                   '    context->m_failedRhs = rhs;',
-                   '    return r;',
-                   '  }',
-                ])
-
-            elif type == 'symbol':
-                content.append(f'  if ((r = safeCompare(lhs->m_{varName}, rhs->m_{varName}, context)) != 0) return r;')
+            elif type in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'bool', 'symbol']:
+                content.append(f'  if ((r = comparer->compare(lhs, m_{varName}, rhs, rhs->m_{varName}, {vpi}, r)) != 0) return r;')
 
             else:
                 includes.add(type)
-                content.append(f'  if ((r = safeCompare(lhs->m_{varName}, rhs->m_{varName}, context)) != 0) return r;')
+                content.append(f'  if ((r = comparer->compare(lhs, m_{varName}, rhs, rhs->m_{varName}, {vpi}, r)) != 0) return r;')
         else:
             if type != 'symbol':
                 includes.add(type)
 
-            content.append(f'  if ((r = safeCompare(lhs, lhs->m_{varName}, rhs, rhs->m_{varName}, context)) != 0) return r;')
+            content.append(f'  if ((r = comparer->compare(lhs, m_{varName}, rhs, rhs->m_{varName}, {vpi}, r)) != 0) return r;')
 
     content.extend([
         '  return r;',
@@ -828,18 +768,21 @@ def _get_swap_implementation(model):
     modeltype = model['type']
 
     includes = set()
-    content = [
-        f'void {ClassName}::swap(const BaseClass *what, BaseClass* with, AnySet& visited) {{',
-        f'  if ((getUhdmType() == uhdm::UhdmType::{ClassName}) && !visited.emplace(this).second) return;',
-         '  basetype_t::swap(what, with, visited);',
+    content_one = [
+        f'void {ClassName}::swap(const BaseClass *what, BaseClass* with) {{',
+         '  basetype_t::swap(what, with);',
+         ''
+    ]
+
+    content_many = [
+        f'void {ClassName}::swap(const std::map<const BaseClass*, BaseClass*>& replacements) {{',
+         '  basetype_t::swap(replacements);',
          ''
     ]
 
     for key, value in model.allitems():
         if key not in ['property', 'obj_ref', 'class_ref', 'class', 'group_ref']:
             continue
-
-        vpi = value.get('vpi')
 
         type = value.get('type')
         if type in ['value', 'delay']:
@@ -859,26 +802,29 @@ def _get_swap_implementation(model):
                 if type not in ['any', 'symbol']:
                     includes.add(type)
 
-                content.append(f'  if (m_{varName} == what) {{')
-                content.append(f'    if ({TypeName}* const withT = with->Cast<{TypeName}>()) m_{varName} = withT;')
-                content.append(f'  }} else if (m_{varName} != nullptr) {{')
-                content.append(f'    m_{varName}->swap(what, with, visited);')
-                content.append( '  }')
+                content_one.append(f'  if (m_{varName} == what) {{')
+                content_one.append(f'    if (with == nullptr) m_{varName} = nullptr;')
+                content_one.append(f'    else if ({TypeName}* const withT = with->Cast<{TypeName}>()) m_{varName} = withT;')
+                content_one.append( '  }')
+
+                content_many.append(f'  if (m_{varName} != nullptr) {{')
+                content_many.append(f'    if (auto it = replacements.find(m_{varName}); it != replacements.cend()) {{')
+                content_many.append(f'      if (it->second == nullptr) m_{varName} = nullptr;')
+                content_many.append(f'      else if ({TypeName}* const withT = it->second->Cast<{TypeName}>()) m_{varName} = withT;')
+                content_many.append( '    }')
+                content_many.append( '  }')
         else:
             if type not in ['any', 'symbol']:
                 includes.add(type)
 
-            content.append(f'  if (m_{varName} != nullptr) for (auto &whatT : *m_{varName}) {{')
-            content.append( '    if (whatT == what) {')
-            content.append(f'      if ({TypeName}* const withT = with->Cast<{TypeName}>()) whatT = withT;')
-            content.append( '    } else whatT->swap(what, with, visited);')
-            content.append( '  }')
+            content_one.append(f'  if (m_{varName} != nullptr) swapT(*m_{varName}, what, with);')
 
-    content.extend([
-        '}',
-        ''
-    ])
+            content_many.append(f'  if (m_{varName} != nullptr) swapT(*m_{varName}, replacements);')
 
+    content_one.append('}')
+    content_many.append('}')
+
+    content = content_one + [''] + content_many + ['']
     return content, includes
 
 
@@ -943,16 +889,29 @@ def _get_setParent_implementation(model):
 
     content = [
         f'bool {ClassName}::setParent(BaseClass* data, bool force /* = false */) {{',
-         '  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {',
+    ]
+
+    if classname in ['param_assign']:
+      includes.append('class_typespec')
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<ClassTypespec>() == nullptr)) {')
+
+    elif classname in ['io_decl']:
+      includes.append('modport')
+      includes.append('task_func_decl')
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<Modport>() == nullptr) && (data->Cast<TaskFuncDecl>() == nullptr)) {')
+
+    else:
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {')
+
+    content.extend([
          '    if (this != m_serializer->topScope()) if (BaseClass* const topScope = m_serializer->topScope()) data = topScope;',
          '  }',
         '  return basetype_t::setParent(data, force);',
         '}',
         ''
-    ]
+    ])
 
     return content, includes
-
 
 
 def _get_onChildXXX_implementation(model):
@@ -1075,8 +1034,9 @@ def _generate_one_class(model, models, templates):
     public_declarations.append(f'  const BaseClass* getByVpiName(std::string_view name) const {override};')
     public_declarations.append(f'  get_by_vpi_type_return_t getByVpiType(int32_t type) const {override};')
     public_declarations.append(f'  vpi_property_value_t getVpiPropertyValue(int32_t property) const {override};')
-    public_declarations.append(f'  int32_t compare(const BaseClass* other, CompareContext* context) const {override};')
-    public_declarations.append(f'  void swap(const BaseClass* what, BaseClass* with, AnySet& visited) {override};')
+    public_declarations.append(f'  int32_t compare(const BaseClass* other, UhdmComparer* comparer) const {override};')
+    public_declarations.append(f'  void swap(const BaseClass* what, BaseClass* with) {override};')
+    public_declarations.append(f'  void swap(const std::map<const BaseClass*, BaseClass*>& replacements) {override};')
 
     if ClassName in _special_parenting_types:
         func_body, func_includes = _get_setParent_implementation(model)

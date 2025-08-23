@@ -72,17 +72,14 @@ void UhdmListener::listenAny_(const Any* object) {
 <UHDM_PRIVATE_LISTEN_IMPLEMENTATIONS>
 <UHDM_PUBLIC_LISTEN_IMPLEMENTATIONS>
 void UhdmListener::listenAny(const Any* object, uint32_t vpiRelation) {
-  const bool revisiting = m_visited.find(object) != m_visited.end();
-  if (!revisiting) enterAny(object, vpiRelation);
-
+  enterAny(object, vpiRelation);
   m_callstack.emplace_back(object);
   switch (object->getUhdmType()) {
 <UHDM_LISTENANY_IMPLEMENTATION>
   default: break;
   }
   m_callstack.pop_back();
-
-  if (!revisiting) leaveAny(object, vpiRelation);
+  leaveAny(object, vpiRelation);
 }
 
 } // namespace uhdm

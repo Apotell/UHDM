@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include <uhdm/UhdmComparer.h>
+#include <uhdm/uhdm-version.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
-#include <uhdm/uhdm-version.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -98,10 +99,9 @@ int32_t main(int32_t argc, char **argv) {
                  to_design);
 
   for (size_t i = 0, n = designsA.size(); i < n; ++i) {
-    uhdm::CompareContext context;
-    if (designsA[i]->compare(designsB[i], &context) != 0) {
-      if (context.m_failedLhs != nullptr) {
-        const uhdm::Any *p = context.m_failedLhs;
+    uhdm::UhdmComparer comparer;
+    if (comparer.compare(designsA[i], designsB[i]) != 0) {
+      if (const uhdm::Any *p = comparer.getFailedLhs()) {
         size_t count = 0;
         while ((p != nullptr) && (count < 4)) {
           std::cout << "LHS: " << count << ", " << p->getFile() << std::endl;
@@ -115,8 +115,7 @@ int32_t main(int32_t argc, char **argv) {
 
       std::cout << std::string(80, '=') << std::endl;
 
-      if (context.m_failedRhs != nullptr) {
-        const uhdm::Any *p = context.m_failedRhs;
+      if (const uhdm::Any *p = comparer.getFailedRhs()) {
         size_t count = 0;
         while ((p != nullptr) && (count < 4)) {
           std::cout << "RHS: " << count << ", " << p->getFile() << std::endl;

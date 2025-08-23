@@ -41,6 +41,7 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
 
   AssignStmt* as = s->make<AssignStmt>();
   f1->setStmt(as);
+  as->setParent(f1);
 
   RefObj* lhs = s->make<RefObj>();
   lhs->setName("a");
@@ -95,7 +96,7 @@ static std::vector<vpiHandle> build_designs(Serializer* s) {
   d->getTopModules(true)->emplace_back(m1);
 
   vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
-  designs.push_back(dh);
+  designs.emplace_back(dh);
   return designs;
 }
 

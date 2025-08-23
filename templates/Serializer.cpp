@@ -23,6 +23,7 @@
  * Created on October 4, 2021, 10:53 PM
  */
 #include <uhdm/Serializer.h>
+#include <uhdm/UhdmComparer.h>
 #include <uhdm/UhdmListener.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
@@ -44,47 +45,355 @@ Serializer::Serializer() {
 
 Serializer::~Serializer() { purge(); }
 
+class TypespecUnifier final : public UhdmListener {
+ public:
+  using replacements_t = std::map<const Any*, Any*>;
+  using references_t = std::map<const Any*, std::set<const Any*>>;
+
+ private:
+  class Comparer final : public UhdmComparer {
+   public:
+    Comparer() { m_ignoredRelations.clear(); }
+
+    using UhdmComparer::compare;
+
+    int32_t compare(const Any* plhs, uint16_t lhs, const Any* prhs,
+                    uint16_t rhs, uint32_t relation, int32_t r) final {
+      if ((relation == vpiStartColumn) || (relation == vpiEndColumn)) {
+        // Ignore location information for typespecs
+        if (any_cast<Typespec>(plhs) != nullptr) {
+          return r;
+        }
+      }
+      return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
+    }
+
+    int32_t compare(const Any* plhs, uint32_t lhs, const Any* prhs,
+                    uint32_t rhs, uint32_t relation, int32_t r) final {
+      if ((relation == vpiStartLine) || (relation == vpiEndLine)) {
+        // Ignore location information for typespecs
+        if (any_cast<Typespec>(plhs) != nullptr) {
+          return r;
+        }
+      }
+      return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
+    }
+  };
+
+  template <typename T>
+  void enterTypespecCollection(const std::vector<T*>& container) {
+    if (container.size() < 2) return;
+    typename std::vector<T*> typespecs;
+
+    // Don't remove UnsupportedTypespec(s)
+    std::copy_if(container.cbegin(), container.cend(),
+                 std::back_inserter(typespecs), [](const Any* const any) {
+                   return (any->getUhdmType() != UhdmType::UnsupportedTypespec);
+                 });
+    if (typespecs.size() < 2) return;
+
+    // Sort and find duplicates (keep first and delete others).
+    std::sort(typespecs.begin(), typespecs.end(),
+              [this](const T* const lhs, const T* const rhs) {
+                int32_t r = static_cast<uint32_t>(lhs->getUhdmType()) -
+                            static_cast<uint32_t>(rhs->getUhdmType());
+                if (r == 0) r = m_comparer.compare(lhs, rhs);
+                if (r == 0) r = lhs->getUhdmId() - rhs->getUhdmId();
+                return r < 0;
+              });
+
+    T* first = const_cast<T*>(typespecs.front());
+    for (size_t i = 1, ni = typespecs.size(); i < ni; ++i) {
+      const T* const any = typespecs[i];
+
+      if ((first != any) &&
+          (first->getUhdmType() == any->getUhdmType()) &&
+          (m_comparer.compare(first, any) == 0)) {
+        m_replacements.emplace(any, first);
+      } else {
+        first = const_cast<T*>(any);
+      }
+    }
+  }
+
+  void enterTypespecCollection(const Any* object,
+                               const TypespecCollection& objects,
+                               uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+
+  void enterArrayTypespecCollection(const Any* object,
+                                    const ArrayTypespecCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterBitTypespecCollection(const Any* object,
+                                  const BitTypespecCollection& objects,
+                                  uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterByteTypespecCollection(const Any* object,
+                                   const ByteTypespecCollection& objects,
+                                   uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterChandleTypespecCollection(const Any* object,
+                                      const ChandleTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterClassTypespecCollection(const Any* object,
+                                    const ClassTypespecCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterEnumTypespecCollection(const Any* object,
+                                   const EnumTypespecCollection& objects,
+                                   uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterEventTypespecCollection(const Any* object,
+                                    const EventTypespecCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterImportTypespecCollection(const Any* object,
+                                     const ImportTypespecCollection& objects,
+                                     uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterIntTypespecCollection(const Any* object,
+                                  const IntTypespecCollection& objects,
+                                  uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterIntegerTypespecCollection(const Any* object,
+                                      const IntegerTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterInterfaceTypespecCollection(
+      const Any* object, const InterfaceTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterLogicTypespecCollection(const Any* object,
+                                    const LogicTypespecCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterLongIntTypespecCollection(const Any* object,
+                                      const LongIntTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterModuleTypespecCollection(const Any* object,
+                                     const ModuleTypespecCollection& objects,
+                                     uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterPackedArrayTypespecCollection(
+      const Any* object, const PackedArrayTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterProgramTypespecCollection(const Any* object,
+                                      const ProgramTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterPropertyTypespecCollection(
+      const Any* object, const PropertyTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterRealTypespecCollection(const Any* object,
+                                   const RealTypespecCollection& objects,
+                                   uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterSequenceTypespecCollection(
+      const Any* object, const SequenceTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterShortIntTypespecCollection(
+      const Any* object, const ShortIntTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterShortRealTypespecCollection(
+      const Any* object, const ShortRealTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterStringTypespecCollection(const Any* object,
+                                     const StringTypespecCollection& objects,
+                                     uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterStructTypespecCollection(const Any* object,
+                                     const StructTypespecCollection& objects,
+                                     uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterTimeTypespecCollection(const Any* object,
+                                   const TimeTypespecCollection& objects,
+                                   uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterTypeParameterCollection(const Any* object,
+                                    const TypeParameterCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterTypedefTypespecCollection(const Any* object,
+                                      const TypedefTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterUdpDefnTypespecCollection(const Any* object,
+                                      const UdpDefnTypespecCollection& objects,
+                                      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterUnionTypespecCollection(const Any* object,
+                                    const UnionTypespecCollection& objects,
+                                    uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterUnsupportedTypespecCollection(
+      const Any* object, const UnsupportedTypespecCollection& objects,
+      uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+  void enterVoidTypespecCollection(const Any* object,
+                                   const VoidTypespecCollection& objects,
+                                   uint32_t relation) final {
+    enterTypespecCollection(objects);
+  }
+
+  void enterUnsupportedTypespec(const UnsupportedTypespec* object,
+                                uint32_t relation = 0) final {
+    if (m_callstack.size() > 1) {
+      m_references[object].emplace(m_callstack[m_callstack.size() - 2]);
+    }
+  }
+
+ private:
+  replacements_t m_replacements;
+  references_t m_references;
+  Comparer m_comparer;
+
+  friend class Serializer;
+};
+
+class ReferenceCollector final : public UhdmListener {
+ public:
+  void enterAny(const Any* object, uint32_t relation = 0) final {
+    if (!m_callstack.empty() && (m_callstack.back() == object->getParent())) {
+      m_referenced.emplace(object);
+    }
+  }
+
+  void enterDesign(const Design* object, uint32_t relation = 0) final {
+    m_referenced.emplace(object);
+  }
+
+ private:
+  AnySet m_referenced;
+
+  friend class Serializer;
+};
+
+void Serializer::swap(const Any* what, Any* with) {
+  for (factories_t::const_reference entry : m_factories) {
+    for (Any* any : entry.second->m_objects) {
+      any->swap(what, with);
+    }
+  }
+}
+
+void Serializer::swap(const std::map<const Any *, Any *> &replacements) {
+  for (factories_t::const_reference entry : m_factories) {
+    for (Any* any : entry.second->m_objects) {
+      any->swap(replacements);
+    }
+  }
+}
+
 void Serializer::collectGarbage() {
   if (!m_enableGC) return;
 
-  Factory* const factory = m_factories[UhdmType::Design];
-  UhdmListener* const listener = new UhdmListener();
+  Factory* const designFactory = m_factories[UhdmType::Design];
+  if (TypespecUnifier* const unifier = new TypespecUnifier) {
+    for (Any* any : designFactory->m_objects) unifier->listenAny(any);
 
-  // PreprocMacroInstance has collection of objects that aren't parent to
-  // instance itself. The parent of any of these objects could be deleted
-  // leaving the object still in its collection. These obejcts are
-  // weak-references and shouldn't be accounted for towards visitation.
-  // Fortunately, this is the only collection in PreprocMacroInstance and
-  // so we can cleanly/safely avoid visiting the instance itself.
-  Factory* const preprocMacroInstanceFactory =
-      m_factories[PreprocMacroInstance::kUhdmType];
-  listener->getVisited().insert(preprocMacroInstanceFactory->m_objects.cbegin(),
-                                preprocMacroInstanceFactory->m_objects.cend());
-  for (auto d : factory->m_objects) {
-    listener->listenDesign(any_cast<Design>(d));
-  }
-
-  const AnySet visited(listener->getVisited().begin(),
-                       listener->getVisited().end());
-  delete listener;
-
-  AnySet erased;
-  for (factories_t::const_reference entry : m_factories) {
-    entry.second->eraseIfNotIn(visited, erased);
-  }
-
-  // Remove objects from PreprocMacroInstance that have been erased.
-  for (Any* pmi : preprocMacroInstanceFactory->m_objects) {
-    if (AnyCollection* const objects = any_cast<PreprocMacroInstance>(pmi)
-            ->getObjects()) {
-      AnyCollection keepers;
-      std::copy_if(objects->cbegin(), objects->cend(),
-                   std::back_inserter(keepers),
-                   [&erased](const Any* const any) {
-                     return erased.find(any) == erased.cend();
-                   });
-      objects->swap(keepers);
+    TypespecUnifier::replacements_t& replacements = unifier->m_replacements;
+    const TypespecUnifier::references_t& references = unifier->m_references;
+    if (!references.empty()) {
+      for (TypespecUnifier::references_t::const_reference entry : references) {
+        if (entry.second.size() == 1) {
+          replacements.emplace(entry.first, nullptr);
+        }
+      }
     }
+
+    if (!replacements.empty()) {
+      for (TypespecUnifier::replacements_t::reference entry : replacements) {
+        Any* target = entry.second;
+        while (true) {
+          TypespecUnifier::replacements_t::const_iterator it =
+              replacements.find(target);
+          if (it != replacements.cend()) {
+            target = it->second;
+          } else {
+            break;
+          }
+        }
+
+        const Any* key = entry.first;
+        while (true) {
+          TypespecUnifier::replacements_t::iterator it =
+              replacements.find(key);
+          if (it != replacements.cend()) {
+            key = it->second;
+            it->second = target;
+          } else {
+            break;
+          }
+        }
+      }
+
+      swap(replacements);
+    }
+    delete unifier;
+  }
+
+  if (ReferenceCollector* const collector = new ReferenceCollector) {
+    for (Any* any : designFactory->m_objects) collector->listenAny(any);
+
+    const AnySet& visited = collector->getVisited();
+    const AnySet& referenced = collector->m_referenced;
+
+    AnySet diffs;
+    std::set_difference(visited.cbegin(), visited.cend(), referenced.cbegin(),
+                        referenced.cend(), std::inserter(diffs, diffs.begin()));
+    if (!diffs.empty()) {
+      TypespecUnifier::replacements_t replacements;
+      std::transform(
+          diffs.cbegin(), diffs.cend(),
+          std::inserter(replacements, replacements.begin()),
+          [](const Any* any) { return std::make_pair(any, nullptr); });
+      swap(replacements);
+    }
+
+    AnySet erased;
+    for (factories_t::const_reference entry : m_factories) {
+      entry.second->eraseIfNotIn(referenced, erased);
+    }
+
+    delete collector;
   }
 }
 

@@ -161,8 +161,8 @@ set(uhdm_SRC
     ${PROJECT_SOURCE_DIR}/src/SymbolFactory.cpp
     ${PROJECT_SOURCE_DIR}/src/SymbolId.cpp
     ${PROJECT_SOURCE_DIR}/src/SynthSubset.cpp
-    ${PROJECT_SOURCE_DIR}/src/UhdmLint.cpp
     ${PROJECT_SOURCE_DIR}/src/UhdmAdjuster.cpp
+    ${PROJECT_SOURCE_DIR}/src/UhdmLint.cpp
 )
 
 set(uhdm-GENERATED_SRC
@@ -171,6 +171,7 @@ set(uhdm-GENERATED_SRC
     ${GENDIR}/src/Serializer_restore.cpp
     ${GENDIR}/src/Serializer_save.cpp
     ${GENDIR}/src/UHDM.capnp.c++
+    ${GENDIR}/src/UhdmComparer.cpp
     ${GENDIR}/src/UhdmListener.cpp
     ${GENDIR}/src/VpiListener.cpp
     ${GENDIR}/src/vpi_user.cpp
@@ -304,6 +305,7 @@ if (UHDM_BUILD_TESTS)
     # grained testing.
     tests/classes_test.cpp
     tests/error-handler_test.cpp
+    tests/expr_prettyPrint_test.cpp
     tests/expr_reduce_test.cpp
     tests/full_elab_test.cpp
     tests/garbage_collect_test.cpp
@@ -314,11 +316,11 @@ if (UHDM_BUILD_TESTS)
     tests/statement_test.cpp
     tests/symbol_factory_test.cpp
     tests/tf_call_test.cpp
+    tests/uhdm_comparer_test.cpp
     tests/uhdm_listener_test.cpp
     tests/vpi_get_test.cpp
     tests/vpi_listener_test.cpp
     tests/vpi_value_conversion_test.cpp
-    tests/expr_prettyPrint_test.cpp
   )
 endif()
 
@@ -328,6 +330,12 @@ target_link_libraries(uhdm-cmp PRIVATE uhdm)
 
 add_executable(uhdm-dump ${PROJECT_SOURCE_DIR}/util/uhdm-dump.cpp)
 target_link_libraries(uhdm-dump PRIVATE uhdm)
+
+add_executable(uhdm-equiv ${PROJECT_SOURCE_DIR}/util/uhdm-equiv.cpp)
+target_link_libraries(uhdm-equiv PRIVATE uhdm)
+
+add_executable(uhdm-gc ${PROJECT_SOURCE_DIR}/util/uhdm-gc.cpp)
+target_link_libraries(uhdm-gc PRIVATE uhdm)
 
 add_executable(uhdm-hier ${PROJECT_SOURCE_DIR}/util/uhdm-hier.cpp)
 target_link_libraries(uhdm-hier PRIVATE uhdm)
@@ -374,7 +382,7 @@ endif()
 
 # Installation target
 install(
-  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-hier uhdm-lint
+  TARGETS uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-hier uhdm-lint
   EXPORT uhdmTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
