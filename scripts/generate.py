@@ -40,11 +40,6 @@ def _worker(params):
     elif key == 'containers_h':
         return containers_h.generate(*args)
 
-    elif key == 'Copier':
-        for source, destination in args[0].items():
-          file_utils.copy_file_if_changed(source, destination)
-        return True
-
     elif key == 'ElaboratorListener_cpp':
         return ElaboratorListener_cpp.generate(*args)
 
@@ -118,34 +113,6 @@ def _main():
         ('classes', [models]),
         ('containers_h', [models]),
         ('ElaboratorListener_cpp', [models]),
-        ('Copier', [{
-            config.get_template_filepath('BaseClass.h'): config.get_output_header_filepath('BaseClass.h'),
-            config.get_template_filepath('BaseClass.cpp'): config.get_output_source_filepath('BaseClass.cpp'),
-            config.get_template_filepath('clone_tree.h'): config.get_output_header_filepath('clone_tree.h'),
-            config.get_template_filepath('clone_tree.cpp'): config.get_output_source_filepath('clone_tree.cpp'),
-            config.get_template_filepath('ElaboratorListener.h'): config.get_output_header_filepath('ElaboratorListener.h'),
-            config.get_template_filepath('ExprEval.h'): config.get_output_header_filepath('ExprEval.h'),
-            config.get_template_filepath('ExprEval.cpp'): config.get_output_source_filepath('ExprEval.cpp'),
-            config.get_template_filepath('NumUtils.h'): config.get_output_header_filepath('NumUtils.h'),
-            config.get_template_filepath('NumUtils.cpp'): config.get_output_source_filepath('NumUtils.cpp'),
-            config.get_template_filepath('UhdmLint.h'): config.get_output_header_filepath('UhdmLint.h'),
-            config.get_template_filepath('UhdmLint.cpp'): config.get_output_source_filepath('UhdmLint.cpp'),
-            config.get_template_filepath('UhdmAdjuster.h'): config.get_output_header_filepath('UhdmAdjuster.h'),
-            config.get_template_filepath('UhdmAdjuster.cpp'): config.get_output_source_filepath('UhdmAdjuster.cpp'),
-            config.get_template_filepath('SynthSubset.h'): config.get_output_header_filepath('SynthSubset.h'),
-            config.get_template_filepath('SynthSubset.cpp'): config.get_output_source_filepath('SynthSubset.cpp'),
-            config.get_template_filepath('RTTI.h'): config.get_output_header_filepath('RTTI.h'),
-            config.get_template_filepath('SymbolId.h'): config.get_output_header_filepath('SymbolId.h'),
-            config.get_template_filepath('SymbolId.cpp'): config.get_output_source_filepath('SymbolId.cpp'),
-            config.get_template_filepath('SymbolFactory.h'): config.get_output_header_filepath('SymbolFactory.h'),
-            config.get_template_filepath('SymbolFactory.cpp'): config.get_output_source_filepath('SymbolFactory.cpp'),
-            config.get_template_filepath('uhdm_vpi_user.h'): config.get_output_header_filepath('uhdm_vpi_user.h'),
-            config.get_template_filepath('vpi_uhdm.h'): config.get_output_header_filepath('vpi_uhdm.h'),
-
-            config.get_include_filepath('sv_vpi_user.h'): config.get_output_header_filepath('sv_vpi_user.h'),
-            config.get_include_filepath('vhpi_user.h'): config.get_output_header_filepath('vhpi_user.h'),
-            config.get_include_filepath('vpi_user.h'): config.get_output_header_filepath('vpi_user.h'),
-        }]),
         ('serializer', [models]),
         ('uhdm_forward_decl_h', [models]),
         ('uhdm_h', [models]),

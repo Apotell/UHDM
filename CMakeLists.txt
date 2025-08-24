@@ -153,21 +153,24 @@ add_custom_command(
   DEPENDS ${model-GENERATED_UHDM})
 add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 
+set(uhdm_SRC
+    ${PROJECT_SOURCE_DIR}/src/BaseClass.cpp
+    ${PROJECT_SOURCE_DIR}/src/clone_tree.cpp
+    ${PROJECT_SOURCE_DIR}/src/ExprEval.cpp
+    ${PROJECT_SOURCE_DIR}/src/NumUtils.cpp
+    ${PROJECT_SOURCE_DIR}/src/SymbolFactory.cpp
+    ${PROJECT_SOURCE_DIR}/src/SymbolId.cpp
+    ${PROJECT_SOURCE_DIR}/src/SynthSubset.cpp
+    ${PROJECT_SOURCE_DIR}/src/UhdmLint.cpp
+    ${PROJECT_SOURCE_DIR}/src/UhdmAdjuster.cpp
+)
+
 set(uhdm-GENERATED_SRC
-    ${GENDIR}/src/BaseClass.cpp
-    ${GENDIR}/src/clone_tree.cpp
     ${GENDIR}/src/ElaboratorListener.cpp
-    ${GENDIR}/src/ExprEval.cpp
-    ${GENDIR}/src/NumUtils.cpp
     ${GENDIR}/src/Serializer.cpp
     ${GENDIR}/src/Serializer_restore.cpp
     ${GENDIR}/src/Serializer_save.cpp
-    ${GENDIR}/src/SymbolFactory.cpp
-    ${GENDIR}/src/SymbolId.cpp
-    ${GENDIR}/src/SynthSubset.cpp
     ${GENDIR}/src/UHDM.capnp.c++
-    ${GENDIR}/src/UhdmLint.cpp
-    ${GENDIR}/src/UhdmAdjuster.cpp
     ${GENDIR}/src/UhdmListener.cpp
     ${GENDIR}/src/VpiListener.cpp
     ${GENDIR}/src/vpi_user.cpp
@@ -204,14 +207,14 @@ endif()
 
 set(UHDM_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 message("Building UHDM version v${UHDM_VERSION_MAJOR}.${UHDM_VERSION_MINOR} [${UHDM_VERSION_COMMIT_SHA}]")
-configure_file(${PROJECT_SOURCE_DIR}/include/uhdm-version.h.in ${GENDIR}/uhdm/uhdm-version.h)
+configure_file(${PROJECT_SOURCE_DIR}/templates/uhdm-version.h.in ${GENDIR}/uhdm/uhdm-version.h)
 
-add_library(uhdm ${uhdm-GENERATED_SRC})
+add_library(uhdm ${uhdm_SRC} ${uhdm-GENERATED_SRC})
 set_target_properties(uhdm PROPERTIES
   PUBLIC_HEADER ${GENDIR}/uhdm/uhdm.h
   SOVERSION "${UHDM_VERSION_MAJOR}.${UHDM_VERSION_MINOR}"
 )
-configure_file(${PROJECT_SOURCE_DIR}/include/config.h.in ${GENDIR}/uhdm/config.h)
+configure_file(${PROJECT_SOURCE_DIR}/templates/config.h.in ${GENDIR}/uhdm/config.h)
 target_compile_options(uhdm PUBLIC
   "SHELL:$<IF:$<CXX_COMPILER_ID:MSVC>,/FI uhdm/config.h,-include uhdm/config.h>")
 
@@ -224,6 +227,9 @@ endif()
 # installation. Hence we use SYSTEM
 target_include_directories(uhdm SYSTEM PUBLIC
   $<BUILD_INTERFACE:${GENDIR}>
+  $<INSTALL_INTERFACE:include>)
+target_include_directories(uhdm SYSTEM PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_include_directories(uhdm PRIVATE ${GENDIR}/src)
 
@@ -373,6 +379,8 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/uhdm/
+      DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm/)
 install(DIRECTORY ${GENDIR}/uhdm/
         DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm/)
 install(FILES ${GENDIR}/src/UHDM.capnp

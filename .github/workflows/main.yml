@@ -4,7 +4,11 @@ concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-on: [ push ]
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
 
 jobs:
   build:
