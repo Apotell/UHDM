@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#include <uhdm/uhdm.h>
-#include <uhdm/uhdm-version.h>
+#include <uhdm/SynthSubset.h>
 #include <uhdm/UhdmLint.h>
 #include <uhdm/VpiListener.h>
-#include <uhdm/SynthSubset.h>
+#include <uhdm/uhdm-version.h>
+#include <uhdm/uhdm.h>
+
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -27,15 +28,15 @@
 
 namespace fs = std::filesystem;
 
-static int32_t usage(const char *progName) {
-  std::cerr << "Usage:" << std::endl
-            << "  " << progName << " <uhdm-file>" << std::endl
-            << std::endl
-            << "Reads input uhdm binary representation and lints the db (Version: "
-            << UHDM_VERSION_MAJOR << "." << UHDM_VERSION_MINOR << ") "
-            << std::endl
-            << std::endl
-            << "Exits with code" << std::endl;
+static int32_t usage(const char* progName) {
+  std::cerr
+      << "Usage:" << std::endl
+      << "  " << progName << " <uhdm-file>" << std::endl
+      << std::endl
+      << "Reads input uhdm binary representation and lints the db (Version: "
+      << UHDM_VERSION_MAJOR << "." << UHDM_VERSION_MINOR << ") " << std::endl
+      << std::endl
+      << "Exits with code" << std::endl;
   return 0;
 }
 
@@ -50,40 +51,40 @@ class MyLinter : public uhdm::VpiListener {
   }
 
   void leaveUnsupportedExpr(const uhdm::UnsupportedExpr* object,
-                             vpiHandle handle) final {
+                            vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
     m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_EXPR,
-                                   std::string(object->getName()), object,
-                                   nullptr);
+                                    std::string(object->getName()), object,
+                                    nullptr);
   }
 
   void leaveUnsupportedStmt(const uhdm::UnsupportedStmt* object,
-                             vpiHandle handle) final {
+                            vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
     m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_STMT,
-                                   std::string(object->getName()), object,
-                                   nullptr);
+                                    std::string(object->getName()), object,
+                                    nullptr);
   }
 
   void leaveUnsupportedTypespec(const uhdm::UnsupportedTypespec* object,
-                                 vpiHandle handle) final {
+                                vpiHandle handle) final {
     if (isInUhdmAllIterator()) return;
     m_serializer->getErrorHandler()(uhdm::ErrorType::UHDM_UNSUPPORTED_TYPESPEC,
-                                   std::string(object->getName()), object,
-                                   object->getParent());
+                                    std::string(object->getName()), object,
+                                    object->getParent());
   }
 
  private:
-  uhdm::Serializer *const m_serializer = nullptr;
+  uhdm::Serializer* const m_serializer = nullptr;
 };
 
-int32_t main(int32_t argc, char **argv) {
+int32_t main(int32_t argc, char** argv) {
   if (argc != 2) {
     return usage(argv[0]);
   }
 
   fs::path file = argv[1];
-  
+
   std::error_code ec;
   if (!fs::is_regular_file(file, ec) || ec) {
     std::cerr << file << ": File does not exist!" << std::endl;
@@ -176,20 +177,23 @@ int32_t main(int32_t argc, char **argv) {
             errmsg = "Signed vs Unsigned port connection";
             break;
           case uhdm::UHDM_FORCING_UNSIGNED_TYPE:
-            errmsg = "Critical: Forcing signal to unsigned type due to unsigned port binding ";
+            errmsg =
+                "Critical: Forcing signal to unsigned type due to unsigned "
+                "port binding ";
             break;
         }
 
         if (object1) {
-          std::cout << object1->getFile() << ":" << object1->getStartLine() << ":"
-                    << object1->getStartColumn() << ": ";
+          std::cout << object1->getFile() << ":" << object1->getStartLine()
+                    << ":" << object1->getStartColumn() << ": ";
           std::cout << errmsg << ", " << msg << std::endl;
         } else {
           std::cout << errmsg << ", " << msg << std::endl;
         }
         if (object2) {
           std::cout << "  \\_ " << object2->getFile() << ":"
-                    << object2->getStartLine() << ":" << object2->getStartColumn() << ":" << std::endl;
+                    << object2->getStartLine() << ":"
+                    << object2->getStartColumn() << ":" << std::endl;
         }
       };
   serializer.get()->setErrorHandler(errHandler);

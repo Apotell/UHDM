@@ -15,9 +15,9 @@
 # Universal Hardware Data Model (UHDM) "task func" formal description
 
 - class_def: task_func_decl
-- property: name
+- obj_ref: name
   vpi: vpiName
-  type: string
+  type: constant
   card: 1
 - property: full_name
   vpi: vpiFullName

@@ -200,7 +200,7 @@ def _get_declarations(name, type, vpi, card, real_type=''):
     if vpi == 'uhdmType':
         type = 'UhdmType'
 
-    final = ' final' if vpi in ['uhdmType', 'vpiName', 'vpiType', 'vpiDefName'] else ''
+    final = ' final' if vpi in ['uhdmType', 'vpiType', 'vpiDefName'] else ''
     check = f'if (!{real_type}GroupCompliant(data)) return false;\n    ' if type == 'any' and real_type != 'any' else ''
 
     varName = config.make_var_name(name, card)
@@ -217,11 +217,17 @@ def _get_declarations(name, type, vpi, card, real_type=''):
 
         else:
             Type = config.make_class_name(type)
-            content.append(f'  {Type}* get{FuncName}(){final} {{ return m_{varName}; }}')
-            content.append(f'  const {Type}* get{FuncName}() const{final} {{ return m_{varName}; }}')
-            content.append(f'  template <typename T> T* get{FuncName}() {{ return any_cast<T>(m_{varName}); }}')
-            content.append(f'  template <typename T> const T* get{FuncName}() const {{ return any_cast<T>(m_{varName}); }}')
-            content.append(f'  bool set{FuncName}({Type}* data) {{\n    {check}m_{varName} = data;\n    return true;\n  }}')
+            suffix = ''
+            if vpi in ['vpiName']:
+                suffix = 'Obj'
+                content.append('  std::string_view getName() const final;')
+                content.append('  bool setName(std::string_view name);')
+
+            content.append(f'  {Type}* get{FuncName}{suffix}(){final} {{ return m_{varName}; }}')
+            content.append(f'  const {Type}* get{FuncName}{suffix}() const{final} {{ return m_{varName}; }}')
+            content.append(f'  template <typename T> T* get{FuncName}{suffix}() {{ return any_cast<T>(m_{varName}); }}')
+            content.append(f'  template <typename T> const T* get{FuncName}{suffix}() const {{ return any_cast<T>(m_{varName}); }}')
+            content.append(f'  bool set{FuncName}{suffix}({Type}* data) {{\n    {check}m_{varName} = data;\n    return true;\n  }}')
 
             # if type == 'ref_typespec':
             #     content.append(f'  template <typename T> T* get{FuncName}Actual() {{ return (m_{varName} != nullptr) ? m_{varName}->template getActual<T>() : nullptr; }}')
@@ -245,6 +251,20 @@ def _get_implementations(classname, name, type, vpi, card):
     varName = config.make_var_name(name, card)
     FuncName = config.make_func_name(name, card)
     TypeName = config.make_class_name(type)
+
+    if vpi in ['vpiName'] and type == 'constant':
+        content.append(f'std::string_view {ClassName}::getName() const {{')
+        content.append(f'  return (m_{varName} != nullptr) ? m_{varName}->getValue() : kEmpty;')
+        content.append( '}')
+        content.append( '')
+        content.append(f'bool {ClassName}::setName(std::string_view name) {{')
+        content.append( '  if (m_name == nullptr) {')
+        content.append( '    m_name = m_serializer->make<Constant>();')
+        content.append( '    m_name->setConstType(vpiStringVal);')
+        content.append( '  }')
+        content.append( '  m_name->setValue(name);')
+        content.append( '  return true;')
+        content.append( '}')
 
     if card == '1':
         if type in ['string', 'value', 'delay']:
@@ -304,7 +324,10 @@ def _get_data_member(name, type, vpi, card):
         type = 'std::string'
 
     varName = config.make_var_name(name, card)
-    if card == '1':
+    if vpi in ['vpiName'] and type == 'constant':
+        content.append(f'  Constant* m_{varName} = nullptr;')
+
+    elif card == '1':
         pointer = ''
         default_assignment = 'false' if type == 'bool' else '0'
         if type in ['int16_t', 'uint16_t', 'int32_t', 'uint32_t', 'int64_t', 'uint64_t', 'bool']:
@@ -347,7 +370,7 @@ def _get_deepClone_implementation(model, models):
         content.append(f'        val = eval.reduceExpr(indexVal, invalidValue, parent, parent, true);')
         content.append(f'        if (!invalidValue) indexName = eval.prettyPrint(val);')
         content.append( '      }')
-        content.append( '      const std::string_view name(getName());')
+        content.append( '      const std::string_view name = getName();')
         content.append( '      std::string fullIndexName(name);')
         content.append( '      fullIndexName.append("[").append(indexName).append("]");')
         content.append(f'      clone->setActual(elaboratorContext->m_elaborator.bindAny(fullIndexName));')
@@ -1035,7 +1058,7 @@ def _generate_one_class(model, models, templates):
             group_headers.update(_get_group_headers(type, real_type))
             data_members.extend(_get_data_member(name, type, name, card))
             public_declarations.append(_get_declarations(name, type, vpi, card, real_type))
-            implementations.extend(_get_implementations(classname, name, type, name, card))
+            implementations.extend(_get_implementations(classname, name, type, vpi, card))
 
     if not type_specified and (modeltype == 'obj_def'):
         vpiclasstype = config.make_vpi_name(classname)

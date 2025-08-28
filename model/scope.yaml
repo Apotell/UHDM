@@ -15,9 +15,9 @@
 # Universal Hardware Data Model (UHDM) "scope" formal description
 
 - class_def: scope
-- property: name
+- obj_ref: name
   vpi: vpiName
-  type: string
+  type: constant
   card: 1
 - property: full_name
   vpi: vpiFullName

@@ -64,6 +64,7 @@ def generate(models):
                 name = value.get('name')
                 type = value.get('type')
                 card = value.get('card')
+                vpi = value.get('vpi')
 
                 if key == 'group_ref':
                     type = 'any'
@@ -82,10 +83,11 @@ def generate(models):
 
                         restore_adapters.append(f'    obj->set{FuncName}(serializer->getObject<{TypeName}>(reader.get{FuncName}().getType(), reader.get{FuncName}().getIndex() - 1));')
                     else:
-                        saves_adapters.append(f'    if (auto p = obj->get{FuncName}()) builder.set{FuncName}(getId(p, idMap));')
+                        suffix = 'Obj 'if vpi in ['vpiName'] else ''
+                        saves_adapters.append(f'    if (auto p = obj->get{FuncName}{suffix}()) builder.set{FuncName}(getId(p, idMap));')
 
                         restore_adapters.append(f'    if (reader.get{FuncName}()) {{')
-                        restore_adapters.append(f'      obj->set{FuncName}(serializer->getObject<{TypeName}>(static_cast<uint32_t>(UhdmType::{TypeName}), reader.get{FuncName}() - 1));')
+                        restore_adapters.append(f'      obj->set{FuncName}{suffix}(serializer->getObject<{TypeName}>(static_cast<uint32_t>(UhdmType::{TypeName}), reader.get{FuncName}() - 1));')
                         restore_adapters.append( '    }')
 
                 else:

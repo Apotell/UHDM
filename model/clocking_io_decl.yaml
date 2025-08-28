@@ -19,9 +19,9 @@
   vpi: vpiDirection
   type: int32_t
   card: 1
-- property: name
+- obj_ref: name
   vpi: vpiName
-  type: string
+  type: constant
   card: 1
 - property: input_edge
   vpi: vpiInputEdge

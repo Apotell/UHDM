@@ -12,13 +12,15 @@ def _generate_module_listeners(models, classname):
         name = value.get('name')
         type = value.get('type')
         card = value.get('card')
+        vpi = value.get('vpi')
 
         TypeName = config.make_class_name('any' if key == 'group_ref' else type)
         FuncName = config.make_func_name(name, card)
 
         if card == '1':
-          listeners.append(f'if (auto obj = defMod->get{FuncName}()) {{')
-          listeners.append(f'  inst->set{FuncName}(obj->deepClone(inst, m_context));')
+          suffix = 'Obj 'if vpi in ['vpiName'] else ''
+          listeners.append(f'if (auto obj = defMod->get{FuncName}{suffix}()) {{')
+          listeners.append(f'  inst->set{FuncName}{suffix}(obj->deepClone(inst, m_context));')
           listeners.append( '}')
 
         elif FuncName in ['RefModules', 'GenStmts']:
@@ -120,14 +122,16 @@ def _generate_class_listeners(models):
           name = value.get('name')
           type = value.get('type')
           card = value.get('card')
+          vpi = value.get('vpi')
 
           TypeName = config.make_class_name('any' if key == 'group_ref' else type)
           FuncName = config.make_func_name(name, card)
           varName = config.make_var_name(name, card)
 
           if card == '1':
-            listeners.append(f'if (auto obj = cl->get{FuncName}()) {{')
-            listeners.append(f'  cl->set{FuncName}(obj->deepClone(cl, m_context));')
+            suffix = 'Obj 'if vpi in ['vpiName'] else ''
+            listeners.append(f'if (auto obj = cl->get{FuncName}{suffix}()) {{')
+            listeners.append(f'  cl->set{FuncName}{suffix}(obj->deepClone(cl, m_context));')
             listeners.append( '}')
 
           elif FuncName == 'DerivedClasses':
