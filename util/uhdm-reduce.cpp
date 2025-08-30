@@ -21,9 +21,14 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <Windows.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -43,11 +48,7 @@ static int32_t usage(const char *progName) {
   return 0;
 }
 
-int32_t main(int32_t argc, char **argv) {
-  if (argc != 2) {
-    return usage(argv[0]);
-  }
-
+int32_t private_main(int32_t argc, char **argv) {
   fs::path filepath = argv[1];
 
   std::error_code ec;
@@ -82,6 +83,8 @@ int32_t main(int32_t argc, char **argv) {
     uhdm::Reducer reducer(serializer.get());
     reducer.reduce();
 
+    std::cout << std::string(80, '=') << std::endl;
+
     uhdm::visit_designs(handles, std::cout);
     std::cout << std::endl << std::endl;
 
@@ -89,4 +92,40 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   return -1;
+}
+
+int32_t main(int32_t argc, char **argv) {
+  if (argc != 2) {
+    return usage(argv[0]);
+  }
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+  // Redirect cout to file
+  std::streambuf *cout_rdbuf = nullptr;
+  std::streambuf *cerr_rdbuf = nullptr;
+  std::ofstream file;
+  if (IsDebuggerPresent() != 0) {
+    file.open("cout.txt");
+    cout_rdbuf = std::cout.rdbuf(file.rdbuf());
+    cerr_rdbuf = std::cerr.rdbuf(file.rdbuf());
+  }
+#endif
+
+  const int32_t r = private_main(argc, argv);
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+  // Redirect cout back to screen
+  if (cout_rdbuf != nullptr) {
+    std::cout.rdbuf(cout_rdbuf);
+  }
+  if (cerr_rdbuf != nullptr) {
+    std::cerr.rdbuf(cerr_rdbuf);
+  }
+  if (file.is_open()) {
+    file.flush();
+    file.close();
+  }
+#endif
+
+  return r;
 }
