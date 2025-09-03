@@ -3,10 +3,10 @@ from threading import Thread, Lock
 
 _source_dirpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 _output_dirpath = _source_dirpath
+_templates_dirpath = os.path.join(_source_dirpath, 'templates')
 
 _include_dirname = 'include'
 _models_dirname = 'model'
-_templates_dirname = 'templates'
 _output_headers_dirname = 'uhdm'
 _output_sources_dirname = 'src'
 _verbose = True
@@ -32,14 +32,17 @@ def log(text, end='\n'):
 def configure(args=None):
   global _source_dirpath
   global _output_dirpath
+  global _templates_dirpath
 
   if args:
     if args.source_dirpath:
-      _source_dirpath = args.source_dirpath
+      _source_dirpath = os.path.abspath(args.source_dirpath)
 
     if args.output_dirpath:
-      _output_dirpath = args.output_dirpath
+      _output_dirpath = os.path.abspath(args.output_dirpath)
 
+    if args.__contains__('templates_dirpath') and args.templates_dirpath:
+        _templates_dirpath = os.path.abspath(args.templates_dirpath)
 
   output_headers_dirpath = os.path.join(_output_dirpath, _output_headers_dirname)
   if not os.path.exists(output_headers_dirpath):
@@ -49,7 +52,7 @@ def configure(args=None):
   if not os.path.exists(output_sources_dirpath):
     os.makedirs(output_sources_dirpath)
 
-  print(f'Configuration update: srcdir={_source_dirpath}, headers={output_headers_dirpath}, sources={output_sources_dirpath}')
+  print(f'Configuration update: srcdir={_source_dirpath}, tmpdir={_templates_dirpath}, headers={output_headers_dirpath}, sources={output_sources_dirpath}')
 
 
 def get_source_dirpath():
@@ -62,22 +65,16 @@ def get_include_dirpath():
   global _include_dirname
   return os.path.join(_source_dirpath, _include_dirname)
 
+
 def get_include_filepath(filename):
   global _source_dirpath
   global _include_dirname
   return os.path.join(_source_dirpath, _include_dirname, filename)
 
 
-def get_template_dirpath():
-  global _source_dirpath
-  global _templates_dirname
-  return os.path.join(_source_dirpath, _templates_dirname)
-
-
 def get_template_filepath(filename):
-  global _source_dirpath
-  global _templates_dirname
-  return os.path.join(_source_dirpath, _templates_dirname, filename)
+  global _templates_dirpath
+  return os.path.join(_templates_dirpath, filename)
 
 
 def get_output_header_dirpath():
