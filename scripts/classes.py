@@ -920,13 +920,21 @@ def _get_setParent_implementation(model):
 
     content = [
         f'bool {ClassName}::setParent(BaseClass* data, bool force /* = false */) {{',
-         '  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {',
+    ]
+
+    if classname in ['param_assign']:
+      includes.append('class_typespec')
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<ClassTypespec>() == nullptr)) {')
+    else:
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {')
+
+    content.extend([
          '    if (this != m_serializer->topScope()) if (BaseClass* const topScope = m_serializer->topScope()) data = topScope;',
          '  }',
         '  return basetype_t::setParent(data, force);',
         '}',
         ''
-    ]
+    ])
 
     return content, includes
 
