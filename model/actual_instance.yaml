@@ -18,3 +18,4 @@
 - obj_ref: checker_inst
 - obj_ref: interface
 - obj_ref: module
+- obj_ref: program
