@@ -59,6 +59,7 @@ _collector_class_types = {
         ( 'task_func', 'TaskFuncs' ),
         ( 'typespec', 'Typespecs' ),
         ( 'udp_defn', 'AllUdps' ),
+        ( 'variables', 'Variables' ),
     ]),
     'ClassDefn': set([
         ( 'class_defn', 'DerivedClasses' ),
@@ -104,6 +105,9 @@ _collector_class_types = {
         ( 'port', 'Ports' ),
         ( 'process_stmt', 'Processes' ),
         ( 'tf_call', 'SysTaskCalls' ),
+    ]),
+    'Modport': set([
+      ( 'io_decl', 'IODecls' ),
     ]),
     'Module': set([
         ( 'alias_stmt', 'Aliases' ),
@@ -925,6 +929,9 @@ def _get_setParent_implementation(model):
     if classname in ['param_assign']:
       includes.append('class_typespec')
       content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<ClassTypespec>() == nullptr)) {')
+    elif classname in ['io_decl']:
+      includes.append('modport')
+      content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<Modport>() == nullptr)) {')
     else:
       content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {')
 
