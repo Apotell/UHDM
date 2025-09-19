@@ -17,7 +17,7 @@
 - class_def: scope
 - obj_ref: name
   vpi: vpiName
-  type: constant
+  type: identifier
   card: 1
 - property: full_name
   vpi: vpiFullName

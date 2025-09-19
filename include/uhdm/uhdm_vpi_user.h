@@ -85,6 +85,7 @@
 #define vpiGenFor                 5015 // Handle to for-generate for folded (Non-elaborated) model
 #define vpiGenCase                5016 // Handle to case-generate for folded (Non-elaborated) model
 #define vpiGenRegion              5017 // Handle to generate region for folded (Non-elaborated) model
+#define vpiIdentifier             5018 // Hold string identifiers (like name)
 
 // Preprocessor directives
 #define vpiPreprocMacroDefinition   6000

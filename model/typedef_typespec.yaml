@@ -18,7 +18,7 @@
 - extends: typespec
 - obj_ref: name
   vpi: vpiName
-  type: constant
+  type: identifier
   card: 1
 - class_ref: typedef_alias
   vpi: vpiTypedefAlias

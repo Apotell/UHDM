@@ -252,17 +252,14 @@ def _get_implementations(classname, name, type, vpi, card):
     FuncName = config.make_func_name(name, card)
     TypeName = config.make_class_name(type)
 
-    if vpi in ['vpiName'] and type == 'constant':
+    if vpi in ['vpiName'] and type == 'identifier':
         content.append(f'std::string_view {ClassName}::getName() const {{')
-        content.append(f'  return (m_{varName} != nullptr) ? m_{varName}->getValue() : kEmpty;')
+        content.append(f'  return (m_{varName} != nullptr) ? m_{varName}->getName() : kEmpty;')
         content.append( '}')
         content.append( '')
         content.append(f'bool {ClassName}::setName(std::string_view name) {{')
-        content.append( '  if (m_name == nullptr) {')
-        content.append( '    m_name = m_serializer->make<Constant>();')
-        content.append( '    m_name->setConstType(vpiStringVal);')
-        content.append( '  }')
-        content.append( '  m_name->setValue(name);')
+        content.append( '  if (m_name == nullptr) m_name = m_serializer->make<Identifier>();')
+        content.append( '  m_name->setName(name);')
         content.append( '  return true;')
         content.append( '}')
 
@@ -324,8 +321,8 @@ def _get_data_member(name, type, vpi, card):
         type = 'std::string'
 
     varName = config.make_var_name(name, card)
-    if vpi in ['vpiName'] and type == 'constant':
-        content.append(f'  Constant* m_{varName} = nullptr;')
+    if vpi in ['vpiName'] and type == 'identifier':
+        content.append(f'  Identifier* m_{varName} = nullptr;')
 
     elif card == '1':
         pointer = ''

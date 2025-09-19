@@ -18,7 +18,7 @@
 - extends: typespec
 - obj_ref: name
   vpi: vpiName
-  type: constant
+  type: identifier
   card: 1
 - property: is_modport
   vpi: vpiIsModPort

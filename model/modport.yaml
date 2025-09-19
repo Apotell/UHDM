@@ -17,7 +17,7 @@
 - obj_def: modport
 - obj_ref: name
   vpi: vpiName
-  type: constant
+  type: identifier
   card: 1
 - obj_ref: io_decl
   vpi: vpiIODecl

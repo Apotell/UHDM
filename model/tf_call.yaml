@@ -30,5 +30,5 @@
   card: any
 - obj_ref: name
   vpi: vpiName
-  type: constant
+  type: identifier
   card: 1

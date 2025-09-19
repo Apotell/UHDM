@@ -193,9 +193,9 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   EXPECT_FALSE(elaborated);
 
   EXPECT_EQ(dumpStats(serializer),
-            "Constant 2\n"
             "ContAssign 1\n"
             "Design 1\n"
+            "Identifier 2\n"
             "LogicNet 4\n"
             "Module 4\n"
             "Port 4\n"
