@@ -15,14 +15,7 @@
 # Universal Hardware Data Model (UHDM) "gen var" formal description
 
 - obj_def: gen_var
-- property: name
-  vpi: vpiName
-  type: string
-  card: 1
-- property: full_name
-  vpi: vpiFullName
-  type: string
-  card: 1
+- extends: variables
 - obj_ref: gen_scope_array
   vpi: vpiGenScopeArray
   type: gen_scope_array

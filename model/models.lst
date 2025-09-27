@@ -53,7 +53,6 @@ variables_operation_group.yaml
 foreach_stmt.yaml
 interf_prog_mod_group.yaml
 gen_scope.yaml
-gen_var.yaml
 gen_scope_array.yaml
 expr_dist.yaml
 assert_stmt.yaml
@@ -123,6 +122,7 @@ short_real_var.yaml
 real_var.yaml
 byte_var.yaml
 short_int_var.yaml
+gen_var.yaml
 int_var.yaml
 long_int_var.yaml
 integer_var.yaml

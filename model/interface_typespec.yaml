@@ -20,9 +20,9 @@
   vpi: vpiName
   type: identifier
   card: 1
-- property: is_modport
-  vpi: vpiIsModPort
-  type: bool
+- obj_ref: modport
+  vpi: vpiModport
+  type: modport
   card: 1
 - obj_ref: param_assign
   vpi: vpiParamAssign
