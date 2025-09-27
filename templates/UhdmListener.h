@@ -56,10 +56,6 @@ protected:
   using any_set_t = std::set<const Any *>;
   using any_stack_t = std::vector<const Any *>;
 
-  any_set_t m_visited;
-  any_stack_t m_callstack;
-  bool m_abortRequested = false;
-
 public:
   // Use implicit constructor to initialize all members
   // VpiListener()
@@ -90,14 +86,19 @@ public:
   void listenAny(const Any* object, uint32_t vpiRelation = 0);
 <UHDM_PUBLIC_LISTEN_DECLARATIONS>
 
-  virtual void enterAny(const Any* object, uint32_t vpiRelation = 0) {}
-  virtual void leaveAny(const Any* object, uint32_t vpiRelation = 0) {}
+  virtual void enterAny(const Any* object, uint32_t vpiRelation) {}
+  virtual void leaveAny(const Any* object, uint32_t vpiRelation) {}
 
 <UHDM_ENTER_LEAVE_DECLARATIONS>
 <UHDM_ENTER_LEAVE_COLLECTION_DECLARATIONS>
 private:
   void listenAny_(const Any* object);
 <UHDM_PRIVATE_LISTEN_DECLARATIONS>
+
+protected:
+  any_set_t m_visited;
+  any_stack_t m_callstack;
+  bool m_abortRequested = false;
 };
 }  // namespace uhdm
 

@@ -27,9 +27,9 @@
 
 namespace uhdm {
 void VpiListener::listenBaseClass_(vpiHandle handle) {
-  // NOTE(HS): Don't want upwards. When initiating calls from non-design
-  // objects, the intended behavior to walk the subtree but enabling this
-  // walks the entire deisgn.
+  // NOTE(HS): Don't walk upwards. When initiating calls from non-design
+  // objects, the intended behavior is to walk the subtree but enabling
+  // this walks the entire deisgn.
   // if (vpiHandle itr = vpi_handle(vpiParent, handle)) {
   //   listenAny(itr);
   //   vpi_free_object(itr);
@@ -49,20 +49,14 @@ bool VpiListener::inCallstackOfType(UhdmType type) {
 }
 
 void VpiListener::listenAny(vpiHandle handle) {
+  if (m_abortRequested) return;
   const Any* object = (const Any*)((const uhdm_handle*)handle)->object;
-  const bool revisiting = m_visited.find(object) != m_visited.end();
-  if (!revisiting) enterAny(object, handle);
-
-  UhdmType type = ((const uhdm_handle*)handle)->type;
-
-  m_callstack.emplace_back(object);
-  switch (type) {
+  enterAny(object, handle);
+  switch (((const uhdm_handle*)handle)->type) {
 <VPI_LISTENANY_IMPLEMENTATION>
     default : break;
   }
-  m_callstack.pop_back();
-
-  if (!revisiting) leaveAny(object, handle);
+  leaveAny(object, handle);
 }
 
 void VpiListener::listenDesigns(const std::vector<vpiHandle>& designs) {

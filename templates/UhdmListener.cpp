@@ -61,9 +61,9 @@ bool UhdmListener::didVisitAll(const Serializer& serializer) const {
 }
 
 void UhdmListener::listenAny_(const Any* object) {
-  // NOTE(HS): Don't want upwards. When initiating calls from non-design
-  // objects, the intended behavior to walk the subtree but enabling this
-  // walks the entire deisgn.
+  // NOTE(HS): Don't walk upwards. When initiating calls from non-design
+  // objects, the intended behavior is to walk the subtree but enabling
+  // this walks the entire deisgn.
   // if (const Any* const parent = object->getParent()) {
   //   listenAny(parent, vpiParent);
   // }
@@ -72,13 +72,12 @@ void UhdmListener::listenAny_(const Any* object) {
 <UHDM_PRIVATE_LISTEN_IMPLEMENTATIONS>
 <UHDM_PUBLIC_LISTEN_IMPLEMENTATIONS>
 void UhdmListener::listenAny(const Any* object, uint32_t vpiRelation) {
+  if (m_abortRequested) return;
   enterAny(object, vpiRelation);
-  m_callstack.emplace_back(object);
   switch (object->getUhdmType()) {
 <UHDM_LISTENANY_IMPLEMENTATION>
   default: break;
   }
-  m_callstack.pop_back();
   leaveAny(object, vpiRelation);
 }
 

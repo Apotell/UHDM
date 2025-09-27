@@ -275,9 +275,7 @@ class TypespecUnifier final : public UhdmListener {
 
   void enterUnsupportedTypespec(const UnsupportedTypespec* object,
                                 uint32_t relation = 0) final {
-    if (m_callstack.size() > 1) {
-      m_references[object].emplace(m_callstack[m_callstack.size() - 2]);
-    }
+    if (!m_callstack.empty()) m_references[object].emplace(m_callstack.back());
   }
 
  private:

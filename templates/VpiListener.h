@@ -40,9 +40,6 @@ protected:
   using visited_t = std::set<const Any*>;
   using any_stack_t = std::vector<const Any *>;
 
-  visited_t m_visited;
-  any_stack_t m_callstack;
-
 public:
   // Use implicit constructor to initialize all members
   // VpiListener()
@@ -62,7 +59,12 @@ public:
   bool inCallstackOfType(UhdmType type);
   Design* currentDesign() { return m_currentDesign; }
 
+  void requestAbort() { m_abortRequested = true; }
+
 protected:
+  visited_t m_visited;
+  any_stack_t m_callstack;
+  bool m_abortRequested = false;
   bool uhdmAllIterator = false;
   Design* m_currentDesign = nullptr;
 
