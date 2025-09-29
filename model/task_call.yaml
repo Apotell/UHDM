@@ -16,7 +16,3 @@
 
 - obj_def: task_call
 - extends: tf_call
-- obj_ref: task
-  type: task
-  vpi: vpiTask
-  card: 1

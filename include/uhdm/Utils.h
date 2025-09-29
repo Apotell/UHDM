@@ -62,11 +62,11 @@ inline bool setActual(uhdm::Any* object, T* actual) {
   if (RefObj* const ro = any_cast<RefObj>(object)) {
     return ro->setActual(actual);
   } else if (ClockingBlock* const cb = any_cast<ClockingBlock>(object)) {
-    return cb->setActual(actual);
+    return cb->setActual(any_cast<ClockingBlock>(actual));
   } else if (RefModule* const rm = any_cast<RefModule>(object)) {
     return rm->setActual(actual);
   } else if (RefTypespec* const rt = any_cast<RefTypespec>(object)) {
-    return rt->setActual(actual);
+    return rt->setActual(any_cast<Typespec>(actual));
   } else if (Variable* const v = any_cast<Variable>(object)) {
     return v->setActual(actual);
   }
@@ -205,7 +205,7 @@ inline bool setIndexTypespec(ArrayTypespec* typespec, Typespec* actual) {
 template <typename R, typename T = Any>
 inline auto getParent(T* any) ->
     typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
-  auto* p = any;
+  auto* p = any_cast<Any>(any);
   while (p != nullptr) {
     if (auto* const pp = any_cast<R>(p)) {
       return pp;
