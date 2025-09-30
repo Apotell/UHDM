@@ -18,7 +18,7 @@
 - extends: scope
 - class_ref: variable
   vpi: vpiVariables
-  type: variables
+  type: any
   card: 1
 - group_ref: loop_vars
   vpi: vpiLoopVars
