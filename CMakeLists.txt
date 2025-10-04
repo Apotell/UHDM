@@ -164,6 +164,7 @@ set(uhdm_SRC
     ${PROJECT_SOURCE_DIR}/src/SynthSubset.cpp
     ${PROJECT_SOURCE_DIR}/src/UhdmAdjuster.cpp
     ${PROJECT_SOURCE_DIR}/src/UhdmLint.cpp
+    ${PROJECT_SOURCE_DIR}/src/UhdmFinder.cpp
 )
 
 set(uhdm-GENERATED_SRC

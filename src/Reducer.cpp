@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <deque>
 
+#include <uhdm/UhdmFinder.h>
+#include <fstream>
 namespace StringUtils {
 // Tokenize "str" at "multichar_separator"; store in "result" array.
 std::vector<std::string_view> &tokenizeMulti(
@@ -93,6 +95,15 @@ void Reducer::reduce(const ArrayExpr *const object) {
   // If succeeded, replace the input object with a constant object
 }
 
+void Reducer::reduce(const SysFuncCall *const object) {
+  bool bIsInvalid = false;
+  if (Any *const updatedExpr =
+          reduceExpr(object, bIsInvalid, object->getStartLine(),
+                     object->getParent(), false)) {
+    if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
+  }
+}
+
 void Reducer::reduce(const Operation *const object) {
   bool bIsInvalid = false;
   if (Any *const updatedExpr =
@@ -109,8 +120,7 @@ std::pair<const TaskFunc *, const Scope *> Reducer::getTaskFunc(
 }
 
 const Any *Reducer::getObject(std::string_view name, const Any *pexpr) {
-  const Any *result = nullptr;
-  return result;
+  return finder.findObject(name, UHDM::RefType::Object, pexpr);
 }
 
 Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue,
@@ -334,6 +344,12 @@ void Reducer::reduce() {
   if (Factory *const factory = m_serializer->getFactory<Operation>()) {
     for (const Any *object : factory->getObjects()) {
       reduce(static_cast<const Operation *>(object));
+    }
+  }
+
+  if (Factory *const factory = m_serializer->getFactory<SysFuncCall>()) {
+    for (const Any *object : factory->getObjects()) {
+      reduce(static_cast<const SysFuncCall *>(object));
     }
   }
 

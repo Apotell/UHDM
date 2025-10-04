@@ -29,7 +29,9 @@
 
 #include <uhdm/Serializer.h>
 #include <uhdm/containers.h>
-
+#include <uhdm/Constant.h>
+#include <uhdm/uhdm_types.h>
+#include <uhdm/UhdmFinder.h>
 #include <string>
 #include <string_view>
 
@@ -48,9 +50,11 @@ class Reducer final {
  protected:
   void reduce(const ArrayExpr* const object);
   void reduce(const Operation* const object);
+  void reduce(const SysFuncCall* const object);
 
  public:
   Serializer* const m_serializer;
+  UHDM::UhdmFinder finder;
   Expr* reduceExpr(const Any* expr, bool& invalidValue, uint32_t lineNumber,
                    const Any* pexpr, bool muteErrors = false);
 

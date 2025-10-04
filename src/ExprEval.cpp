@@ -371,8 +371,9 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst,
 Any *ExprEval::getObject(std::string_view name, const Any *inst,
                          const Any *pexpr, bool muteError) {
   Any *result = nullptr;
-  while (pexpr) {
-    if (const Scope *spe = any_cast<Scope>(pexpr)) {
+  const Any *scope = pexpr;
+  while (scope) {
+    if (const Scope *spe = any_cast<Scope>(scope)) {
       if (spe->getVariables()) {
         for (auto o : *spe->getVariables()) {
           if (o->getName() == name) {
@@ -383,7 +384,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
       }
     }
     if (result) break;
-    if (const TaskFunc *s = any_cast<TaskFunc>(pexpr)) {
+    if (const TaskFunc *s = any_cast<TaskFunc>(scope)) {
       if (s->getIODecls()) {
         for (auto o : *s->getIODecls()) {
           if (o->getName() == name) {
@@ -403,8 +404,8 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
       }
     }
     if (result) break;
-    if (pexpr->getUhdmType() == UhdmType::ForeachStmt) {
-      ForeachStmt *for_stmt = (ForeachStmt *)pexpr;
+    if (scope->getUhdmType() == UhdmType::ForeachStmt) {
+      ForeachStmt *for_stmt = (ForeachStmt *)scope;
       if (AnyCollection *loopvars = for_stmt->getLoopVars()) {
         for (auto var : *loopvars) {
           if (var->getName() == name) {
@@ -414,8 +415,8 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
         }
       }
     }
-    if (pexpr->getUhdmType() == UhdmType::ClassDefn) {
-      const ClassDefn *defn = (ClassDefn *)pexpr;
+    if (scope->getUhdmType() == UhdmType::ClassDefn) {
+      const ClassDefn *defn = (ClassDefn *)scope;
       while (defn) {
         if (defn->getVariables()) {
           for (Variables *member : *defn->getVariables()) {
@@ -439,7 +440,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
       }
     }
     if (result) break;
-    pexpr = pexpr->getParent();
+    scope = scope->getParent();
   }
   if (result == nullptr) {
     while (inst) {
@@ -540,8 +541,8 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
       }
     }
   }
-  if ((result == nullptr) && getObjectFunctor) {
-    return getObjectFunctor(name, inst, pexpr);
+  if ((result == nullptr) && this->getObjectFunctor) {
+    return this->getObjectFunctor(name, inst, pexpr);
   }
   return result;
 }
@@ -4062,6 +4063,13 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
           }
 
           if (tps) {
+            if (name == "$bits" && tps->getUhdmType() == UhdmType::ArrayTypespec) {
+              ArrayTypespec *ats = (ArrayTypespec *)tps;
+              if (ats->getArrayType() != vpiStaticArray) {
+                // For any non-static array,  can't compute the number of bits at reduction time.
+                continue;
+              }
+            }
             bits += size(tps, invalidValue, inst, pexpr, (name != "$size"));
             found = true;
           } else {
@@ -4111,6 +4119,12 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
               }
             }
           }
+        }
+        else if (argtype == UhdmType::Constant) {
+          Constant *c = (Constant *)arg;
+        // Call size() which is implementing calculation for bits.
+          bits = c->getSize();
+          found = true;
         }
       }
       if (found) {
@@ -5491,3 +5505,17 @@ std::string ExprEval::prettyPrint(const Any *handle) {
   return out.str();
 }
 }  // namespace uhdm
+
+/*
+ * TODO:
+ * Fix calculating size of following types.
+ * 1) Structs:
+ * struct {
+ *   logic [3:0] a;
+ *   logic [3:0] b;
+ * } s;
+ * $bits(s) should be 8, but currently it's size can't be computed at reduction time.
+ * 2) Enums:
+ * enum {ONE,TWO,THREE} a;
+ * $bits(a) should be 32 as by default enum is of type int.
+*/
