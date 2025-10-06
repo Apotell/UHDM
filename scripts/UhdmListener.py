@@ -71,19 +71,19 @@ def generate(models):
 
             public_implementations.append(f'void UhdmListener::listen{ClassName}(const {ClassName}* object, uint32_t vpiRelation /* = 0 */) {{')
             public_implementations.append(f'  enter{ClassName}(object, vpiRelation);')
-            public_implementations.append( '  if (m_visited.insert(object).second) {')
+            public_implementations.append( '  if (m_visited.emplace(object).second) {')
             public_implementations.append( '    m_callstack.emplace_back(object);')
             public_implementations.append(f'    listen{ClassName}_(object);')
             public_implementations.append( '    m_callstack.pop_back();')
             public_implementations.append( '  }')
             public_implementations.append(f'  leave{ClassName}(object, vpiRelation);')
-            public_implementations.append(f'}}')
+            public_implementations.append( '}')
             public_implementations.append( '')
 
     any_implementation = []
     enter_leave_declarations = []
     for ClassName in sorted(ClassNames):
-        any_implementation.append(f'  case UhdmType::{ClassName}: listen{ClassName}(static_cast<const {ClassName} *>(object), vpiRelation); break;')
+        any_implementation.append(f'    case UhdmType::{ClassName}: listen{ClassName}(static_cast<const {ClassName} *>(object), vpiRelation); break;')
 
         enter_leave_declarations.append(f'  virtual void enter{ClassName}(const {ClassName}* object, uint32_t vpiRelation) {{}}')
         enter_leave_declarations.append(f'  virtual void leave{ClassName}(const {ClassName}* object, uint32_t vpiRelation) {{}}')

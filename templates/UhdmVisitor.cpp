@@ -17,28 +17,19 @@
  */
 
 /*
- * File:   UhdmListener.cpp
+ * File:   UhdmVisitor.cpp
  * Author: hs
  *
- * Created on March 11, 2022, 00:00 AM
+ * Created on October 01, 2025, 00:00 AM
  */
-#include <uhdm/UhdmListener.h>
+#include <uhdm/UhdmVisitor.h>
 #include <uhdm/uhdm.h>
 
 // System headers
 #include <map>
 
 namespace uhdm {
-ScopedVpiHandle::ScopedVpiHandle(const Any* any)
-    : handle(NewVpiHandle(any)) {}
-
-ScopedVpiHandle::~ScopedVpiHandle() {
-  if (handle != nullptr) {
-    vpi_release_handle(handle);
-  }
-}
-
-bool UhdmListener::didVisitAll(const Serializer& serializer) const {
+bool UhdmVisitor::didVisitAll(const Serializer& serializer) const {
   const Serializer::IdMap idMap = serializer.getAllObjects();
 
   any_set_t allObjects;
@@ -57,7 +48,7 @@ bool UhdmListener::didVisitAll(const Serializer& serializer) const {
   return diffObjects.empty();
 }
 
-void UhdmListener::listenAny_(const Any* object) {
+void UhdmVisitor::visitAny_(const Any* object) {
   // NOTE(HS): Don't walk upwards. When initiating calls from non-design
   // objects, the intended behavior is to walk the subtree but enabling
   // this walks the entire deisgn.
@@ -66,16 +57,22 @@ void UhdmListener::listenAny_(const Any* object) {
   // }
 }
 
-<UHDM_PRIVATE_LISTEN_IMPLEMENTATIONS>
-<UHDM_PUBLIC_LISTEN_IMPLEMENTATIONS>
-void UhdmListener::listenAny(const Any* object, uint32_t vpiRelation) {
+// clang-format off
+// <UHDMVISITOR_PRIVATE_VISIT_IMPLEMENTATIONS>
+// clang-format on
+
+void UhdmVisitor::visit(const Any* object) {
   if (m_abortRequested) return;
-  enterAny(object, vpiRelation);
+  if (!m_visited.emplace(object).second) return;
+
+  visitAny(object);
+
+  // clang-format off
   switch (object->getUhdmType()) {
-<UHDM_LISTENANY_IMPLEMENTATION>
+// <UHDMVISITOR_VISIT_ANY_CASE_STATEMENTS>
     default: break;
   }
-  leaveAny(object, vpiRelation);
+  // clang-format on
 }
 
 } // namespace uhdm

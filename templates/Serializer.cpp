@@ -38,6 +38,7 @@
 namespace uhdm {
 
 const uint32_t Serializer::kVersion = 1;
+using replacements_t = std::map<const Any*, Any*>;
 
 Serializer::Serializer() {
 <INIT_FACTORIES>
@@ -47,7 +48,6 @@ Serializer::~Serializer() { purge(); }
 
 class TypespecUnifier final : public UhdmListener {
  public:
-  using replacements_t = std::map<const Any*, Any*>;
   using references_t = std::map<const Any*, std::set<const Any*>>;
 
  private:
@@ -278,6 +278,39 @@ class TypespecUnifier final : public UhdmListener {
     if (!m_callstack.empty()) m_references[object].emplace(m_callstack.back());
   }
 
+  const replacements_t& getReplacements(Factory* const factory) {
+    for (Any* any : factory->getObjects()) listenAny(any);
+
+    if (!m_references.empty()) {
+      for (TypespecUnifier::references_t::const_reference entry : m_references) {
+        if (entry.second.size() == 1) {
+          m_replacements.emplace(entry.first, nullptr);
+        }
+      }
+    }
+
+    if (m_replacements.empty()) return m_replacements;
+
+    for (replacements_t::reference entry : m_replacements) {
+      Any* target = entry.second;
+      replacements_t::const_iterator it1 = m_replacements.find(target);
+      while (it1 != m_replacements.cend()) {
+        target = it1->second;
+        it1 = m_replacements.find(target);
+      }
+
+      const Any* key = entry.first;
+      replacements_t::iterator it2 = m_replacements.find(key);
+      while (it2 != m_replacements.cend()) {
+        key = it2->second;
+        it2->second = target;
+        it2 = m_replacements.find(key);
+      }
+    }
+
+    return m_replacements;
+  }
+
  private:
   replacements_t m_replacements;
   references_t m_references;
@@ -289,13 +322,22 @@ class TypespecUnifier final : public UhdmListener {
 class ReferenceCollector final : public UhdmListener {
  public:
   void enterAny(const Any* object, uint32_t relation = 0) final {
-    if (!m_callstack.empty() && (m_callstack.back() == object->getParent())) {
+    if (m_callstack.empty() || (m_callstack.back() == object->getParent())) {
       m_referenced.emplace(object);
     }
   }
 
-  void enterDesign(const Design* object, uint32_t relation = 0) final {
-    m_referenced.emplace(object);
+  replacements_t getReplacements(Factory* const factory) {
+    for (Any* any : factory->getObjects()) listenAny(any);
+
+    replacements_t replacements;
+    for (const Any* any : m_visited) {
+      if (m_referenced.find(any) == m_referenced.cend()) {
+        replacements.emplace(any, nullptr);
+      }
+    }
+
+    return replacements;
   }
 
  private:
@@ -325,70 +367,27 @@ void Serializer::collectGarbage() {
 
   Factory* const designFactory = m_factories[UhdmType::Design];
   if (TypespecUnifier* const unifier = new TypespecUnifier) {
-    for (Any* any : designFactory->m_objects) unifier->listenAny(any);
-
-    TypespecUnifier::replacements_t& replacements = unifier->m_replacements;
-    const TypespecUnifier::references_t& references = unifier->m_references;
-    if (!references.empty()) {
-      for (TypespecUnifier::references_t::const_reference entry : references) {
-        if (entry.second.size() == 1) {
-          replacements.emplace(entry.first, nullptr);
-        }
-      }
-    }
-
-    if (!replacements.empty()) {
-      for (TypespecUnifier::replacements_t::reference entry : replacements) {
-        Any* target = entry.second;
-        while (true) {
-          TypespecUnifier::replacements_t::const_iterator it =
-              replacements.find(target);
-          if (it != replacements.cend()) {
-            target = it->second;
-          } else {
-            break;
-          }
-        }
-
-        const Any* key = entry.first;
-        while (true) {
-          TypespecUnifier::replacements_t::iterator it =
-              replacements.find(key);
-          if (it != replacements.cend()) {
-            key = it->second;
-            it->second = target;
-          } else {
-            break;
-          }
-        }
-      }
-
-      swap(replacements);
-    }
+    const replacements_t& replacements =
+        unifier->getReplacements(designFactory);
+    if (!replacements.empty()) swap(replacements);
     delete unifier;
   }
 
   if (ReferenceCollector* const collector = new ReferenceCollector) {
-    for (Any* any : designFactory->m_objects) collector->listenAny(any);
-
-    const AnySet& visited = collector->getVisited();
-    const AnySet& referenced = collector->m_referenced;
-
-    AnySet diffs;
-    std::set_difference(visited.cbegin(), visited.cend(), referenced.cbegin(),
-                        referenced.cend(), std::inserter(diffs, diffs.begin()));
-    if (!diffs.empty()) {
-      TypespecUnifier::replacements_t replacements;
-      std::transform(
-          diffs.cbegin(), diffs.cend(),
-          std::inserter(replacements, replacements.begin()),
-          [](const Any* any) { return std::make_pair(any, nullptr); });
-      swap(replacements);
-    }
-
     AnySet erased;
-    for (factories_t::const_reference entry : m_factories) {
-      entry.second->eraseIfNotIn(referenced, erased);
+    while (true) {
+      replacements_t replacements = collector->getReplacements(designFactory);
+      if (replacements.empty()) break;
+
+      swap(replacements);
+
+      for (factories_t::const_reference entry : m_factories) {
+        entry.second->eraseIfNotIn(collector->m_referenced, erased);
+      }
+
+      collector->m_visited.clear();
+      collector->m_callstack.clear();
+      collector->m_referenced.clear();
     }
 
     delete collector;

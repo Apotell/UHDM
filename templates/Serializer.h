@@ -147,6 +147,12 @@ class Factory final {
     m_collections.clear();
   }
 
+  const objects_t& getObjects() { return m_objects; }
+  const objects_t& getObjects() const { return m_objects; }
+
+  const collections_t& getCollections() { return m_collections; }
+  const collections_t& getCollections() const { return m_collections; }
+
  private:
   objects_t m_objects;
   collections_t m_collections;
