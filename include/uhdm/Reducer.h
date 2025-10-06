@@ -28,10 +28,12 @@
 #define UHDM_REDUCER_H
 
 #include <uhdm/Serializer.h>
-#include <uhdm/containers.h>
-#include <uhdm/uhdm_types.h>
 #include <uhdm/UhdmFinder.h>
+#include <uhdm/containers.h>
+#include <uhdm/uhdm_forward_decl.h>
+#include <uhdm/uhdm_types.h>
 
+// System headers
 #include <string>
 #include <string_view>
 
@@ -53,8 +55,6 @@ class Reducer final {
   void reduce(const SysFuncCall* const object);
 
  public:
-  Serializer* const m_serializer;
-  UHDM::UhdmFinder finder;
   Expr* reduceExpr(const Any* expr, bool& invalidValue, uint32_t lineNumber,
                    const Any* pexpr, bool muteErrors = false);
 
@@ -75,8 +75,10 @@ class Reducer final {
   bool loopDetected(uint32_t lineNumber);
   const Expr* getComplexValue(const Any* any, std::string_view name) const;
 
-  Module* m_exprEvalPlaceHolder = nullptr;
+  Serializer* const m_serializer = nullptr;
+  UhdmFinder m_finder;
   std::map<const Any*, Any*> m_swaps;
+  Module* m_exprEvalPlaceHolder = nullptr;
   Design* m_design = nullptr;
   bool m_unwind = false;
   bool m_checkForLoops = false;

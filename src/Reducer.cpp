@@ -25,13 +25,13 @@
 
 #include <uhdm/ExprEval.h>
 #include <uhdm/Reducer.h>
+#include <uhdm/UhdmFinder.h>
 #include <uhdm/uhdm.h>
 
 #include <algorithm>
 #include <deque>
-
-#include <uhdm/UhdmFinder.h>
 #include <fstream>
+
 namespace StringUtils {
 // Tokenize "str" at "multichar_separator"; store in "result" array.
 std::vector<std::string_view> &tokenizeMulti(
@@ -120,7 +120,7 @@ std::pair<const TaskFunc *, const Scope *> Reducer::getTaskFunc(
 }
 
 const Any *Reducer::getObject(std::string_view name, const Any *pexpr) {
-  return finder.findObject(name, UHDM::RefType::Object, pexpr);
+  return m_finder.findObject(name, pexpr);
 }
 
 Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue,
