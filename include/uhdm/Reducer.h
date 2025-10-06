@@ -29,9 +29,9 @@
 
 #include <uhdm/Serializer.h>
 #include <uhdm/containers.h>
-#include <uhdm/Constant.h>
 #include <uhdm/uhdm_types.h>
 #include <uhdm/UhdmFinder.h>
+
 #include <string>
 #include <string_view>
 
