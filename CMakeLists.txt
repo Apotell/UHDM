@@ -346,7 +346,10 @@ target_link_libraries(uhdm-hier PRIVATE uhdm)
 add_executable(uhdm-lint ${PROJECT_SOURCE_DIR}/util/uhdm-lint.cpp)
 target_link_libraries(uhdm-lint PRIVATE uhdm)
 
-add_executable(uhdm-reduce ${PROJECT_SOURCE_DIR}/util/uhdm-reduce.cpp)
+add_executable(uhdm-reduce
+  ${PROJECT_SOURCE_DIR}/src/UhdmFinder.cpp
+  ${PROJECT_SOURCE_DIR}/util/uhdm-reduce.cpp
+)
 target_link_libraries(uhdm-reduce PRIVATE uhdm)
 
 # Installation tester
