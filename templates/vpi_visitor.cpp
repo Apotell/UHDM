@@ -602,8 +602,7 @@ void visit_designs(const std::vector<vpiHandle>& designs, std::ostream &out) {
 
 std::string decompile(const UHDM::any* handle) {
   if (handle == nullptr) {
-    std::cout << "NULL HANDLE\n";
-    return "NULL HANDLE";
+    return "nullptr";
   }
   UHDM::VisitedContainer visited;
   vpi_show_ids(true);
@@ -613,7 +612,6 @@ std::string decompile(const UHDM::any* handle) {
   VpiVisitor visitor(out);
   visitor.visit_object(dh, 0, "decompile", false);
   vpi_release_handle(dh);
-  std::cout << out.str() << "\n";
   return out.str();
 }
 

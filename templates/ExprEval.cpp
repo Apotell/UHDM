@@ -96,7 +96,7 @@ bool ExprEval::isFullySpecified(const typespec *tps) {
   return true;
 }
 
-std::string ExprEval::toBinary(const constant *c) {
+std::string ExprEval::_toBinary(const constant *c) {
   std::string result;
   if (c == nullptr) return result;
   int32_t type = c->VpiConstType();
@@ -245,9 +245,9 @@ std::vector<std::string_view> ExprEval::tokenizeMulti(
   return result;
 }
 
-any *ExprEval::getValue(std::string_view name, const any *inst,
-                        const any *pexpr, bool muteError,
-                        const any *checkLoop) {
+any *ExprEval::_getValue(std::string_view name, const any *inst,
+                         const any *pexpr, bool muteError,
+                         const any *checkLoop) {
   any *result = nullptr;
   if ((inst == nullptr) && (pexpr == nullptr)) {
     return nullptr;
@@ -312,7 +312,7 @@ any *ExprEval::getValue(std::string_view name, const any *inst,
       for (auto p : *parameters) {
         if (p->VpiName() == the_name) {
           if (p->UhdmType() == uhdmparameter) {
-            result = (any*) p;
+            result = (any *)p;
             break;
           }
         }
@@ -356,7 +356,7 @@ any *ExprEval::getValue(std::string_view name, const any *inst,
     if (resultType == UHDM_OBJECT_TYPE::uhdmconstant) {
     } else if (resultType == UHDM_OBJECT_TYPE::uhdmref_obj) {
       if (result->VpiName() != name) {
-        if (any *rval = getValue(result->VpiName(), inst, pexpr, muteError)) {
+        if (any *rval = _getValue(result->VpiName(), inst, pexpr, muteError)) {
           result = rval;
         }
       }
@@ -369,7 +369,7 @@ any *ExprEval::getValue(std::string_view name, const any *inst,
         return nullptr;
       }
       if (any *rval =
-              reduceExpr(result, invalidValue, inst, pexpr, muteError)) {
+              _reduceExpr(result, invalidValue, inst, pexpr, muteError)) {
         result = rval;
       }
     }
@@ -380,8 +380,8 @@ any *ExprEval::getValue(std::string_view name, const any *inst,
   return result;
 }
 
-any *ExprEval::getObject(std::string_view name, const any *inst,
-                         const any *pexpr, bool muteError) {
+any *ExprEval::_getObject(std::string_view name, const any *inst,
+                          const any *pexpr, bool muteError) {
   any *result = nullptr;
   while (pexpr) {
     if (const scope *spe = any_cast<const scope *>(pexpr)) {
@@ -528,7 +528,7 @@ any *ExprEval::getObject(std::string_view name, const any *inst,
       if ((result == nullptr) ||
           (result && (result->UhdmType() != UHDM_OBJECT_TYPE::uhdmconstant) &&
            (result->UhdmType() != UHDM_OBJECT_TYPE::uhdmparam_assign))) {
-        if (any *tmpresult = getValue(name, inst, pexpr, muteError)) {
+        if (any *tmpresult = _getValue(name, inst, pexpr, muteError)) {
           result = tmpresult;
         }
       }
@@ -546,7 +546,7 @@ any *ExprEval::getObject(std::string_view name, const any *inst,
   if (result && (result->UhdmType() == UHDM_OBJECT_TYPE::uhdmref_obj)) {
     ref_obj *ref = (ref_obj *)result;
     const std::string_view refname = ref->VpiName();
-    if (refname != name) result = getObject(refname, inst, pexpr, muteError);
+    if (refname != name) result = _getObject(refname, inst, pexpr, muteError);
     if (result) {
       if (param_assign *passign = any_cast<param_assign *>(result)) {
         result = passign->Rhs();
@@ -559,7 +559,7 @@ any *ExprEval::getObject(std::string_view name, const any *inst,
   return result;
 }
 
-long double ExprEval::get_double(bool &invalidValue, const expr *expr) {
+long double ExprEval::_get_double(bool &invalidValue, const expr *expr) {
   long double result = 0;
   if (const constant *c = any_cast<const constant *>(expr)) {
     int32_t type = c->VpiConstType();
@@ -571,7 +571,7 @@ long double ExprEval::get_double(bool &invalidValue, const expr *expr) {
         break;
       }
       default: {
-        result = static_cast<long double>(get_value(invalidValue, expr));
+        result = static_cast<long double>(_get_value(invalidValue, expr));
         break;
       }
     }
@@ -581,7 +581,7 @@ long double ExprEval::get_double(bool &invalidValue, const expr *expr) {
   return result;
 }
 
-uint64_t ExprEval::getValue(const expr *expr) {
+uint64_t ExprEval::_getValue(const expr *expr) {
   uint64_t result = 0;
   if (expr && expr->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
     constant *c = (constant *)expr;
@@ -706,8 +706,8 @@ void ExprEval::recursiveFlattening(Serializer &s, VectorOfany *flattened,
                       VectorOfrange *ranges = molds->Ranges();
                       if (!ranges->empty()) {
                         range *r = ranges->front();
-                        uint64_t from = getValue(r->Left_expr());
-                        uint64_t to = getValue(r->Right_expr());
+                        uint64_t from = _getValue(r->Left_expr());
+                        uint64_t to = _getValue(r->Right_expr());
                         if (from > to) {
                           std::swap(from, to);
                         }
@@ -747,8 +747,8 @@ void ExprEval::recursiveFlattening(Serializer &s, VectorOfany *flattened,
   }
 }
 
-expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
-                                          expr *exp) {
+expr *ExprEval::_flattenPatternAssignments(Serializer &s, const typespec *tps,
+                                           expr *exp) {
   expr *result = exp;
   if ((!exp) || (!tps)) {
     return result;
@@ -758,8 +758,8 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
     operation *op = (operation *)exp;
     if (op->VpiOpType() == vpiConditionOp) {
       VectorOfany *ops = op->Operands();
-      ops->at(1) = flattenPatternAssignments(s, tps, (expr *)ops->at(1));
-      ops->at(2) = flattenPatternAssignments(s, tps, (expr *)ops->at(2));
+      ops->at(1) = _flattenPatternAssignments(s, tps, (expr *)ops->at(1));
+      ops->at(2) = _flattenPatternAssignments(s, tps, (expr *)ops->at(2));
       return result;
     }
     if (op->VpiOpType() != vpiAssignmentPatternOp) {
@@ -898,10 +898,10 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
           constant *c = (constant *)patt;
           if (c->VpiSize() == -1) {
             bool invalidValue = false;
-            uint64_t uval = get_uvalue(invalidValue, c);
+            uint64_t uval = _get_uvalue(invalidValue, c);
             if (uval == 1) {
-              uint64_t size = ExprEval::size(fieldTypes[index], invalidValue,
-                                             nullptr, exp, true, true);
+              uint64_t size = ExprEval::_size(fieldTypes[index], invalidValue,
+                                              nullptr, exp, true, true);
               uint64_t mask = NumUtils::getMask(size);
               uval = mask;
               c->VpiValue("UINT:" + std::to_string(uval));
@@ -909,8 +909,8 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
               c->VpiConstType(vpiUIntConst);
               c->VpiSize(static_cast<int32_t>(size));
             } else if (uval == 0) {
-              uint64_t size = ExprEval::size(fieldTypes[index], invalidValue,
-                                             nullptr, exp, true, true);
+              uint64_t size = ExprEval::_size(fieldTypes[index], invalidValue,
+                                              nullptr, exp, true, true);
               c->VpiValue("UINT:" + std::to_string(uval));
               c->VpiDecompile(std::to_string(uval));
               c->VpiConstType(vpiUIntConst);
@@ -920,7 +920,7 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
         } else if (patt->UhdmType() == UHDM_OBJECT_TYPE::uhdmoperation) {
           operation *patt_op = (operation *)patt;
           if (patt_op->VpiOpType() == vpiAssignmentPatternOp) {
-            opi = flattenPatternAssignments(s, fieldTypes[index], patt_op);
+            opi = _flattenPatternAssignments(s, fieldTypes[index], patt_op);
           }
         }
       }
@@ -929,9 +929,9 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
     }
     operation *opres = (operation *)clone_tree((any *)op, &elaboratorContext);
     opres->VpiParent(const_cast<any *>(op->VpiParent()));
-    ref_typespec* rtps = s.MakeRef_typespec();
+    ref_typespec *rtps = s.MakeRef_typespec();
     opres->Typespec(rtps);
-    rtps->Actual_typespec((typespec*) tps);
+    rtps->Actual_typespec((typespec *)tps);
     opres->Operands(ordered);
     if (flatten) {
       opres->VpiFlattened(true);
@@ -946,7 +946,7 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
   return result;
 }
 
-void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
+void ExprEval::prettyPrint(const any *object, uint32_t indent,
                            std::ostream &out) {
   if (object == nullptr) return;
   UHDM_OBJECT_TYPE type = object->UhdmType();
@@ -971,7 +971,7 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
       out << sysFuncCall->VpiName() << "(";
       if (sysFuncCall->Tf_call_args()) {
         for (uint32_t i = 0; i < sysFuncCall->Tf_call_args()->size(); i++) {
-          prettyPrint(s, sysFuncCall->Tf_call_args()->at(i), 0, out);
+          prettyPrint(sysFuncCall->Tf_call_args()->at(i), 0, out);
           if (i < sysFuncCall->Tf_call_args()->size() - 1) {
             out << ",";
           }
@@ -1012,7 +1012,7 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
               {vpiPreIncOp, "++"},  {vpiPreDecOp, "--"},
           };
           std::stringstream out_op0;
-          prettyPrint(s, oper->Operands()->at(0), 0, out_op0);
+          prettyPrint(oper->Operands()->at(0), 0, out_op0);
           out << opToken[opType] << out_op0.str();
           break;
         }
@@ -1083,20 +1083,22 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
               {vpiOverlapImplyOp, "|->"},
           };
           std::stringstream out_op0;
-          prettyPrint(s, oper->Operands()->at(0), 0, out_op0);
+          prettyPrint(oper->Operands()->at(0), 0, out_op0);
           std::stringstream out_op1;
-          prettyPrint(s, oper->Operands()->at(1), 0, out_op1);
+          if (oper->Operands()->size() > 1) {
+            prettyPrint(oper->Operands()->at(1), 0, out_op1);
+          }
           out << out_op0.str() << " " << opToken[opType] << " "
               << out_op1.str();
           break;
         }
         case vpiConditionOp: {
           std::stringstream out_op0;
-          prettyPrint(s, oper->Operands()->at(0), 0, out_op0);
+          prettyPrint(oper->Operands()->at(0), 0, out_op0);
           std::stringstream out_op1;
-          prettyPrint(s, oper->Operands()->at(1), 0, out_op1);
+          prettyPrint(oper->Operands()->at(1), 0, out_op1);
           std::stringstream out_op2;
-          prettyPrint(s, oper->Operands()->at(2), 0, out_op2);
+          prettyPrint(oper->Operands()->at(2), 0, out_op2);
           out << out_op0.str() << " ? " << out_op1.str() << " : "
               << out_op2.str();
           break;
@@ -1117,7 +1119,7 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
             }
           };
           for (uint32_t i = 0; i < oper->Operands()->size(); i++) {
-            prettyPrint(s, oper->Operands()->at(i), 0, out);
+            prettyPrint(oper->Operands()->at(i), 0, out);
             if (i < oper->Operands()->size() - 1) {
               out << ",";
             }
@@ -1127,24 +1129,24 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
         }
         case vpiMultiConcatOp: {
           std::stringstream mult;
-          prettyPrint(s, oper->Operands()->at(0), 0, mult);
+          prettyPrint(oper->Operands()->at(0), 0, mult);
           std::stringstream op;
-          prettyPrint(s, oper->Operands()->at(1), 0, op);
+          prettyPrint(oper->Operands()->at(1), 0, op);
           out << "{" << mult.str() << "{" << op.str() << "}}";
           break;
         }
         case vpiEventOrOp: {
           std::stringstream op[2];
-          prettyPrint(s, oper->Operands()->at(0), 0, op[0]);
-          prettyPrint(s, oper->Operands()->at(1), 0, op[1]);
+          prettyPrint(oper->Operands()->at(0), 0, op[0]);
+          prettyPrint(oper->Operands()->at(1), 0, op[1]);
           out << op[0].str() << " or " << op[1].str();
           break;
         }
         case vpiInsideOp: {
-          prettyPrint(s, oper->Operands()->at(0), 0, out);
+          prettyPrint(oper->Operands()->at(0), 0, out);
           out << " inside {";
           for (uint32_t i = 1; i < oper->Operands()->size(); i++) {
-            prettyPrint(s, oper->Operands()->at(i), 0, out);
+            prettyPrint(oper->Operands()->at(i), 0, out);
             if (i < oper->Operands()->size() - 1) {
               out << ",";
             }
@@ -1161,25 +1163,25 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
           */
         case vpiPosedgeOp: {
           std::stringstream op;
-          prettyPrint(s, oper->Operands()->at(0), 0, op);
+          prettyPrint(oper->Operands()->at(0), 0, op);
           out << "posedge " << op.str();
           break;
         }
         case vpiNegedgeOp: {
           std::stringstream op;
-          prettyPrint(s, oper->Operands()->at(0), 0, op);
+          prettyPrint(oper->Operands()->at(0), 0, op);
           out << "negedge " << op.str();
           break;
         }
         case vpiPostIncOp: {
           std::stringstream op;
-          prettyPrint(s, oper->Operands()->at(0), 0, op);
+          prettyPrint(oper->Operands()->at(0), 0, op);
           out << op.str() << "++";
           break;
         }
         case vpiPostDecOp: {
           std::stringstream op;
-          prettyPrint(s, oper->Operands()->at(0), 0, op);
+          prettyPrint(oper->Operands()->at(0), 0, op);
           out << op.str() << "--";
           break;
         }
@@ -1231,20 +1233,20 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
     }
     case UHDM_OBJECT_TYPE::uhdmpart_select: {
       part_select *ps = (part_select *)object;
-      prettyPrint(s, ps->Left_range(), 0, out);
+      prettyPrint(ps->Left_range(), 0, out);
       out << ":";
-      prettyPrint(s, ps->Right_range(), 0, out);
+      prettyPrint(ps->Right_range(), 0, out);
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmindexed_part_select: {
       indexed_part_select *ps = (indexed_part_select *)object;
-      prettyPrint(s, ps->Base_expr(), 0, out);
+      prettyPrint(ps->Base_expr(), 0, out);
       if (ps->VpiIndexedPartSelectType() == vpiPosIndexed)
         out << "+";
       else
         out << "-";
       out << ":";
-      prettyPrint(s, ps->Width_expr(), 0, out);
+      prettyPrint(ps->Width_expr(), 0, out);
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmref_obj: {
@@ -1256,7 +1258,7 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
       out << vs->VpiName();
       for (uint32_t i = 0; i < vs->Exprs()->size(); i++) {
         out << "[";
-        prettyPrint(s, vs->Exprs()->at(i), 0, out);
+        prettyPrint(vs->Exprs()->at(i), 0, out);
         out << "]";
       }
       break;
@@ -1267,22 +1269,23 @@ void ExprEval::prettyPrint(Serializer &s, const any *object, uint32_t indent,
   }
 }
 
-uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
-                        const any *pexpr, bool full, bool muteError) {
+uint64_t ExprEval::_size(const any *ts, bool &invalidValue, const any *inst,
+                         const any *pexpr, bool full, bool muteError) {
   if (ts == nullptr) return 0;
   uint64_t bits = 0;
   VectorOfrange *ranges = nullptr;
   UHDM_OBJECT_TYPE ttps = ts->UhdmType();
   if (ttps == uhdmref_typespec) {
-    ref_typespec* rtps = (ref_typespec*) ts;
+    ref_typespec *rtps = (ref_typespec *)ts;
     ts = rtps->Actual_typespec();
     ttps = ts->UhdmType();
   }
   switch (ttps) {
     case UHDM_OBJECT_TYPE::uhdmhier_path: {
-      ts = decodeHierPath((hier_path *)ts, invalidValue, inst, nullptr, ReturnType::TYPESPEC);
+      ts = _decodeHierPath((hier_path *)ts, invalidValue, inst, nullptr,
+                           ReturnType::TYPESPEC);
       if (ts)
-        bits = size(ts, invalidValue, inst, pexpr, full);
+        bits = _size(ts, invalidValue, inst, pexpr, full);
       else
         invalidValue = true;
       break;
@@ -1293,7 +1296,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       if (!full) {
         bits = 1;
       } else if (const ref_typespec *rt = lts->Elem_typespec()) {
-        bits = size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits = _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1371,7 +1374,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_net *lts = (logic_net *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            _size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -1384,7 +1388,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_var *lts = (logic_var *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            _size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -1396,7 +1401,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       bits = 1;
       bit_var *lts = (bit_var *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
-        bits = size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits = _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       ranges = lts->Ranges();
       break;
@@ -1407,7 +1412,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     }
     case UHDM_OBJECT_TYPE::uhdmstruct_var: {
       if (const ref_typespec *rt = ((const struct_var *)ts)->Typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1415,14 +1420,14 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       const array_var *var = (array_var *)ts;
       variables *regv = var->Variables()->at(0);
       if (const ref_typespec *rt = regv->Typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       ranges = var->Ranges();
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmstruct_net: {
       if (const ref_typespec *rt = ((const struct_net *)ts)->Typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1432,7 +1437,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
         for (typespec_member *member : *members) {
           if (const ref_typespec *rt = member->Typespec()) {
             bits +=
-                size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+                _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
           }
         }
       }
@@ -1440,14 +1445,14 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     }
     case UHDM_OBJECT_TYPE::uhdmenum_var: {
       if (const ref_typespec *rt = ((const enum_var *)ts)->Typespec()) {
-        bits = size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits = _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmenum_typespec: {
       if (const ref_typespec *rt =
               ((const enum_typespec *)ts)->Base_typespec()) {
-        bits = size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits = _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1457,7 +1462,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
         for (typespec_member *member : *members) {
           if (const ref_typespec *rt = member->Typespec()) {
             uint64_t max =
-                size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+                _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
             if (max > bits) bits = max;
           }
         }
@@ -1476,13 +1481,13 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     }
     case UHDM_OBJECT_TYPE::uhdmref_obj: {
       ref_obj *ref = (ref_obj *)ts;
-      const any* act = ref->Actual_group();
+      const any *act = ref->Actual_group();
       if (act == nullptr) {
         std::string_view name = ref->VpiName();
-        act = getObject(name, inst, pexpr, muteError);
+        act = _getObject(name, inst, pexpr, muteError);
       }
       if (act) {
-        bits = size(act, invalidValue, inst, pexpr, full);
+        bits = _size(act, invalidValue, inst, pexpr, full);
       } else {
         invalidValue = true;
       }
@@ -1493,7 +1498,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       if (tsop->VpiOpType() == vpiConcatOp) {
         if (auto ops = tsop->Operands()) {
           for (auto op : *ops) {
-            bits += size(op, invalidValue, inst, pexpr, full);
+            bits += _size(op, invalidValue, inst, pexpr, full);
           }
         }
       }
@@ -1502,20 +1507,20 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     case UHDM_OBJECT_TYPE::uhdmpacked_array_typespec: {
       packed_array_typespec *tmp = (packed_array_typespec *)ts;
       if (const ref_typespec *rt = tmp->Elem_typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       ranges = tmp->Ranges();
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmtypespec_member: {
       if (const ref_typespec *rt = ((const typespec_member *)ts)->Typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmio_decl: {
       if (const ref_typespec *rt = ((const io_decl *)ts)->Typespec()) {
-        bits += size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
+        bits += _size(rt->Actual_typespec(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1528,10 +1533,10 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       const expr *lexpr = sel->Left_range();
       const expr *rexpr = sel->Right_range();
       int64_t lv =
-          getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
+          _getValue(_reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
 
       int64_t rv =
-          getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
+          _getValue(_reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
 
       if (lv > rv)
         bits = ((lv - rv) + 1);
@@ -1550,10 +1555,10 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       const expr *lexpr = last_range->Left_expr();
       const expr *rexpr = last_range->Right_expr();
       int64_t lv =
-          getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
+          _getValue(_reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
 
       int64_t rv =
-          getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
+          _getValue(_reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
 
       if (lv > rv)
         bits = bits * (lv - rv + 1);
@@ -1564,10 +1569,10 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
         const expr *lexpr = ran->Left_expr();
         const expr *rexpr = ran->Right_expr();
         int64_t lv =
-            getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
+            _getValue(_reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
 
         int64_t rv =
-            getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
+            _getValue(_reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
 
         if (lv > rv)
           bits = bits * (lv - rv + 1);
@@ -1577,19 +1582,6 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     }
   }
   return bits;
-}
-
-uint64_t ExprEval::size(const vpiHandle typespec, bool &invalidValue,
-                        const vpiHandle inst, const vpiHandle pexpr, bool full,
-                        bool muteError) {
-  const UHDM::any *vpiHandle_typespec =
-      (UHDM::any *)((uhdm_handle *)typespec)->object;
-  const UHDM::any *vpiHandle_inst =
-      !inst ? nullptr : (UHDM::any *)((uhdm_handle *)inst)->object;
-  const UHDM::any *vpiHandle_pexpr =
-      !pexpr ? nullptr : (UHDM::any *)((uhdm_handle *)pexpr)->object;
-  return size(vpiHandle_typespec, invalidValue, vpiHandle_inst, vpiHandle_pexpr,
-              full, muteError);
 }
 
 static bool getStringVal(std::string &result, expr *val) {
@@ -1612,7 +1604,7 @@ static bool getStringVal(std::string &result, expr *val) {
 
 void resize(expr *resizedExp, int32_t size) {
   ExprEval eval;
-  constant* c = any_cast<constant*>(resizedExp);
+  constant *c = any_cast<constant *>(resizedExp);
   if (c && c->VpiDecompile() == "'1") {
     uint64_t mask = NumUtils::getMask(size);
     c->VpiValue("UINT:" + std::to_string(mask));
@@ -1621,16 +1613,17 @@ void resize(expr *resizedExp, int32_t size) {
   }
 }
 
-expr *ExprEval::reduceCompOp(operation *op, bool &invalidValue, const any *inst,
-                             const any *pexpr, bool muteError) {
+expr *ExprEval::_reduceCompOp(operation *op, bool &invalidValue,
+                              const any *inst, const any *pexpr,
+                              bool muteError) {
   expr *result = op;
   Serializer &s = *op->GetSerializer();
   VectorOfany &operands = *op->Operands();
   int32_t optype = op->VpiOpType();
   std::string s0;
   std::string s1;
-  expr *reduc0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-  expr *reduc1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+  expr *reduc0 = _reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+  expr *reduc1 = _reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
   if (invalidValue == true) {
     return result;
   }
@@ -1651,8 +1644,8 @@ expr *ExprEval::reduceCompOp(operation *op, bool &invalidValue, const any *inst,
   bool invalidValueS = true;
   uint64_t val = 0;
 
-  int64_t v0 = get_uvalue(invalidValueI, reduc0);
-  int64_t v1 = get_uvalue(invalidValueI, reduc1);
+  int64_t v0 = _get_uvalue(invalidValueI, reduc0);
+  int64_t v1 = _get_uvalue(invalidValueI, reduc1);
   if ((invalidValue == false) && (invalidValueI == false)) {
     switch (optype) {
       case vpiEqOp:
@@ -1678,8 +1671,8 @@ expr *ExprEval::reduceCompOp(operation *op, bool &invalidValue, const any *inst,
     }
   } else {
     invalidValueD = false;
-    long double ld0 = get_double(invalidValueD, reduc0);
-    long double ld1 = get_double(invalidValueD, reduc1);
+    long double ld0 = _get_double(invalidValueD, reduc0);
+    long double ld1 = _get_double(invalidValueD, reduc1);
     if ((invalidValue == false) && (invalidValueD == false)) {
       switch (optype) {
         case vpiEqOp:
@@ -1733,8 +1726,8 @@ expr *ExprEval::reduceCompOp(operation *op, bool &invalidValue, const any *inst,
   return result;
 }
 
-uint64_t ExprEval::getWordSize(const expr *exp, const any *inst,
-                               const any *pexpr) {
+uint64_t ExprEval::_getWordSize(const expr *exp, const any *inst,
+                                const any *pexpr) {
   uint64_t wordSize = 1;
   bool invalidValue = false;
   bool muteError = true;
@@ -1799,8 +1792,8 @@ uint64_t ExprEval::getWordSize(const expr *exp, const any *inst,
       } else if (cts->UhdmType() == UHDM_OBJECT_TYPE::uhdmlogic_typespec) {
         logic_typespec *icts = (logic_typespec *)cts;
         if (const ref_typespec *rt = icts->Elem_typespec()) {
-          wordSize = size(rt->Actual_typespec(), invalidValue, inst, pexpr,
-                          false, muteError);
+          wordSize = _size(rt->Actual_typespec(), invalidValue, inst, pexpr,
+                           false, muteError);
         }
       } else if (cts->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_typespec) {
         bit_typespec *icts = (bit_typespec *)cts;
@@ -1810,11 +1803,11 @@ uint64_t ExprEval::getWordSize(const expr *exp, const any *inst,
             range *r = ranges->at(ranges->size() - 1);
             bool invalid = false;
             uint16_t lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Left_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Left_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
             uint16_t rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Right_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Right_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
             wordSize = (lr > rr) ? (lr - rr + 1) : (rr - lr + 1);
           }
         }
@@ -1827,16 +1820,16 @@ uint64_t ExprEval::getWordSize(const expr *exp, const any *inst,
   return wordSize;
 }
 
-expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
-                                bool &invalidValue, const any *inst,
-                                const any *pexpr, bool muteError) {
+expr *ExprEval::_reduceBitSelect(expr *op, uint32_t index_val,
+                                 bool &invalidValue, const any *inst,
+                                 const any *pexpr, bool muteError) {
   Serializer &s = *op->GetSerializer();
   expr *result = nullptr;
-  expr *exp = reduceExpr(op, invalidValue, inst, pexpr, muteError);
+  expr *exp = _reduceExpr(op, invalidValue, inst, pexpr, muteError);
   if (exp && (exp->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
     constant *cexp = (constant *)exp;
-    std::string binary = toBinary(cexp);
-    uint64_t wordSize = getWordSize(cexp, inst, pexpr);
+    std::string binary = _toBinary(cexp);
+    uint64_t wordSize = _getWordSize(cexp, inst, pexpr);
     constant *c = s.MakeConstant();
     uint16_t lr = 0;
     uint16_t rr = 0;
@@ -1848,11 +1841,11 @@ expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
             range *r = ranges->at(ranges->size() - 1);
             bool invalid = false;
             lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Left_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Left_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
             rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Right_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Right_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
           }
         } else if (tps->UhdmType() == UHDM_OBJECT_TYPE::uhdmint_typespec) {
           int_typespec *lts = (int_typespec *)tps;
@@ -1860,11 +1853,11 @@ expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
             range *r = ranges->at(ranges->size() - 1);
             bool invalid = false;
             lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Left_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Left_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
             rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Right_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Right_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
           }
         } else if (tps->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_typespec) {
           bit_typespec *lts = (bit_typespec *)tps;
@@ -1872,11 +1865,11 @@ expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
             range *r = ranges->at(ranges->size() - 1);
             bool invalid = false;
             lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Left_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Left_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
             rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->Right_expr(), invalidValue,
-                                              inst, pexpr, muteError)));
+                _get_value(invalid, _reduceExpr(r->Right_expr(), invalidValue,
+                                                inst, pexpr, muteError)));
           }
         }
       }
@@ -1929,7 +1922,8 @@ expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
   return result;
 }
 
-int64_t ExprEval::get_value(bool &invalidValue, const expr *expr, bool strict) {
+int64_t ExprEval::_get_value(bool &invalidValue, const expr *expr,
+                             bool strict) {
   int64_t result = 0;
   int32_t type = 0;
   std::string_view sv;
@@ -2040,8 +2034,8 @@ int64_t ExprEval::get_value(bool &invalidValue, const expr *expr, bool strict) {
   return result;
 }
 
-uint64_t ExprEval::get_uvalue(bool &invalidValue, const expr *expr,
-                              bool strict) {
+uint64_t ExprEval::_get_uvalue(bool &invalidValue, const expr *expr,
+                               bool strict) {
   uint64_t result = 0;
   int32_t type = 0;
   std::string_view sv;
@@ -2149,7 +2143,7 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const expr *expr,
   return result;
 }
 
-task_func *ExprEval::getTaskFunc(std::string_view name, const any *inst) {
+task_func *ExprEval::_getTaskFunc(std::string_view name, const any *inst) {
   if (getTaskFuncFunctor) {
     if (task_func *result = getTaskFuncFunctor(name, inst)) {
       return result;
@@ -2210,33 +2204,33 @@ task_func *ExprEval::getTaskFunc(std::string_view name, const any *inst) {
   return nullptr;
 }
 
-any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
-                              const any *inst, const any *pexpr,
-                              ReturnType returnType, bool muteError) {
+any *ExprEval::_decodeHierPath(hier_path *path, bool &invalidValue,
+                               const any *inst, const any *pexpr,
+                               ReturnType returnType, bool muteError) {
   Serializer &s = *path->GetSerializer();
   std::string baseObject;
   if (!path->Path_elems()->empty()) {
     any *firstElem = path->Path_elems()->at(0);
     baseObject = firstElem->VpiName();
   }
-  any *object = getObject(baseObject, inst, pexpr, muteError);
+  any *object = _getObject(baseObject, inst, pexpr, muteError);
   if (object) {
     if (param_assign *passign = any_cast<param_assign *>(object)) {
       object = passign->Rhs();
     }
   }
   if (object == nullptr) {
-    object = getValue(baseObject, inst, pexpr, muteError);
+    object = _getValue(baseObject, inst, pexpr, muteError);
   }
   if (object) {
     // Substitution
     if (param_assign *pass = any_cast<param_assign *>(object)) {
       const any *rhs = pass->Rhs();
-      object = reduceExpr(rhs, invalidValue, inst, pexpr, muteError);
+      object = _reduceExpr(rhs, invalidValue, inst, pexpr, muteError);
     } else if (bit_select *bts = any_cast<bit_select *>(object)) {
-      object = reduceExpr(bts, invalidValue, inst, pexpr, muteError);
+      object = _reduceExpr(bts, invalidValue, inst, pexpr, muteError);
     } else if (ref_obj *ref = any_cast<ref_obj *>(object)) {
-      object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
+      object = _reduceExpr(ref, invalidValue, inst, pexpr, muteError);
     } else if (constant *cons = any_cast<constant *>(object)) {
       ElaboratorContext elaboratorContext(&s);
       object = clone_tree(cons, &elaboratorContext);
@@ -2262,18 +2256,19 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
       the_path.emplace_back(elemName);
       if (elem->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_select) {
         bit_select *select = (bit_select *)elem;
-        uint64_t baseIndex = get_value(
-            invalidValue, reduceExpr((any *)select->VpiIndex(), invalidValue,
-                                     inst, pexpr, muteError));
+        uint64_t baseIndex = _get_value(
+            invalidValue, _reduceExpr((any *)select->VpiIndex(), invalidValue,
+                                      inst, pexpr, muteError));
         the_path.push_back("[" + std::to_string(baseIndex) + "]");
       }
     }
 
-    expr* result = (expr *)hierarchicalSelector(the_path, 0, object, invalidValue, inst,
-                                        pexpr, returnType, muteError);
+    expr *result = (expr *)_hierarchicalSelector(
+        the_path, 0, object, invalidValue, inst, pexpr, returnType, muteError);
     if (result == nullptr) {
       invalidValue = true;
-      result = (expr *)hierarchicalSelector(the_path, 0, object, invalidValue, inst,
+      result =
+          (expr *)_hierarchicalSelector(the_path, 0, object, invalidValue, inst,
                                         pexpr, returnType, muteError);
     } else if (result->UhdmType() == uhdmhier_path) {
       invalidValue = true;
@@ -2284,11 +2279,11 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
   return nullptr;
 }
 
-any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
-                                    uint32_t level, any *object,
-                                    bool &invalidValue, const any *inst,
-                                    const any *pexpr, ReturnType returnType,
-                                    bool muteError) {
+any *ExprEval::_hierarchicalSelector(std::vector<std::string> &select_path,
+                                     uint32_t level, any *object,
+                                     bool &invalidValue, const any *inst,
+                                     const any *pexpr, ReturnType returnType,
+                                     bool muteError) {
   if (object == nullptr) return nullptr;
   Serializer &s = (object) ? *object->GetSerializer() : *inst->GetSerializer();
   if (level >= select_path.size()) {
@@ -2324,15 +2319,16 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   if (lastElem) {
                     return res;
                   } else {
-                    return hierarchicalSelector(select_path, level + 1, res,
-                                                invalidValue, inst, pexpr,
-                                                returnType, muteError);
+                    return _hierarchicalSelector(select_path, level + 1, res,
+                                                 invalidValue, inst, pexpr,
+                                                 returnType, muteError);
                   }
                 }
               } else if (returnType == ReturnType::MEMBER) {
                 return member;
               } else {
-                return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                return member->Actual_value() ? member->Actual_value()
+                                              : member->Default_value();
               }
             }
           }
@@ -2376,9 +2372,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
           if (lastElem) {
             return res;
           } else {
-            return hierarchicalSelector(select_path, level + 1, res,
-                                        invalidValue, inst, pexpr,
-                                        returnType, muteError);
+            return _hierarchicalSelector(select_path, level + 1, res,
+                                         invalidValue, inst, pexpr, returnType,
+                                         muteError);
           }
         }
       }
@@ -2393,19 +2389,21 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             if (lastElem) {
               return res;
             } else {
-              return hierarchicalSelector(select_path, level + 1, res,
-                                          invalidValue, inst, pexpr,
-                                          returnType, muteError);
+              return _hierarchicalSelector(select_path, level + 1, res,
+                                           invalidValue, inst, pexpr,
+                                           returnType, muteError);
             }
           }
         } else {
-          res = member->Actual_value() ? member->Actual_value() : member->Default_value();
+          res = member->Actual_value() ? member->Actual_value()
+                                       : member->Default_value();
         }
         if (lastElem) {
           return res;
         } else {
-          return hierarchicalSelector(select_path, level + 1, res, invalidValue,
-                                      inst, pexpr, returnType, muteError);
+          return _hierarchicalSelector(select_path, level + 1, res,
+                                       invalidValue, inst, pexpr, returnType,
+                                       muteError);
         }
       }
     }
@@ -2424,13 +2422,14 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                     if (lastElem) {
                       return res;
                     } else {
-                      return hierarchicalSelector(select_path, level + 1, res,
-                                                  invalidValue, inst, pexpr,
-                                                  returnType, muteError);
+                      return _hierarchicalSelector(select_path, level + 1, res,
+                                                   invalidValue, inst, pexpr,
+                                                   returnType, muteError);
                     }
                   }
                 } else {
-                  return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                  return member->Actual_value() ? member->Actual_value()
+                                                : member->Default_value();
                 }
               }
             }
@@ -2451,9 +2450,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   if (lastElem) {
                     return res;
                   } else {
-                    return hierarchicalSelector(select_path, level + 1, res,
-                                                invalidValue, inst, pexpr,
-                                                returnType, muteError);
+                    return _hierarchicalSelector(select_path, level + 1, res,
+                                                 invalidValue, inst, pexpr,
+                                                 returnType, muteError);
                   }
                 }
               }
@@ -2500,13 +2499,14 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             const std::string_view param_name = param->Lhs()->VpiName();
             if (param_name == elemName) {
               const std::string_view param_value_name = param->Rhs()->VpiName();
-              any *objectrhs = getObject(param_value_name, inst, pexpr, muteError);
+              any *objectrhs =
+                  _getObject(param_value_name, inst, pexpr, muteError);
               if (objectrhs == nullptr) {
-                objectrhs = getValue(param_value_name, inst, pexpr, muteError);
+                objectrhs = _getValue(param_value_name, inst, pexpr, muteError);
               }
-              return hierarchicalSelector(select_path, level + 1, objectrhs ? objectrhs : param->Rhs(),
-                                                invalidValue, inst, pexpr,
-                                                returnType, muteError);
+              return _hierarchicalSelector(
+                  select_path, level + 1, objectrhs ? objectrhs : param->Rhs(),
+                  invalidValue, inst, pexpr, returnType, muteError);
             }
           }
         }
@@ -2533,13 +2533,14 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   if (lastElem) {
                     return res;
                   } else {
-                    return hierarchicalSelector(select_path, level + 1, res,
-                                                invalidValue, inst, pexpr,
-                                                returnType, muteError);
+                    return _hierarchicalSelector(select_path, level + 1, res,
+                                                 invalidValue, inst, pexpr,
+                                                 returnType, muteError);
                   }
                 }
               } else {
-                return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                return member->Actual_value() ? member->Actual_value()
+                                              : member->Default_value();
               }
             }
           }
@@ -2547,16 +2548,16 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       }
     }
   } else if (port *tport = any_cast<port *>(object)) {
-    any* low_conn = tport->Low_conn();
+    any *low_conn = tport->Low_conn();
     if (low_conn) {
       if (low_conn->UhdmType() == uhdmref_obj) {
-        ref_obj* ref = (ref_obj*) low_conn;
-        any* actual = ref->Actual_group();
+        ref_obj *ref = (ref_obj *)low_conn;
+        any *actual = ref->Actual_group();
         if (actual) {
           if (actual->UhdmType() == uhdmmodport) {
-            modport* mport = (modport*) actual;
+            modport *mport = (modport *)actual;
             if (mport->Io_decls()) {
-              for (io_decl* decl : *mport->Io_decls()) {
+              for (io_decl *decl : *mport->Io_decls()) {
                 if (elemName == decl->VpiName()) {
                   if (returnType == ReturnType::MEMBER) {
                     return decl;
@@ -2572,7 +2573,7 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
           }
         }
       }
-    }  
+    }
   } else if (constant *cons = any_cast<constant *>(object)) {
     if (ref_typespec *rt = cons->Typespec()) {
       if (const typespec *ts = rt->Actual_typespec()) {
@@ -2583,9 +2584,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
           uint64_t width = 0;
           for (typespec_member *member : *stpt->Members()) {
             if (member->VpiName() == elemName) {
-              width = size(member, invalidValue, inst, pexpr, true);
+              width = _size(member, invalidValue, inst, pexpr, true);
               if (cons->VpiSize() <= 64) {
-                uint64_t iv = get_value(invalidValue, cons);
+                uint64_t iv = _get_value(invalidValue, cons);
                 uint64_t mask = 0;
 
                 for (uint64_t i = from; i < uint64_t(from + width); i++) {
@@ -2613,9 +2614,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   std::string_view bin =
                       val.substr(strlen("BIN:"), std::string::npos);
                   std::string_view res;
-                  if (bin == "0") 
+                  if (bin == "0")
                     res = bin;
-                  else 
+                  else
                     res = bin.substr(from, width);
                   cons->VpiValue("BIN:" + std::string(res));
                   cons->VpiSize(static_cast<int32_t>(width));
@@ -2624,7 +2625,7 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                 }
               }
             } else {
-              from += size(member, invalidValue, inst, pexpr, true);
+              from += _size(member, invalidValue, inst, pexpr, true);
             }
           }
         }
@@ -2647,9 +2648,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         int32_t sInd = 0;
         for (auto operand : *operands) {
           if ((selectIndex >= 0) && (sInd == selectIndex)) {
-            return hierarchicalSelector(select_path, level + 1, operand,
-                                        invalidValue, inst, pexpr,
-                                        returnType, muteError);
+            return _hierarchicalSelector(select_path, level + 1, operand,
+                                         invalidValue, inst, pexpr, returnType,
+                                         muteError);
           }
           sInd++;
         }
@@ -2677,8 +2678,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         return (typespec *)rt->Actual_typespec();
       }
     } else if (constant *c = any_cast<constant *>(object)) {
-      if (expr *tmp = reduceBitSelect(c, selectIndex, invalidValue, inst, pexpr,
-                                      muteError)) {
+      if (expr *tmp = _reduceBitSelect(c, selectIndex, invalidValue, inst,
+                                       pexpr, muteError)) {
         if (returnType == ReturnType::TYPESPEC) {
           if (ref_typespec *rt = tmp->Typespec()) {
             return rt->Actual_typespec();
@@ -2690,8 +2691,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       return object;
     }
   } else if (level == 0) {
-    return hierarchicalSelector(select_path, level + 1, object, invalidValue,
-                                inst, pexpr, returnType, muteError);
+    return _hierarchicalSelector(select_path, level + 1, object, invalidValue,
+                                 inst, pexpr, returnType, muteError);
   }
 
   if (const operation *oper = any_cast<const operation *>(object)) {
@@ -2722,7 +2723,7 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
           }
         }
         */
-        if (any *baseP = getObject(select_path[0], inst, pexpr, muteError)) {
+        if (any *baseP = _getObject(select_path[0], inst, pexpr, muteError)) {
           const typespec *tps = nullptr;
           if (parameter *p = any_cast<parameter *>(baseP)) {
             if (const ref_typespec *rt = p->Typespec()) {
@@ -2842,12 +2843,12 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             const any *patt = tpatt->Pattern();
             UHDM_OBJECT_TYPE pattType = patt->UhdmType();
             if (pattType == UHDM_OBJECT_TYPE::uhdmconstant) {
-              any *ex = reduceExpr((expr *)patt, invalidValue, inst, pexpr,
-                                   muteError);
+              any *ex = _reduceExpr((expr *)patt, invalidValue, inst, pexpr,
+                                    muteError);
               if (level < select_path.size()) {
-                ex = hierarchicalSelector(select_path, level + 1, ex,
-                                          invalidValue, inst, pexpr,
-                                          returnType);
+                ex = _hierarchicalSelector(select_path, level + 1, ex,
+                                           invalidValue, inst, pexpr,
+                                           returnType);
               }
               if (returnType == ReturnType::TYPESPEC) {
                 if (typespec *tp = any_cast<typespec>(ex)) {
@@ -2875,23 +2876,23 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
               }
               return ex;
             } else if (pattType == UHDM_OBJECT_TYPE::uhdmoperation) {
-              return hierarchicalSelector(select_path, level + 1, (expr *)patt,
-                                          invalidValue, inst, pexpr,
-                                          returnType);
+              return _hierarchicalSelector(select_path, level + 1, (expr *)patt,
+                                           invalidValue, inst, pexpr,
+                                           returnType);
             }
           }
         } else if (operandType == UHDM_OBJECT_TYPE::uhdmconstant) {
           if ((bIndex >= 0) && (bIndex == sInd)) {
-            return hierarchicalSelector(select_path, level + 1, (expr *)operand,
-                                        invalidValue, inst, pexpr,
-                                        returnType);
+            return _hierarchicalSelector(select_path, level + 1,
+                                         (expr *)operand, invalidValue, inst,
+                                         pexpr, returnType);
           }
         }
         sInd++;
       }
       if (defaultPattern) {
         if (expr *ex = any_cast<expr *>(defaultPattern)) {
-          ex = reduceExpr(ex, invalidValue, inst, pexpr, muteError);
+          ex = _reduceExpr(ex, invalidValue, inst, pexpr, muteError);
           if (returnType == ReturnType::TYPESPEC) {
             if (typespec *tp = any_cast<typespec>(ex)) {
               return tp;
@@ -2924,8 +2925,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
   return nullptr;
 }
 
-expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
-                           const any *inst, const any *pexpr, bool muteError) {
+expr *ExprEval::_reduceExpr(const any *result, bool &invalidValue,
+                            const any *inst, const any *pexpr, bool muteError) {
   if (!result) return nullptr;
   Serializer &s = *result->GetSerializer();
   UHDM_OBJECT_TYPE objtype = result->UhdmType();
@@ -2945,7 +2946,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           ref_obj *ref = (ref_obj *)oper;
           const std::string_view name = ref->VpiName();
           if (name == "default" && ref->VpiStructMember()) continue;
-          if (getValue(name, inst, pexpr, muteError, result) == nullptr) {
+          if (_getValue(name, inst, pexpr, muteError, result) == nullptr) {
             constantOperands = false;
             break;
           }
@@ -2967,16 +2968,16 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiArithRShiftOp:
           case vpiRShiftOp: {
             if (operands.size() == 2) {
-              expr *arg0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+              expr *arg0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                       muteError);
               if (arg0 && arg0->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
                 constant *c = (constant *)arg0;
                 if (c->VpiSize() == -1) invalidValue = true;
               }
-              int64_t val0 = get_value(invalidValue, arg0);
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(invalidValue, arg0);
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) >> ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -2995,7 +2996,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiNeqOp:
           case vpiEqOp: {
             if (operands.size() == 2) {
-              result = reduceCompOp(op, invalidValue, inst, pexpr);
+              result = _reduceCompOp(op, invalidValue, inst, pexpr);
             }
             break;
           }
@@ -3004,11 +3005,11 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiPreDecOp:
           case vpiPreIncOp: {
             if (operands.size() == 1) {
-              expr *reduc0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+              expr *reduc0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                         muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t val = get_value(invalidValueI, reduc0);
+              int64_t val = _get_value(invalidValueI, reduc0);
               if ((invalidValue == false) && (invalidValueI == false)) {
                 if (op->VpiOpType() == vpiPostIncOp ||
                     op->VpiOpType() == vpiPreIncOp) {
@@ -3023,12 +3024,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 c->VpiConstType(vpiIntConst);
                 result = c;
                 std::map<std::string, const typespec *> local_vars;
-                setValueInInstance(operands[0]->VpiName(), operands[0], c,
-                                   invalidValue, s, inst, op, local_vars, 0,
-                                   muteError);
+                _setValueInInstance(operands[0]->VpiName(), operands[0], c,
+                                    invalidValue, s, inst, op, local_vars, 0,
+                                    muteError);
               } else {
                 invalidValueD = false;
-                long double val = get_double(invalidValueD, reduc0);
+                long double val = _get_double(invalidValueD, reduc0);
                 if ((invalidValue == false) && (invalidValueD == false)) {
                   if (op->VpiOpType() == vpiPostIncOp ||
                       op->VpiOpType() == vpiPreIncOp) {
@@ -3043,9 +3044,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   c->VpiConstType(vpiRealConst);
                   result = c;
                   std::map<std::string, const typespec *> local_vars;
-                  setValueInInstance(operands[0]->VpiName(), operands[0], c,
-                                     invalidValue, s, inst, op, local_vars, 0,
-                                     muteError);
+                  _setValueInInstance(operands[0]->VpiName(), operands[0], c,
+                                      invalidValue, s, inst, op, local_vars, 0,
+                                      muteError);
                 }
               }
             }
@@ -3054,16 +3055,16 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiArithLShiftOp:
           case vpiLShiftOp: {
             if (operands.size() == 2) {
-              expr *arg0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+              expr *arg0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                       muteError);
               if (arg0 && arg0->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
                 constant *c = (constant *)arg0;
                 if (c->VpiSize() == -1) invalidValue = true;
               }
-              int64_t val0 = get_value(invalidValue, arg0);
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(invalidValue, arg0);
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) << ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -3078,10 +3079,10 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiAddOp:
           case vpiPlusOp: {
             if (operands.size() == 2) {
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              expr *expr1 =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              expr *expr1 = _reduceExpr(operands[1], invalidValue, inst, pexpr,
+                                        muteError);
               bool unsignedOperation = true;
               for (auto exp : {expr0, expr1}) {
                 if (exp) {
@@ -3099,8 +3100,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
               bool invalidValueI = false;
               bool invalidValueD = false;
               if (unsignedOperation) {
-                uint64_t val0 = get_uvalue(invalidValueI, expr0);
-                uint64_t val1 = get_uvalue(invalidValueI, expr1);
+                uint64_t val0 = _get_uvalue(invalidValueI, expr0);
+                uint64_t val1 = _get_uvalue(invalidValueI, expr1);
                 if ((invalidValue == false) && (invalidValueI == false)) {
                   uint64_t val = val0 + val1;
                   constant *c = s.MakeConstant();
@@ -3113,8 +3114,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   result = c;
                 }
               } else {
-                int64_t val0 = get_value(invalidValueI, expr0);
-                int64_t val1 = get_value(invalidValueI, expr1);
+                int64_t val0 = _get_value(invalidValueI, expr0);
+                int64_t val1 = _get_value(invalidValueI, expr1);
                 if ((invalidValue == false) && (invalidValueI == false)) {
                   int64_t val = val0 + val1;
                   constant *c = s.MakeConstant();
@@ -3127,8 +3128,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   result = c;
                 } else {
                   invalidValueD = false;
-                  long double val0 = get_double(invalidValueD, expr0);
-                  long double val1 = get_double(invalidValueD, expr1);
+                  long double val0 = _get_double(invalidValueD, expr0);
+                  long double val1 = _get_double(invalidValueD, expr1);
                   if ((invalidValue == false) && (invalidValueD == false)) {
                     long double val = val0 + val1;
                     constant *c = s.MakeConstant();
@@ -3148,12 +3149,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiBitOrOp: {
             if (operands.size() == 2) {
-              int64_t val0 =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) | ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -3167,12 +3168,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiBitAndOp: {
             if (operands.size() == 2) {
-              int64_t val0 =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) & ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -3186,12 +3187,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiLogOrOp: {
             if (operands.size() == 2) {
-              int64_t val0 =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) || ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -3205,12 +3206,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiLogAndOp: {
             if (operands.size() == 2) {
-              int64_t val0 =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
-              int64_t val1 =
-                  get_value(invalidValue, reduceExpr(operands[1], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val0 = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
+              int64_t val1 = _get_value(
+                  invalidValue, _reduceExpr(operands[1], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t val = ((uint64_t)val0) && ((uint64_t)val1);
               constant *c = s.MakeConstant();
@@ -3226,9 +3227,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
             if (operands.size() == 1) {
               bool invalidValueI = false;
               bool invalidValueD = false;
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              int64_t val0 = get_value(invalidValueI, expr0);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              int64_t val0 = _get_value(invalidValueI, expr0);
               if ((invalidValue == false) && (invalidValueI == false)) {
                 int64_t val = -val0;
                 uint64_t size = 64;
@@ -3243,7 +3244,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
+                long double val0 = _get_double(invalidValueD, expr0);
                 if ((invalidValue == false) && (invalidValueD == false)) {
                   long double val = -val0;
                   constant *c = s.MakeConstant();
@@ -3260,14 +3261,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiSubOp: {
             if (operands.size() == 2) {
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              expr *expr1 =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              expr *expr1 = _reduceExpr(operands[1], invalidValue, inst, pexpr,
+                                        muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
+              int64_t val0 = _get_value(invalidValueI, expr0);
+              int64_t val1 = _get_value(invalidValueI, expr1);
               if ((invalidValue == false) && (invalidValueI == false)) {
                 int64_t val = val0 - val1;
                 constant *c = s.MakeConstant();
@@ -3278,8 +3279,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
+                long double val0 = _get_double(invalidValueD, expr0);
+                long double val1 = _get_double(invalidValueD, expr1);
                 if ((invalidValue == false) && (invalidValueD == false)) {
                   long double val = val0 - val1;
                   constant *c = s.MakeConstant();
@@ -3296,14 +3297,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiMultOp: {
             if (operands.size() == 2) {
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              expr *expr1 =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              expr *expr1 = _reduceExpr(operands[1], invalidValue, inst, pexpr,
+                                        muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
+              int64_t val0 = _get_value(invalidValueI, expr0);
+              int64_t val1 = _get_value(invalidValueI, expr1);
               if ((invalidValue == false) && (invalidValueI == false)) {
                 int64_t val = val0 * val1;
                 constant *c = s.MakeConstant();
@@ -3314,8 +3315,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
+                long double val0 = _get_double(invalidValueD, expr0);
+                long double val1 = _get_double(invalidValueD, expr1);
                 if ((invalidValue == false) && (invalidValueD == false)) {
                   long double val = val0 * val1;
                   constant *c = s.MakeConstant();
@@ -3332,10 +3333,10 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiBitNegOp: {
             if (operands.size() == 1) {
-              expr *operand =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+              expr *operand = _reduceExpr(operands[0], invalidValue, inst,
+                                          pexpr, muteError);
               if (operand) {
-                uint64_t val = (uint64_t)get_value(invalidValue, operand);
+                uint64_t val = (uint64_t)_get_value(invalidValue, operand);
                 if (invalidValue) break;
                 uint64_t size = 64;
                 if (operand->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
@@ -3343,8 +3344,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   size = c->VpiSize();
                   if (const ref_typespec *rt = c->Typespec()) {
                     if (const typespec *tps = rt->Actual_typespec()) {
-                      size = ExprEval::size(tps, invalidValue, inst, pexpr,
-                                            true, muteError);
+                      size = ExprEval::_size(tps, invalidValue, inst, pexpr,
+                                             true, muteError);
                     }
                   }
                   if (size == 1) {
@@ -3370,9 +3371,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiNotOp: {
             if (operands.size() == 1) {
-              uint64_t val = !((uint64_t)get_value(
-                  invalidValue, reduceExpr(operands[0], invalidValue, inst,
-                                           pexpr, muteError)));
+              uint64_t val = !((uint64_t)_get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError)));
               if (invalidValue) break;
               constant *c = s.MakeConstant();
               c->VpiValue("UINT:" + std::to_string(val));
@@ -3385,14 +3386,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiInsideOp: {
             if (operands.size() > 1) {
-              int64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               for (uint32_t i = 1; i < operands.size(); i++) {
-                int64_t oval = get_value(
-                    invalidValue, reduceExpr(operands[i], invalidValue, inst,
-                                             pexpr, muteError));
+                int64_t oval = _get_value(
+                    invalidValue, _reduceExpr(operands[i], invalidValue, inst,
+                                              pexpr, muteError));
                 if (invalidValue) break;
                 if (oval == val) {
                   constant *c = s.MakeConstant();
@@ -3409,9 +3410,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryAndOp: {
             if (operands.size() == 1) {
-              constant *cst = (constant *)(reduceExpr(operands[0], invalidValue,
-                                                      inst, pexpr, muteError));
-              uint64_t val = get_value(invalidValue, cst);
+              constant *cst = (constant *)(_reduceExpr(
+                  operands[0], invalidValue, inst, pexpr, muteError));
+              uint64_t val = _get_value(invalidValue, cst);
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (int32_t i = 1; i < cst->VpiSize(); i++) {
@@ -3428,9 +3429,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryNandOp: {
             if (operands.size() == 1) {
-              uint64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              uint64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (uint32_t i = 1; i < 32; i++) {
@@ -3448,9 +3449,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryOrOp: {
             if (operands.size() == 1) {
-              uint64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              uint64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (uint32_t i = 1; i < 32; i++) {
@@ -3467,9 +3468,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryNorOp: {
             if (operands.size() == 1) {
-              uint64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              uint64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (uint32_t i = 1; i < 64; i++) {
@@ -3487,9 +3488,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryXorOp: {
             if (operands.size() == 1) {
-              uint64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              uint64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (uint32_t i = 1; i < 64; i++) {
@@ -3506,9 +3507,9 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiUnaryXNorOp: {
             if (operands.size() == 1) {
-              uint64_t val =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              uint64_t val = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               uint64_t res = val & 1;
               for (uint32_t i = 1; i < 64; i++) {
@@ -3526,14 +3527,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiModOp: {
             if (operands.size() == 2) {
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              expr *expr1 =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              expr *expr1 = _reduceExpr(operands[1], invalidValue, inst, pexpr,
+                                        muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
+              int64_t val0 = _get_value(invalidValueI, expr0);
+              int64_t val1 = _get_value(invalidValueI, expr1);
               int64_t val = 0;
               if (val1 && (invalidValue == false) && (invalidValueI == false)) {
                 val = val0 % val1;
@@ -3545,8 +3546,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
+                long double val0 = _get_double(invalidValueD, expr0);
+                long double val1 = _get_double(invalidValueD, expr1);
                 if (val1 && (invalidValue == false) &&
                     (invalidValueD == false)) {
                   long double val = 0;
@@ -3582,14 +3583,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiPowerOp: {
             if (operands.size() == 2) {
-              expr *expr0 =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              expr *expr1 =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
+              expr *expr0 = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                        muteError);
+              expr *expr1 = _reduceExpr(operands[1], invalidValue, inst, pexpr,
+                                        muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
+              int64_t val0 = _get_value(invalidValueI, expr0);
+              int64_t val1 = _get_value(invalidValueI, expr1);
               int64_t val = 0;
               if ((invalidValue == false) && (invalidValueI == false)) {
                 val = static_cast<int64_t>(std::pow<int64_t>(val0, val1));
@@ -3601,8 +3602,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
+                long double val0 = _get_double(invalidValueD, expr0);
+                long double val1 = _get_double(invalidValueD, expr1);
                 if ((invalidValue == false) && (invalidValueD == false)) {
                   long double val = 0;
                   val = pow(val0, val1);
@@ -3621,14 +3622,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiDivOp: {
             if (operands.size() == 2) {
               bool divideByZero = true;
-              expr *div_expr =
-                  reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              expr *num_expr =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+              expr *div_expr = _reduceExpr(operands[1], invalidValue, inst,
+                                           pexpr, muteError);
+              expr *num_expr = _reduceExpr(operands[0], invalidValue, inst,
+                                           pexpr, muteError);
               bool invalidValueI = false;
               bool invalidValueD = false;
-              int64_t divisor = get_value(invalidValueI, div_expr);
-              int64_t num = get_value(invalidValueI, num_expr);
+              int64_t divisor = _get_value(invalidValueI, div_expr);
+              int64_t num = _get_value(invalidValueI, num_expr);
               if (divisor && (invalidValue == false) &&
                   (invalidValueI == false)) {
                 divideByZero = false;
@@ -3641,8 +3642,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 result = c;
               } else {
                 invalidValueD = false;
-                long double divisor = get_double(invalidValueD, div_expr);
-                long double num = get_double(invalidValueD, num_expr);
+                long double divisor = _get_double(invalidValueD, div_expr);
+                long double num = _get_double(invalidValueD, num_expr);
                 if (divisor && (invalidValue == false) &&
                     (invalidValueD == false)) {
                   divideByZero = false;
@@ -3681,21 +3682,21 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           case vpiConditionOp: {
             if (operands.size() == 3) {
               bool localInvalidValue = false;
-              expr *cond =
-                  reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              int64_t condVal = get_value(invalidValue, cond);
+              expr *cond = _reduceExpr(operands[0], invalidValue, inst, pexpr,
+                                       muteError);
+              int64_t condVal = _get_value(invalidValue, cond);
               if (invalidValue) break;
               int64_t val = 0;
               expr *the_val = nullptr;
               if (condVal) {
-                the_val = reduceExpr(operands[1], localInvalidValue, inst,
-                                     pexpr, muteError);
+                the_val = _reduceExpr(operands[1], localInvalidValue, inst,
+                                      pexpr, muteError);
               } else {
-                the_val = reduceExpr(operands[2], localInvalidValue, inst,
-                                     pexpr, muteError);
+                the_val = _reduceExpr(operands[2], localInvalidValue, inst,
+                                      pexpr, muteError);
               }
               if (localInvalidValue == false) {
-                val = get_value(localInvalidValue, the_val);
+                val = _get_value(localInvalidValue, the_val);
                 if (localInvalidValue == false) {
                   constant *c = s.MakeConstant();
                   c->VpiValue("INT:" + std::to_string(val));
@@ -3714,15 +3715,15 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiMultiConcatOp: {
             if (operands.size() == 2) {
-              int64_t n =
-                  get_value(invalidValue, reduceExpr(operands[0], invalidValue,
-                                                     inst, pexpr, muteError));
+              int64_t n = _get_value(
+                  invalidValue, _reduceExpr(operands[0], invalidValue, inst,
+                                            pexpr, muteError));
               if (invalidValue) break;
               if (n > 1000) n = 1000;  // Must be -1 or something silly
               if (n < 0) n = 0;
               expr *cv = (expr *)(operands[1]);
               if (cv->UhdmType() != UHDM_OBJECT_TYPE::uhdmconstant) {
-                cv = reduceExpr(cv, invalidValue, inst, pexpr, muteError);
+                cv = _reduceExpr(cv, invalidValue, inst, pexpr, muteError);
                 if (cv->UhdmType() != UHDM_OBJECT_TYPE::uhdmconstant) {
                   break;
                 }
@@ -3773,7 +3774,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                 c->VpiValue("STRING:" + res);
                 c->VpiDecompile(res);
               } else {
-                uint64_t val = get_value(invalidValue, cv);
+                uint64_t val = _get_value(invalidValue, cv);
                 if (invalidValue) break;
                 uint64_t res = 0;
                 for (uint32_t i = 0; i < n; i++) {
@@ -3814,8 +3815,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   (operType != vpiConcatOp) &&
                   (operType != vpiMultiAssignmentPatternOp) &&
                   (operType != vpiAssignmentPatternOp)) {
-                if (expr *tmp = reduceExpr(oper, invalidValue, inst, pexpr,
-                                           muteError)) {
+                if (expr *tmp = _reduceExpr(oper, invalidValue, inst, pexpr,
+                                            muteError)) {
                   oper = tmp;
                 }
                 optype = oper->UhdmType();
@@ -3991,8 +3992,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
           case vpiCastOp: {
             expr *oper =
-                reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-            uint64_t val0 = get_value(invalidValue, oper);
+                _reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
+            uint64_t val0 = _get_value(invalidValue, oper);
             if (invalidValue) break;
             const typespec *tps = nullptr;
             if (const ref_typespec *rt = op->Typespec()) {
@@ -4044,7 +4045,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
               constant *c = s.MakeConstant();
               uint64_t mask = ((uint64_t)(1ULL << cast_to)) - 1ULL;
               resize(oper, cast_to);
-              val0 = get_value(invalidValue, oper);
+              val0 = _get_value(invalidValue, oper);
               uint64_t res = val0 & mask;
               c->VpiValue("UINT:" + std::to_string(res));
               c->VpiSize(static_cast<int32_t>(cast_to));
@@ -4087,12 +4088,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
         if (argtype == UHDM_OBJECT_TYPE::uhdmref_obj) {
           ref_obj *ref = (ref_obj *)arg;
           const std::string_view objname = ref->VpiName();
-          any *object = getObject(objname, inst, pexpr, muteError);
+          any *object = _getObject(objname, inst, pexpr, muteError);
           if (object == nullptr) {
             if (inst && inst->UhdmType() == UHDM_OBJECT_TYPE::uhdmpackage) {
               std::string name(inst->VpiName());
               name.append("::").append(objname);
-              object = getObject(name, inst, pexpr, muteError);
+              object = _getObject(name, inst, pexpr, muteError);
             }
           }
           if (object) {
@@ -4101,7 +4102,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
             }
           }
           if (object == nullptr) {
-            object = getValue(objname, inst, pexpr, muteError);
+            object = _getValue(objname, inst, pexpr, muteError);
           }
           const typespec *tps = nullptr;
           if (any_cast<array_var *>(object)) {
@@ -4153,10 +4154,10 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
               expr *lr = r->Left_expr();
               expr *rr = r->Right_expr();
               bool invalidValue = false;
-              lr = reduceExpr(lr, invalidValue, inst, pexpr, muteError);
+              lr = _reduceExpr(lr, invalidValue, inst, pexpr, muteError);
               UHDM::ExprEval eval;
               int64_t lrv = eval.get_value(invalidValue, lr);
-              rr = reduceExpr(rr, invalidValue, inst, pexpr, muteError);
+              rr = _reduceExpr(rr, invalidValue, inst, pexpr, muteError);
               int64_t rrv = eval.get_value(invalidValue, rr);
               if (name == "$left") {
                 return lr;
@@ -4179,12 +4180,12 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           }
 
           if (tps) {
-            bits += size(tps, invalidValue, inst, pexpr, (name != "$size"));
+            bits += _size(tps, invalidValue, inst, pexpr, (name != "$size"));
             found = true;
           } else {
             if (object) {
               bits +=
-                  size(object, invalidValue, inst, pexpr, (name != "$size"));
+                  _size(object, invalidValue, inst, pexpr, (name != "$size"));
               found = true;
             } else {
               invalidValue = true;
@@ -4194,7 +4195,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           operation *oper = (operation *)arg;
           if (oper->VpiOpType() == vpiConcatOp) {
             for (auto op : *oper->Operands()) {
-              bits += size(op, invalidValue, inst, pexpr, (name != "$size"));
+              bits += _size(op, invalidValue, inst, pexpr, (name != "$size"));
             }
             found = true;
           }
@@ -4204,7 +4205,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
           if (elems && (elems->size() > 1)) {
             const std::string_view base = elems->at(0)->VpiName();
             const std::string_view suffix = elems->at(1)->VpiName();
-            any *var = getObject(base, inst, pexpr, muteError);
+            any *var = _getObject(base, inst, pexpr, muteError);
             if (var) {
               if (param_assign *passign = any_cast<param_assign *>(var)) {
                 var = passign->Rhs();
@@ -4217,8 +4218,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                   for (typespec_member *memb : *tpss->Members()) {
                     if (memb->VpiName() == suffix) {
                       if (const ref_typespec *rom = memb->Typespec()) {
-                        bits += size(rom->Actual_typespec(), invalidValue, inst,
-                                     pexpr, (name != "$size"));
+                        bits += _size(rom->Actual_typespec(), invalidValue,
+                                      inst, pexpr, (name != "$size"));
                         found = true;
                       }
                       break;
@@ -4243,8 +4244,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
       for (auto arg : *scall->Tf_call_args()) {
         uint64_t clog2 = 0;
         uint64_t val =
-            get_uvalue(invalidValue,
-                       reduceExpr(arg, invalidValue, inst, pexpr, muteError));
+            _get_uvalue(invalidValue,
+                        _reduceExpr(arg, invalidValue, inst, pexpr, muteError));
         if (val) {
           val = val - 1;
           for (; val > 0; clog2 = clog2 + 1) {
@@ -4268,13 +4269,13 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
         }
         for (auto arg : *scall->Tf_call_args()) {
           bool invalidTmpValue = false;
-          expr *val = reduceExpr(arg, invalidTmpValue, inst, pexpr, muteError);
+          expr *val = _reduceExpr(arg, invalidTmpValue, inst, pexpr, muteError);
           if (val && (val->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) &&
               !invalidTmpValue) {
             constant *c = (constant *)val;
             if (c->VpiConstType() == vpiIntConst ||
                 c->VpiConstType() == vpiDecConst) {
-              int64_t value = get_value(invalidValue, val);
+              int64_t value = _get_value(invalidValue, val);
               int64_t size = c->VpiSize();
               if (name == "$signed") {
                 return c;
@@ -4299,14 +4300,14 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                        c->VpiConstType() == vpiBinaryConst ||
                        c->VpiConstType() == vpiHexConst ||
                        c->VpiConstType() == vpiOctConst) {
-              uint64_t value = get_uvalue(invalidValue, val);
+              uint64_t value = _get_uvalue(invalidValue, val);
               int64_t size = c->VpiSize();
               if (name == "$signed") {
                 int64_t res = value;
                 bool negsign = value & (1ULL << (size - 1));
                 if (optps) {
                   uint32_t bits =
-                      ExprEval::size(optps, invalidValue, inst, pexpr, false);
+                      ExprEval::_size(optps, invalidValue, inst, pexpr, false);
                   bool is_signed = false;
                   if (optps->UhdmType() ==
                       UHDM_OBJECT_TYPE::uhdmlogic_typespec) {
@@ -4361,40 +4362,41 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
       }
       invalidValue = true;
     }
-    if (expr *tmp = evalFunc(actual_func, args, invalidValue, inst,
-                             (any *)pexpr, muteError)) {
+    if (expr *tmp = _evalFunc(actual_func, args, invalidValue, inst,
+                              (any *)pexpr, muteError)) {
       if (!invalidValue) result = tmp;
     }
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmref_obj) {
     ref_obj *ref = (ref_obj *)result;
     const std::string_view name = ref->VpiName();
-    if (any *tmp = getValue(name, inst, pexpr, muteError)) {
+    if (any *tmp = _getValue(name, inst, pexpr, muteError)) {
       result = tmp;
     }
     return (expr *)result;
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmhier_path) {
     hier_path *path = (hier_path *)result;
-    return (expr *)decodeHierPath(path, invalidValue, inst, pexpr, ReturnType::VALUE);
+    return (expr *)_decodeHierPath(path, invalidValue, inst, pexpr,
+                                   ReturnType::VALUE);
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmbit_select) {
     bit_select *sel = (bit_select *)result;
     const std::string_view name = sel->VpiName();
     const expr *index = sel->VpiIndex();
-    uint64_t index_val = get_value(
+    uint64_t index_val = _get_value(
         invalidValue,
-        reduceExpr((expr *)index, invalidValue, inst, pexpr, muteError));
+        _reduceExpr((expr *)index, invalidValue, inst, pexpr, muteError));
     if (invalidValue == false) {
-      any *object = getObject(name, inst, pexpr, muteError);
+      any *object = _getObject(name, inst, pexpr, muteError);
       if (object) {
         if (param_assign *passign = any_cast<param_assign *>(object)) {
           object = (any *)passign->Rhs();
         }
       }
       if (object == nullptr) {
-        object = getValue(name, inst, pexpr, muteError);
+        object = _getValue(name, inst, pexpr, muteError);
       }
       if (object && (object != result)) {
-        if (expr *tmp = reduceExpr((expr *)object, invalidValue, inst, pexpr,
-                                   muteError)) {
+        if (expr *tmp = _reduceExpr((expr *)object, invalidValue, inst, pexpr,
+                                    muteError)) {
           object = tmp;
         }
         UHDM_OBJECT_TYPE otype = object->UhdmType();
@@ -4483,7 +4485,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
               invalidValue = true;
             }
           } else if (opType == vpiConditionOp) {
-            expr *exp = reduceExpr(op, invalidValue, inst, pexpr, muteError);
+            expr *exp = _reduceExpr(op, invalidValue, inst, pexpr, muteError);
             UHDM_OBJECT_TYPE otype = exp->UhdmType();
             if (otype == UHDM_OBJECT_TYPE::uhdmoperation) {
               operation *op = (operation *)exp;
@@ -4506,13 +4508,13 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
             }
             if (object) result = object;
           } else if (opType == vpiMultiConcatOp) {
-            result = reduceBitSelect(op, static_cast<uint32_t>(index_val),
-                                     invalidValue, inst, pexpr);
+            result = _reduceBitSelect(op, static_cast<uint32_t>(index_val),
+                                      invalidValue, inst, pexpr);
           }
         } else if (otype == UHDM_OBJECT_TYPE::uhdmconstant) {
-          result = reduceBitSelect((constant *)object,
-                                   static_cast<uint32_t>(index_val),
-                                   invalidValue, inst, pexpr);
+          result = _reduceBitSelect((constant *)object,
+                                    static_cast<uint32_t>(index_val),
+                                    invalidValue, inst, pexpr);
         }
       }
     }
@@ -4520,24 +4522,24 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
     part_select *sel = (part_select *)result;
     std::string_view name = sel->VpiName();
     if (name.empty()) name = sel->VpiDefName();
-    any *object = getObject(name, inst, pexpr, muteError);
+    any *object = _getObject(name, inst, pexpr, muteError);
     if (object) {
       if (param_assign *passign = any_cast<param_assign *>(object)) {
         object = passign->Rhs();
       }
     }
     if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
+      object = _getValue(name, inst, pexpr, muteError);
     }
     if (object && (object->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
       constant *co = (constant *)object;
-      std::string binary = toBinary(co);
-      int64_t l = get_value(
+      std::string binary = _toBinary(co);
+      int64_t l = _get_value(
           invalidValue,
-          reduceExpr(sel->Left_range(), invalidValue, inst, pexpr, muteError));
-      int64_t r = get_value(
-          invalidValue,
-          reduceExpr(sel->Right_range(), invalidValue, inst, pexpr, muteError));
+          _reduceExpr(sel->Left_range(), invalidValue, inst, pexpr, muteError));
+      int64_t r =
+          _get_value(invalidValue, _reduceExpr(sel->Right_range(), invalidValue,
+                                               inst, pexpr, muteError));
       std::reverse(binary.begin(), binary.end());
       std::string sub;
       if (r > (int64_t)binary.size() || l > (int64_t)binary.size()) {
@@ -4560,24 +4562,24 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
     indexed_part_select *sel = (indexed_part_select *)result;
     std::string_view name = sel->VpiName();
     if (name.empty()) name = sel->VpiDefName();
-    any *object = getObject(name, inst, pexpr, muteError);
+    any *object = _getObject(name, inst, pexpr, muteError);
     if (object) {
       if (param_assign *passign = any_cast<param_assign *>(object)) {
         object = (any *)passign->Rhs();
       }
     }
     if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
+      object = _getValue(name, inst, pexpr, muteError);
     }
     if (object && (object->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
       constant *co = (constant *)object;
-      std::string binary = toBinary(co);
-      int64_t base = get_value(
+      std::string binary = _toBinary(co);
+      int64_t base = _get_value(
           invalidValue,
-          reduceExpr(sel->Base_expr(), invalidValue, inst, pexpr, muteError));
-      int64_t offset = get_value(
+          _reduceExpr(sel->Base_expr(), invalidValue, inst, pexpr, muteError));
+      int64_t offset = _get_value(
           invalidValue,
-          reduceExpr(sel->Width_expr(), invalidValue, inst, pexpr, muteError));
+          _reduceExpr(sel->Width_expr(), invalidValue, inst, pexpr, muteError));
       std::reverse(binary.begin(), binary.end());
       std::string sub;
       if (sel->VpiIndexedPartSelectType() == vpiPosIndexed) {
@@ -4598,20 +4600,20 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmvar_select) {
     var_select *sel = (var_select *)result;
     const std::string_view name = sel->VpiName();
-    any *object = getObject(name, inst, pexpr, muteError);
+    any *object = _getObject(name, inst, pexpr, muteError);
     if (object) {
       if (param_assign *passign = any_cast<param_assign *>(object)) {
         object = passign->Rhs();
       }
     }
     if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
+      object = _getValue(name, inst, pexpr, muteError);
     }
     bool selection = false;
     for (auto index : *sel->Exprs()) {
-      uint64_t index_val = get_value(
+      uint64_t index_val = _get_value(
           invalidValue,
-          reduceExpr((expr *)index, invalidValue, inst, pexpr, muteError));
+          _reduceExpr((expr *)index, invalidValue, inst, pexpr, muteError));
       if (object) {
         UHDM_OBJECT_TYPE otype = object->UhdmType();
         if (otype == UHDM_OBJECT_TYPE::uhdmoperation) {
@@ -4635,7 +4637,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
             }
           } else if (opType == vpiConditionOp) {
             expr *exp =
-                reduceExpr(object, invalidValue, inst, pexpr, muteError);
+                _reduceExpr(object, invalidValue, inst, pexpr, muteError);
             UHDM_OBJECT_TYPE otype = exp->UhdmType();
             if (otype == UHDM_OBJECT_TYPE::uhdmoperation) {
               operation *op = (operation *)exp;
@@ -4666,13 +4668,13 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
   }
   if (result && result->UhdmType() == UHDM_OBJECT_TYPE::uhdmref_obj) {
     bool invalidValueTmp = false;
-    expr *tmp = reduceExpr(result, invalidValue, inst, pexpr, muteError);
+    expr *tmp = _reduceExpr(result, invalidValue, inst, pexpr, muteError);
     if (tmp && !invalidValueTmp) result = tmp;
   }
   return (expr *)result;
 }
 
-bool ExprEval::setValueInInstance(
+bool ExprEval::_setValueInInstance(
     std::string_view lhs, any *lhsexp, expr *rhsexp, bool &invalidValue,
     Serializer &s, const any *inst, const any *scope_exp,
     std::map<std::string, const typespec *> &local_vars, int opType,
@@ -4684,9 +4686,9 @@ bool ExprEval::setValueInInstance(
   bool opRhs = false;
   std::string_view lhsname = lhs;
   if (lhsname.empty()) lhsname = lhsexp->VpiName();
-  rhsexp = reduceExpr(rhsexp, invalidValue, inst, nullptr, muteError);
-  int64_t valI = get_value(invalidValueI, rhsexp);
-  uint64_t valUI = get_uvalue(invalidValueUI, rhsexp);
+  rhsexp = _reduceExpr(rhsexp, invalidValue, inst, nullptr, muteError);
+  int64_t valI = _get_value(invalidValueI, rhsexp);
+  uint64_t valUI = _get_uvalue(invalidValueUI, rhsexp);
   if (rhsexp && (rhsexp->UhdmType() == uhdmconstant)) {
     constant *t = (constant *)rhsexp;
     if (t->VpiConstType() != vpiBinaryConst) {
@@ -4695,12 +4697,12 @@ bool ExprEval::setValueInInstance(
   }
   long double valD = 0;
   if (invalidValueI) {
-    valD = get_double(invalidValueD, rhsexp);
+    valD = _get_double(invalidValueD, rhsexp);
   }
   uint64_t wordSize = 1;
   const std::string_view name = lhsexp->VpiName();
-  if (any *object = getObject(name, inst, scope_exp, muteError)) {
-    wordSize = getWordSize(any_cast<const expr *>(object), inst, scope_exp);
+  if (any *object = _getObject(name, inst, scope_exp, muteError)) {
+    wordSize = _getWordSize(any_cast<const expr *>(object), inst, scope_exp);
   }
   VectorOfparam_assign *param_assigns = nullptr;
   if (inst && inst->UhdmType() == UHDM_OBJECT_TYPE::uhdmgen_scope_array) {
@@ -4720,8 +4722,8 @@ bool ExprEval::setValueInInstance(
   if (invalidValueI && invalidValueD) {
     if (lhsexp->UhdmType() == UHDM_OBJECT_TYPE::uhdmhier_path) {
       hier_path *path = (hier_path *)lhsexp;
-      expr *object = (expr *)decodeHierPath(path, invalidValue, inst, lhsexp,
-                                            ReturnType::MEMBER);
+      expr *object = (expr *)_decodeHierPath(path, invalidValue, inst, lhsexp,
+                                             ReturnType::MEMBER);
       if (object) {
         if (object->UhdmType() == UHDM_OBJECT_TYPE::uhdmtypespec_member) {
           typespec_member *tmp = (typespec_member *)object;
@@ -4793,14 +4795,14 @@ bool ExprEval::setValueInInstance(
         }
         operation *op = (operation *)lhsexp;
         if (op->VpiOpType() == vpiConcatOp) {
-          std::string rhsbinary = toBinary(c);
+          std::string rhsbinary = _toBinary(c);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           VectorOfany *operands = op->Operands();
           uint64_t accumul = 0;
           for (any *oper : *operands) {
             const std::string_view name = oper->VpiName();
             uint64_t si =
-                size(oper, invalidValue, inst, lhsexp, true, muteError);
+                _size(oper, invalidValue, inst, lhsexp, true, muteError);
             std::string part;
             for (uint64_t i = accumul; i < accumul + si; i++) {
               part += rhsbinary[i];
@@ -4811,8 +4813,8 @@ bool ExprEval::setValueInInstance(
             c->VpiDecompile(part);
             c->VpiSize(static_cast<int32_t>(part.size()));
             c->VpiConstType(vpiBinaryConst);
-            setValueInInstance(name, oper, c, invalidValue, s, inst, lhsexp,
-                               local_vars, vpiConcatOp, muteError);
+            _setValueInInstance(name, oper, c, invalidValue, s, inst, lhsexp,
+                                local_vars, vpiConcatOp, muteError);
             accumul = accumul + si;
           }
         }
@@ -4828,7 +4830,7 @@ bool ExprEval::setValueInInstance(
         }
         indexed_part_select *sel = (indexed_part_select *)lhsexp;
         const std::string_view name = lhsexp->VpiName();
-        if (any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (any *object = _getObject(name, inst, scope_exp, muteError)) {
           std::string lhsbinary;
           const typespec *tps = nullptr;
           if (const expr *elhs = any_cast<const expr *>(object)) {
@@ -4836,24 +4838,24 @@ bool ExprEval::setValueInInstance(
               tps = rt->Actual_typespec();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
+          uint64_t si = _size(tps, invalidValue, inst, lhsexp, true, muteError);
           if (prevRhs &&
               prevRhs->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
             const constant *prev = (constant *)prevRhs;
-            lhsbinary = toBinary(prev);
+            lhsbinary = _toBinary(prev);
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
             for (uint32_t i = 0; i < si; i++) {
               lhsbinary += "x";
             }
           }
-          uint64_t base = get_uvalue(
-              invalidValue, reduceExpr(sel->Base_expr(), invalidValue, inst,
-                                       lhsexp, muteError));
-          uint64_t offset = get_uvalue(
-              invalidValue, reduceExpr(sel->Width_expr(), invalidValue, inst,
-                                       lhsexp, muteError));
-          std::string rhsbinary = toBinary(c);
+          uint64_t base = _get_uvalue(
+              invalidValue, _reduceExpr(sel->Base_expr(), invalidValue, inst,
+                                        lhsexp, muteError));
+          uint64_t offset = _get_uvalue(
+              invalidValue, _reduceExpr(sel->Width_expr(), invalidValue, inst,
+                                        lhsexp, muteError));
+          std::string rhsbinary = _toBinary(c);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           if (sel->VpiIndexedPartSelectType() == vpiPosIndexed) {
             int32_t index = 0;
@@ -4886,7 +4888,7 @@ bool ExprEval::setValueInInstance(
         }
         part_select *sel = (part_select *)lhsexp;
         const std::string_view name = lhsexp->VpiName();
-        if (any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (any *object = _getObject(name, inst, scope_exp, muteError)) {
           std::string lhsbinary;
           const typespec *tps = nullptr;
           if (const expr *elhs = any_cast<const expr *>(object)) {
@@ -4894,24 +4896,24 @@ bool ExprEval::setValueInInstance(
               tps = rt->Actual_typespec();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
+          uint64_t si = _size(tps, invalidValue, inst, lhsexp, true, muteError);
           if (prevRhs &&
               prevRhs->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
             const constant *prev = (constant *)prevRhs;
-            lhsbinary = toBinary(prev);
+            lhsbinary = _toBinary(prev);
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
             for (uint32_t i = 0; i < si; i++) {
               lhsbinary += "x";
             }
           }
-          uint64_t left = get_uvalue(
-              invalidValue, reduceExpr(sel->Left_range(), invalidValue, inst,
-                                       lhsexp, muteError));
-          uint64_t right = get_uvalue(
-              invalidValue, reduceExpr(sel->Right_range(), invalidValue, inst,
-                                       lhsexp, muteError));
-          std::string rhsbinary = toBinary(c);
+          uint64_t left = _get_uvalue(
+              invalidValue, _reduceExpr(sel->Left_range(), invalidValue, inst,
+                                        lhsexp, muteError));
+          uint64_t right = _get_uvalue(
+              invalidValue, _reduceExpr(sel->Right_range(), invalidValue, inst,
+                                        lhsexp, muteError));
+          std::string rhsbinary = _toBinary(c);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           if (left > right) {
             int32_t index = 0;
@@ -4935,11 +4937,11 @@ bool ExprEval::setValueInInstance(
         }
       } else if (lhsexp->UhdmType() == UHDM_OBJECT_TYPE::uhdmbit_select) {
         bit_select *sel = (bit_select *)lhsexp;
-        uint64_t index = get_uvalue(
-            invalidValue,
-            reduceExpr(sel->VpiIndex(), invalidValue, inst, lhsexp, muteError));
+        uint64_t index =
+            _get_uvalue(invalidValue, _reduceExpr(sel->VpiIndex(), invalidValue,
+                                                  inst, lhsexp, muteError));
         const std::string_view name = lhsexp->VpiName();
-        if (any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (any *object = _getObject(name, inst, scope_exp, muteError)) {
           if (object->UhdmType() == UHDM_OBJECT_TYPE::uhdmparam_assign) {
             param_assign *param = (param_assign *)object;
             if (param->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmarray_expr) {
@@ -4966,7 +4968,7 @@ bool ExprEval::setValueInInstance(
               tps = rt->Actual_typespec();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
+          uint64_t si = _size(tps, invalidValue, inst, lhsexp, true, muteError);
           if (prevRhs &&
               prevRhs->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant) {
             const constant *prev = (constant *)prevRhs;
@@ -4976,7 +4978,7 @@ bool ExprEval::setValueInInstance(
               lhsbinary = val;
             } else {
               lhsbinary = NumUtils::toBinary(static_cast<int32_t>(si),
-                                             get_uvalue(invalidValue, prev));
+                                             _get_uvalue(invalidValue, prev));
             }
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
@@ -5031,8 +5033,8 @@ bool ExprEval::setValueInInstance(
         }
       } else if (lhsexp->UhdmType() == UHDM_OBJECT_TYPE::uhdmhier_path) {
         hier_path *path = (hier_path *)lhsexp;
-        expr *object = (expr *)decodeHierPath(path, invalidValue, inst, lhsexp,
-                                              ReturnType::MEMBER);
+        expr *object = (expr *)_decodeHierPath(path, invalidValue, inst, lhsexp,
+                                               ReturnType::MEMBER);
         if (object) {
           if (object->UhdmType() == UHDM_OBJECT_TYPE::uhdmtypespec_member) {
             typespec_member *tmp = (typespec_member *)object;
@@ -5051,25 +5053,25 @@ bool ExprEval::setValueInInstance(
         }
       }
       if (opType == vpiAddOp) {
-        uint64_t prevVal = get_uvalue(invalidValue, (expr *)prevRhs);
+        uint64_t prevVal = _get_uvalue(invalidValue, (expr *)prevRhs);
         uint64_t newVal = valUI + prevVal;
         c->VpiValue("UINT:" + std::to_string(newVal));
         c->VpiDecompile(std::to_string(newVal));
         c->VpiConstType(vpiUIntConst);
       } else if (opType == vpiSubOp) {
-        int64_t prevVal = get_value(invalidValue, (expr *)prevRhs);
+        int64_t prevVal = _get_value(invalidValue, (expr *)prevRhs);
         int64_t newVal = prevVal - valI;
         c->VpiValue("INT:" + std::to_string(newVal));
         c->VpiDecompile(std::to_string(newVal));
         c->VpiConstType(vpiIntConst);
       } else if (opType == vpiMultOp) {
-        int64_t prevVal = get_value(invalidValue, (expr *)prevRhs);
+        int64_t prevVal = _get_value(invalidValue, (expr *)prevRhs);
         int64_t newVal = prevVal * valI;
         c->VpiValue("INT:" + std::to_string(newVal));
         c->VpiDecompile(std::to_string(newVal));
         c->VpiConstType(vpiIntConst);
       } else if (opType == vpiDivOp) {
-        int64_t prevVal = get_value(invalidValue, (expr *)prevRhs);
+        int64_t prevVal = _get_value(invalidValue, (expr *)prevRhs);
         int64_t newVal = prevVal / valI;
         c->VpiValue("INT:" + std::to_string(newVal));
         c->VpiDecompile(std::to_string(newVal));
@@ -5077,16 +5079,16 @@ bool ExprEval::setValueInInstance(
       }
       if ((c->VpiSize() == -1) && (c->VpiConstType() == vpiBinaryConst)) {
         bool tmpInvalidValue = false;
-        uint64_t size = ExprEval::size(lhsexp, tmpInvalidValue, inst, scope_exp,
-                                       true, true);
+        uint64_t size = ExprEval::_size(lhsexp, tmpInvalidValue, inst,
+                                        scope_exp, true, true);
         if (tmpInvalidValue) {
           std::map<std::string, const typespec *>::iterator itr =
               local_vars.find(std::string(lhs));
           if (itr != local_vars.end()) {
             if (const typespec *tps = itr->second) {
               tmpInvalidValue = false;
-              size = ExprEval::size(tps, tmpInvalidValue, inst, scope_exp, true,
-                                    true);
+              size = ExprEval::_size(tps, tmpInvalidValue, inst, scope_exp,
+                                     true, true);
             }
           }
         }
@@ -5116,12 +5118,12 @@ bool ExprEval::setValueInInstance(
   return invalidValue;
 }
 
-void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
-                        bool &invalidValue, bool &continue_flag,
-                        bool &break_flag, bool &return_flag, const any *inst,
-                        const any *stmt,
-                        std::map<std::string, const typespec *> &local_vars,
-                        bool muteError) {
+void ExprEval::_evalStmt(std::string_view funcName, Scopes &scopes,
+                         bool &invalidValue, bool &continue_flag,
+                         bool &break_flag, bool &return_flag, const any *inst,
+                         const any *stmt,
+                         std::map<std::string, const typespec *> &local_vars,
+                         bool muteError) {
   if (invalidValue) {
     return;
   }
@@ -5131,20 +5133,20 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
     case UHDM_OBJECT_TYPE::uhdmcase_stmt: {
       case_stmt *st = (case_stmt *)stmt;
       expr *cond = (expr *)st->VpiCondition();
-      int64_t val = get_value(
+      int64_t val = _get_value(
           invalidValue,
-          reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+          _reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
       for (case_item *item : *st->Case_items()) {
         if (VectorOfany *exprs = item->VpiExprs()) {
           bool done = false;
           for (any *exp : *exprs) {
-            int64_t vexp = get_value(
-                invalidValue, reduceExpr(exp, invalidValue, scopes.back(),
-                                         nullptr, muteError));
+            int64_t vexp = _get_value(
+                invalidValue, _reduceExpr(exp, invalidValue, scopes.back(),
+                                          nullptr, muteError));
             if (val == vexp) {
-              evalStmt(funcName, scopes, invalidValue, continue_flag,
-                       break_flag, return_flag, scopes.back(), item->Stmt(),
-                       local_vars, muteError);
+              _evalStmt(funcName, scopes, invalidValue, continue_flag,
+                        break_flag, return_flag, scopes.back(), item->Stmt(),
+                        local_vars, muteError);
               done = true;
               break;
             }
@@ -5157,30 +5159,30 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
     case UHDM_OBJECT_TYPE::uhdmif_else: {
       if_else *st = (if_else *)stmt;
       expr *cond = (expr *)st->VpiCondition();
-      int64_t val = get_value(
+      int64_t val = _get_value(
           invalidValue,
-          reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+          _reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
       if (val > 0) {
-        evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                 muteError);
+        _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                  muteError);
       } else {
-        evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, scopes.back(), st->VpiElseStmt(), local_vars,
-                 muteError);
+        _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, scopes.back(), st->VpiElseStmt(), local_vars,
+                  muteError);
       }
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmif_stmt: {
       if_stmt *st = (if_stmt *)stmt;
       expr *cond = (expr *)st->VpiCondition();
-      int64_t val = get_value(
+      int64_t val = _get_value(
           invalidValue,
-          reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+          _reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
       if (val > 0) {
-        evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                 muteError);
+        _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                  muteError);
       }
       break;
     }
@@ -5195,8 +5197,8 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       }
       if (st->Stmts()) {
         for (auto bst : *st->Stmts()) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), bst, local_vars, muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), bst, local_vars, muteError);
           if (continue_flag || break_flag || return_flag) {
             return;
           }
@@ -5215,8 +5217,8 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       }
       if (st->Stmts()) {
         for (auto bst : *st->Stmts()) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), bst, local_vars, muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), bst, local_vars, muteError);
           if (continue_flag || break_flag || return_flag) {
             return;
           }
@@ -5230,10 +5232,10 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       expr *lhsexp = st->Lhs();
       const expr *rhs = st->Rhs<expr>();
       expr *rhsexp =
-          reduceExpr(rhs, invalidValue, scopes.back(), st, muteError);
+          _reduceExpr(rhs, invalidValue, scopes.back(), st, muteError);
       invalidValue =
-          setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt,
-                             local_vars, st->VpiOpType(), muteError);
+          _setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt,
+                              local_vars, st->VpiOpType(), muteError);
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmassign_stmt: {
@@ -5242,24 +5244,24 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       expr *lhsexp = st->Lhs();
       const expr *rhs = st->Rhs();
       expr *rhsexp =
-          reduceExpr(rhs, invalidValue, scopes.back(), nullptr, muteError);
-      invalidValue = setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s,
-                                        inst, stmt, local_vars, 0, muteError);
+          _reduceExpr(rhs, invalidValue, scopes.back(), nullptr, muteError);
+      invalidValue = _setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s,
+                                         inst, stmt, local_vars, 0, muteError);
       break;
     }
     case UHDM_OBJECT_TYPE::uhdmrepeat: {
       repeat *st = (repeat *)stmt;
       const expr *cond = st->VpiCondition();
       expr *rcond =
-          reduceExpr((expr *)cond, invalidValue, scopes.back(), nullptr);
-      int64_t val = get_value(
+          _reduceExpr((expr *)cond, invalidValue, scopes.back(), nullptr);
+      int64_t val = _get_value(
           invalidValue,
-          reduceExpr(rcond, invalidValue, scopes.back(), nullptr, muteError));
+          _reduceExpr(rcond, invalidValue, scopes.back(), nullptr, muteError));
       if (invalidValue == false) {
         for (int32_t i = 0; i < val; i++) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                   muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                    muteError);
         }
       }
       break;
@@ -5273,9 +5275,9 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
             local_vars.emplace(assign->Lhs()->VpiName(), rt->Actual_typespec());
           }
         }
-        evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, scopes.back(), st->VpiForInitStmt(), local_vars,
-                 muteError);
+        _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, scopes.back(), st->VpiForInitStmt(), local_vars,
+                  muteError);
       }
       if (st->VpiForInitStmts()) {
         for (auto s : *st->VpiForInitStmts()) {
@@ -5286,24 +5288,24 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
                                  rt->Actual_typespec());
             }
           }
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), s, local_vars, muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), s, local_vars, muteError);
         }
       }
       while (1) {
         expr *cond = (expr *)st->VpiCondition();
         if (cond) {
-          int64_t val = get_value(invalidValue,
-                                  reduceExpr(cond, invalidValue, scopes.back(),
-                                             nullptr, muteError));
+          int64_t val = _get_value(
+              invalidValue, _reduceExpr(cond, invalidValue, scopes.back(),
+                                        nullptr, muteError));
           if (val == 0) {
             break;
           }
           if (invalidValue) break;
         }
-        evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                 muteError);
+        _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                  muteError);
         if (invalidValue) break;
         if (continue_flag) {
           continue_flag = false;
@@ -5317,15 +5319,15 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
           break;
         }
         if (st->VpiForIncStmt()) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), st->VpiForIncStmt(), local_vars,
-                   muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), st->VpiForIncStmt(), local_vars,
+                    muteError);
         }
         if (invalidValue) break;
         if (st->VpiForIncStmts()) {
           for (auto s : *st->VpiForIncStmts()) {
-            evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                     return_flag, scopes.back(), s, local_vars, muteError);
+            _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                      return_flag, scopes.back(), s, local_vars, muteError);
           }
         }
         if (invalidValue) break;
@@ -5336,12 +5338,12 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       return_stmt *st = (return_stmt *)stmt;
       if (const expr *cond = st->VpiCondition()) {
         expr *rhsexp =
-            reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError);
+            _reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError);
         ref_obj *lhsexp = s.MakeRef_obj();
         lhsexp->VpiName(funcName);
         invalidValue =
-            setValueInInstance(funcName, lhsexp, rhsexp, invalidValue, s, inst,
-                               stmt, local_vars, 0, muteError);
+            _setValueInInstance(funcName, lhsexp, rhsexp, invalidValue, s, inst,
+                                stmt, local_vars, 0, muteError);
         return_flag = true;
       }
       break;
@@ -5350,16 +5352,16 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       while_stmt *st = (while_stmt *)stmt;
       if (const expr *cond = st->VpiCondition()) {
         while (1) {
-          int64_t val = get_value(invalidValue,
-                                  reduceExpr(cond, invalidValue, scopes.back(),
-                                             nullptr, muteError));
+          int64_t val = _get_value(
+              invalidValue, _reduceExpr(cond, invalidValue, scopes.back(),
+                                        nullptr, muteError));
           if (invalidValue) break;
           if (val == 0) {
             break;
           }
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                   muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                    muteError);
           if (invalidValue) break;
           if (continue_flag) {
             continue_flag = false;
@@ -5380,9 +5382,9 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
       do_while *st = (do_while *)stmt;
       if (const expr *cond = st->VpiCondition()) {
         while (1) {
-          evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, scopes.back(), st->VpiStmt(), local_vars,
-                   muteError);
+          _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, scopes.back(), st->VpiStmt(), local_vars,
+                    muteError);
           if (invalidValue) break;
           if (continue_flag) {
             continue_flag = false;
@@ -5395,9 +5397,9 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
           if (return_flag) {
             break;
           }
-          int64_t val = get_value(invalidValue,
-                                  reduceExpr(cond, invalidValue, scopes.back(),
-                                             nullptr, muteError));
+          int64_t val = _get_value(
+              invalidValue, _reduceExpr(cond, invalidValue, scopes.back(),
+                                        nullptr, muteError));
           if (invalidValue) break;
           if (val == 0) {
             break;
@@ -5417,7 +5419,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
     case UHDM_OBJECT_TYPE::uhdmoperation: {
       operation *op = (operation *)stmt;
       // ++, -- ops
-      reduceExpr(op, invalidValue, scopes.back(), nullptr, muteError);
+      _reduceExpr(op, invalidValue, scopes.back(), nullptr, muteError);
       break;
     }
     default: {
@@ -5432,9 +5434,9 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
   }
 }
 
-expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
-                         bool &invalidValue, const any *inst, any *pexpr,
-                         bool muteError) {
+expr *ExprEval::_evalFunc(function *func, std::vector<any *> *args,
+                          bool &invalidValue, const any *inst, any *pexpr,
+                          bool muteError) {
   if (func == nullptr) {
     invalidValue = true;
     return nullptr;
@@ -5490,18 +5492,17 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         vars.emplace(ioname, tps);
         expr *ioexp = (expr *)args->at(index);
         if (expr *exparg =
-                reduceExpr(ioexp, invalidValue, modinst, pexpr, muteError)) {
+                _reduceExpr(ioexp, invalidValue, modinst, pexpr, muteError)) {
           if (exparg->Typespec() == nullptr) {
             ref_typespec *crt = s.MakeRef_typespec();
             crt->VpiParent(exparg);
             exparg->Typespec(crt);
           }
-          if (exparg->Typespec())
-            exparg->Typespec()->Actual_typespec(tps);
+          if (exparg->Typespec()) exparg->Typespec()->Actual_typespec(tps);
           std::map<std::string, const typespec *> local_vars;
           invalidValue =
-              setValueInInstance(ioname, io, exparg, invalidValue, s, modinst,
-                                 func, local_vars, 0, muteError);
+              _setValueInInstance(ioname, io, exparg, invalidValue, s, modinst,
+                                  func, local_vars, 0, muteError);
         }
       }
       index++;
@@ -5542,8 +5543,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         bool continue_flag = false;
         bool break_flag = false;
         for (auto stmt : *st->Stmts()) {
-          evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, modinst, stmt, vars, muteError);
+          _evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, modinst, stmt, vars, muteError);
           if (return_flag) break;
           if (continue_flag || break_flag) {
             if (muteError == false && m_muteError == false) {
@@ -5560,8 +5561,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         bool continue_flag = false;
         bool break_flag = false;
         for (auto stmt : *st->Stmts()) {
-          evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
-                   return_flag, modinst, stmt, vars, muteError);
+          _evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
+                    return_flag, modinst, stmt, vars, muteError);
           if (return_flag) break;
           if (continue_flag || break_flag) {
             if (muteError == false && m_muteError == false) {
@@ -5576,8 +5577,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
       default: {
         bool continue_flag = false;
         bool break_flag = false;
-        evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
-                 return_flag, modinst, the_stmt, vars, muteError);
+        _evalStmt(name, scopes, invalidValue, continue_flag, break_flag,
+                  return_flag, modinst, the_stmt, vars, muteError);
         if (continue_flag || break_flag) {
           if (muteError == false && m_muteError == false) {
             const std::string errMsg(inst->VpiName());
@@ -5612,14 +5613,15 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         }
         if (p->Rhs() &&
             (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmref_obj)) {
-          ref_obj* ref = (ref_obj *)p->Rhs(); 
+          ref_obj *ref = (ref_obj *)p->Rhs();
           std::string_view refname = ref->VpiName();
-          std::map<std::string, const typespec *>::iterator vitr = vars.find(std::string(refname));
+          std::map<std::string, const typespec *>::iterator vitr =
+              vars.find(std::string(refname));
           if (vitr != vars.end()) {
-            UHDM::struct_var* structv = s.MakeStruct_var();
-            UHDM::ref_typespec* rtps = s.MakeRef_typespec();
+            UHDM::struct_var *structv = s.MakeStruct_var();
+            UHDM::ref_typespec *rtps = s.MakeRef_typespec();
             structv->Typespec(rtps);
-            rtps->Actual_typespec((typespec*) (*vitr).second);
+            rtps->Actual_typespec((typespec *)(*vitr).second);
             return structv;
           }
           for (auto p1 : *modinst->Param_assigns()) {
@@ -5636,7 +5638,7 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         }
         if (tps && (tps->UhdmType() == UHDM_OBJECT_TYPE::uhdmlogic_typespec)) {
           logic_typespec *ltps = (logic_typespec *)tps;
-          uint64_t si = size(tps, invalidValue, inst, pexpr, true, true);
+          uint64_t si = _size(tps, invalidValue, inst, pexpr, true, true);
           if (p->Rhs() &&
               (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
             constant *c = (constant *)p->Rhs();
@@ -5658,7 +5660,7 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
               }
             } else {
               uint64_t mask = NumUtils::getMask(si);
-              int64_t v = get_value(invalidValue, c);
+              int64_t v = _get_value(invalidValue, c);
               v = v & mask;
               c->VpiValue("UINT:" + std::to_string(v));
               c->VpiDecompile(std::to_string(v));
@@ -5682,11 +5684,15 @@ std::string vPrint(any *handle) {
     return "NULL HANDLE";
   }
   ExprEval eval;
-  Serializer *s = handle->GetSerializer();
   std::stringstream out;
-  eval.prettyPrint(*s, handle, 0, out);
+  eval.prettyPrint(handle, 0, out);
   std::cout << out.str() << "\n";
   return out.str();
+}
+
+void ExprEval::prettyPrint(std::string_view prefix, const any *tree,
+                           std::ostream &out) {
+  out << prefix << decompile(tree) << std::endl;
 }
 
 std::string ExprEval::prettyPrint(const any *handle) {
@@ -5695,9 +5701,325 @@ std::string ExprEval::prettyPrint(const any *handle) {
     return "NULL HANDLE";
   }
   ExprEval eval;
-  Serializer *s = handle->GetSerializer();
   std::stringstream out;
-  eval.prettyPrint(*s, handle, 0, out);
+  eval.prettyPrint(handle, 0, out);
   return out.str();
+}
+
+// ============================================================================
+
+uint64_t ExprEval::size(
+    const any *typespec, bool &invalidValue, const any *inst, const any *pexpr,
+    bool full /* false: use only last range size, true: use all ranges */,
+    bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::size" << std::endl;
+  std::cout << ">> typespec: " << decompile(typespec) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  uint64_t result = _size(typespec, invalidValue, inst, pexpr, full, muteError);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::size >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+uint64_t ExprEval::size(
+    const vpiHandle typespec, bool &invalidValue, const vpiHandle inst,
+    const vpiHandle pexpr,
+    bool full /* false: use only last range size, true: use all ranges */,
+    bool muteError) {
+  const UHDM::any *vpiHandle_typespec =
+      (UHDM::any *)((uhdm_handle *)typespec)->object;
+  const UHDM::any *vpiHandle_inst =
+      !inst ? nullptr : (UHDM::any *)((uhdm_handle *)inst)->object;
+  const UHDM::any *vpiHandle_pexpr =
+      !pexpr ? nullptr : (UHDM::any *)((uhdm_handle *)pexpr)->object;
+  return size(vpiHandle_typespec, invalidValue, vpiHandle_inst, vpiHandle_pexpr,
+              full, muteError);
+}
+
+expr *ExprEval::reduceExpr(const any *object, bool &invalidValue,
+                           const any *inst, const any *pexpr, bool muteErrors) {
+  std::cout << "<<<<<<<<<< ExprEval::reduceExpr" << std::endl;
+  std::cout << ">> object: " << decompile(object) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  expr *result = _reduceExpr(object, invalidValue, inst, pexpr, muteErrors);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::reduceExpr >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+uint64_t ExprEval::getWordSize(const expr *exp, const any *inst,
+                               const any *pexpr) {
+  std::cout << "<<<<<<<<<< ExprEval::getWordSize" << std::endl;
+  std::cout << ">> exp: " << decompile(exp) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  uint64_t result = _getWordSize(exp, inst, pexpr);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << "ExprEval::getWordSize >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+uint64_t ExprEval::getValue(const UHDM::expr *expr) {
+  std::cout << "<<<<<<<<<< ExprEval::getValue" << std::endl;
+  std::cout << ">> expr: " << decompile(expr) << std::endl;
+  uint64_t result = _getValue(expr);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << "ExprEval::getValue >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+std::string ExprEval::toBinary(const UHDM::constant *c) {
+  std::cout << "<<<<<<<<<< ExprEval::toBinary" << std::endl;
+  std::cout << ">> c: " << decompile(c) << std::endl;
+  std::string result = _toBinary(c);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << "ExprEval::toBinary >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+any *ExprEval::getValue(std::string_view name, const any *inst,
+                        const any *pexpr, bool muteError,
+                        const any *checkLoop) {
+  std::cout << "<<<<<<<<<< ExprEval::getValue" << std::endl;
+  std::cout << ">> name: " << name << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  std::cout << ">> checkLoop: " << decompile(checkLoop) << std::endl;
+  any *result = _getValue(name, inst, pexpr, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << "ExprEval::getValue >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+any *ExprEval::getObject(std::string_view name, const any *inst,
+                         const any *pexpr, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::getObject" << std::endl;
+  std::cout << ">> name: " << name << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  any *result = _getObject(name, inst, pexpr, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << "ExprEval::getObject >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+int64_t ExprEval::get_value(bool &invalidValue, const UHDM::expr *expr,
+                            bool strict) {
+  std::cout << "<<<<<<<<<< ExprEval::get_value" << std::endl;
+  std::cout << ">> expr: " << decompile(expr) << std::endl;
+  std::cout << ">> strict: " << strict << std::endl;
+  int64_t result = _get_value(invalidValue, expr, strict);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::get_value >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+uint64_t ExprEval::get_uvalue(bool &invalidValue, const UHDM::expr *expr,
+                              bool strict) {
+  std::cout << "<<<<<<<<<< ExprEval::get_uvalue" << std::endl;
+  std::cout << ">> expr: " << decompile(expr) << std::endl;
+  std::cout << ">> strict: " << strict << std::endl;
+  uint64_t result = _get_uvalue(invalidValue, expr, strict);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::get_uvalue >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+long double ExprEval::get_double(bool &invalidValue, const UHDM::expr *expr) {
+  std::cout << "<<<<<<<<<< ExprEval::get_double" << std::endl;
+  std::cout << ">> expr: " << decompile(expr) << std::endl;
+  long double result = _get_double(invalidValue, expr);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::get_double >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
+                                          expr *assignExpr) {
+  std::cout << "<<<<<<<<<< ExprEval::flattenPatternAssignments" << std::endl;
+  std::cout << ">> tps: " << decompile(tps) << std::endl;
+  std::cout << ">> assignExpr: " << decompile(assignExpr) << std::endl;
+  expr *result = _flattenPatternAssignments(s, tps, assignExpr);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << "ExprEval::flattenPatternAssignments >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+expr *ExprEval::reduceCompOp(operation *op, bool &invalidValue, const any *inst,
+                             const any *pexpr, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::reduceCompOp" << std::endl;
+  std::cout << ">> op: " << decompile(op) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  expr *result = _reduceCompOp(op, invalidValue, inst, pexpr, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::reduceCompOp >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+expr *ExprEval::reduceBitSelect(expr *op, uint32_t index_val,
+                                bool &invalidValue, const any *inst,
+                                const any *pexpr, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::reduceBitSelect" << std::endl;
+  std::cout << ">> op" << decompile(op) << std::endl;
+  std::cout << ">> index_val: " << index_val << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  expr *result =
+      _reduceBitSelect(op, index_val, invalidValue, inst, pexpr, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::reduceBitSelect >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
+                              const any *inst, const any *pexpr,
+                              ReturnType returnType, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::decodeHierPath" << std::endl;
+  std::cout << ">> path: " << decompile(path) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  std::cout << ">> returnType: " << static_cast<uint32_t>(returnType)
+            << std::endl;
+  any *result =
+      _decodeHierPath(path, invalidValue, inst, pexpr, returnType, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::decodeHierPath >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
+                                    uint32_t level, UHDM::any *object,
+                                    bool &invalidValue, const any *inst,
+                                    const UHDM::any *pexpr,
+                                    ReturnType returnType, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::hierarchicalSelector" << std::endl;
+  std::cout << ">> select_path: " << select_path.size() << std::endl;
+  for (size_t i = 0, ni = select_path.size(); i < ni; ++i) {
+    std::cout << "  [" << i << "]: " << select_path[i] << std::endl;
+  }
+  std::cout << ">> level: " << level << std::endl;
+  std::cout << ">> object: " << decompile(object) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  std::cout << ">> returnType: " << static_cast<uint32_t>(returnType)
+            << std::endl;
+  any *result = _hierarchicalSelector(select_path, level, object, invalidValue,
+                                      inst, pexpr, returnType, muteError);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::hierarchicalSelector >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+UHDM::expr *ExprEval::evalFunc(UHDM::function *func,
+                               std::vector<UHDM::any *> *args,
+                               bool &invalidValue, const any *inst,
+                               UHDM::any *pexpr, bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::evalFunc" << std::endl;
+  std::cout << ">> func: " << decompile(func) << std::endl;
+  if (args != nullptr) {
+    std::cout << ">> args: " << args->size() << std::endl;
+    for (size_t i = 0, ni = args->size(); i < ni; ++i) {
+      std::cout << "  args[" << i << "]: " << decompile(args->at(i))
+                << std::endl;
+    }
+  } else {
+    std::cout << ">> args: " << 0 << std::endl;
+  }
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> pexpr: " << decompile(pexpr) << std::endl;
+  expr *result = _evalFunc(func, args, invalidValue, inst, pexpr, muteError);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << "ExprEval::evalFunc >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes,
+                        bool &invalidValue, bool &continue_flag,
+                        bool &break_flag, bool &return_flag, const any *inst,
+                        const UHDM::any *stmt,
+                        std::map<std::string, const typespec *> &local_vars,
+                        bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::evalStmt" << std::endl;
+  std::cout << ">> funcName: " << funcName << std::endl;
+  std::cout << ">> scopes: " << scopes.size() << std::endl;
+  for (size_t i = 0, ni = scopes.size(); i < ni; ++i) {
+    std::cout << "  scopes[" << i << "]: " << decompile(scopes[i]) << std::endl;
+  }
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> stmt: " << decompile(stmt) << std::endl;
+  std::cout << ">> local_vars: " << local_vars.size() << std::endl;
+  for (const auto &[k, v] : local_vars) {
+    std::cout << "  k: " << k << std::endl;
+    std::cout << "  v: " << decompile(v) << std::endl;
+  }
+  _evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag,
+            return_flag, inst, stmt, local_vars, muteError);
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << ">> continue_flag: " << continue_flag << std::endl;
+  std::cout << ">> break_flag: " << break_flag << std::endl;
+  std::cout << ">> return_flag: " << return_flag << std::endl;
+  std::cout << ">> scopes: " << scopes.size() << std::endl;
+  for (size_t i = 0, ni = scopes.size(); i < ni; ++i) {
+    std::cout << "  scopes[" << i << "]" << decompile(scopes[i]) << std::endl;
+  }
+  std::cout << ">> local_vars: " << local_vars.size() << std::endl;
+  for (const auto &[k, v] : local_vars) {
+    std::cout << "  k: " << k << std::endl;
+    std::cout << "  v: " << decompile(v) << std::endl;
+  }
+  std::cout << "ExprEval::evalStmt >>>>>>>>>>" << std::endl;
+}
+
+bool ExprEval::setValueInInstance(
+    std::string_view lhs, any *lhsexp, expr *rhsexp, bool &invalidValue,
+    Serializer &s, const any *inst, const any *scope_exp,
+    std::map<std::string, const typespec *> &local_vars, int opType,
+    bool muteError) {
+  std::cout << "<<<<<<<<<< ExprEval::setValueInInstance" << std::endl;
+  std::cout << ">> lhs: " << lhs << std::endl;
+  std::cout << ">> lhsexp: " << decompile(lhsexp) << std::endl;
+  std::cout << ">> rhsexp: " << decompile(rhsexp) << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  std::cout << ">> scope_exp: " << decompile(scope_exp) << std::endl;
+  std::cout << ">> local_vars: " << local_vars.size() << std::endl;
+  for (const auto &[k, v] : local_vars) {
+    std::cout << "  k: " << k << std::endl;
+    std::cout << "  v: " << decompile(v) << std::endl;
+  }
+  std::cout << ">> opType: " << opType << std::endl;
+  bool result = _setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst,
+                                    scope_exp, local_vars, opType, muteError);
+  std::cout << ">> result: " << result << std::endl;
+  std::cout << ">> invalidValue: " << invalidValue << std::endl;
+  std::cout << ">> local_vars: " << local_vars.size() << std::endl;
+  for (const auto &[k, v] : local_vars) {
+    std::cout << "  k: " << k << std::endl;
+    std::cout << "  v: " << decompile(v) << std::endl;
+  }
+  std::cout << "ExprEval::setValueInInstance >>>>>>>>>>" << std::endl;
+  return result;
+}
+
+UHDM::task_func *ExprEval::getTaskFunc(std::string_view name, const any *inst) {
+  std::cout << "<<<<<<<<<< ExprEval::getTaskFunc" << std::endl;
+  std::cout << ">> name: " << name << std::endl;
+  std::cout << ">> inst: " << decompile(inst) << std::endl;
+  task_func *result = _getTaskFunc(name, inst);
+  std::cout << ">> result: " << decompile(result) << std::endl;
+  std::cout << "ExprEval::getTaskFunc >>>>>>>>>>" << std::endl;
+  return result;
 }
 }  // namespace UHDM
