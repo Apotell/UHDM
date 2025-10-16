@@ -310,6 +310,7 @@ if (UHDM_BUILD_TESTS)
     tests/error-handler_test.cpp
     tests/expr_prettyPrint_test.cpp
     tests/expr_reduce_test.cpp
+    tests/ExprEval_test.cpp
     tests/full_elab_test.cpp
     tests/garbage_collect_test.cpp
     tests/group_membership_test.cpp
