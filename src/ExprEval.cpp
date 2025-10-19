@@ -3896,19 +3896,19 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
               Constant *c = s.make<Constant>();
               c->setValue("UINT:" + std::to_string((int32_t)val0));
               c->setSize(64);
-              c->setConstType(vpiUIntConst);
+              c->setConstType(vpiIntConst);
               result = c;
             } else if (ttps == UhdmType::LongIntTypespec) {
               Constant *c = s.make<Constant>();
               c->setValue("UINT:" + std::to_string((int64_t)val0));
               c->setSize(64);
-              c->setConstType(vpiUIntConst);
+              c->setConstType(vpiLongIntTypespec);
               result = c;
             } else if (ttps == UhdmType::ShortIntTypespec) {
               Constant *c = s.make<Constant>();
               c->setValue("UINT:" + std::to_string((int16_t)val0));
               c->setSize(16);
-              c->setConstType(vpiUIntConst);
+              c->setConstType(vpiShortIntTypespec);
               result = c;
             } else if (ttps == UhdmType::IntegerTypespec) {
               IntegerTypespec *itps = (IntegerTypespec *)tps;
@@ -3932,7 +3932,7 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
               uint64_t res = val0 & mask;
               c->setValue("UINT:" + std::to_string(res));
               c->setSize(static_cast<int32_t>(cast_to));
-              c->setConstType(vpiUIntConst);
+              c->setConstType(vpiIntegerTypespec);
               result = c;
             } else if (ttps == UhdmType::EnumTypespec) {
               // TODO: Should check the value is in Range of the enum and
@@ -3940,7 +3940,7 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
               Constant *c = s.make<Constant>();
               c->setValue("UINT:" + std::to_string(val0));
               c->setSize(64);
-              c->setConstType(vpiUIntConst);
+              c->setConstType(vpiEnumTypespec);
               result = c;
             }
             break;

@@ -353,11 +353,7 @@ void Reducer::reduce() {
     }
   }
 
-  if (Factory *const factory = m_serializer->getFactory<Design>()) {
-    for (Any *object : factory->getObjects()) {
-      object->swap(m_swaps);
-    }
-  }
+  m_serializer->swap(m_swaps);
 }
 
 }  // namespace uhdm
