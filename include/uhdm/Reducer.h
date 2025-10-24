@@ -27,7 +27,7 @@
 #ifndef UHDM_REDUCER_H
 #define UHDM_REDUCER_H
 
-#include <uhdm/Serializer.h>
+#include <uhdm/ExprEval.h>
 #include <uhdm/UhdmFinder.h>
 #include <uhdm/containers.h>
 #include <uhdm/uhdm_forward_decl.h>
@@ -40,12 +40,19 @@
 namespace uhdm {
 class Serializer;
 
-class Reducer final {
+class Reducer final : public ObjectProvider {
  public:
   explicit Reducer(Serializer* serializer) : m_serializer(serializer) {}
   ~Reducer() = default;
   Reducer(const Reducer& rhs) = delete;
   Reducer& operator=(const Reducer& rhs) = delete;
+
+  const Any* getObject(std::string_view name, const Any* inst, const Any* pexpr,
+                       bool muteErrors = false) final;
+  const TaskFunc* getTaskFunc(std::string_view name, const Any* inst,
+                              const Any* pexpr, bool muteErrors = false) final;
+  Any* getValue(std::string_view name, const Any* inst, const Any* pexpr,
+                bool muteErrors = false) final;
 
   void reduce();
 
@@ -55,16 +62,8 @@ class Reducer final {
   void reduce(const SysFuncCall* const object);
 
  public:
-  Expr* reduceExpr(const Any* expr, bool& invalidValue, uint32_t lineNumber,
-                   const Any* pexpr, bool muteErrors = false);
-
-  const Any* getValue(std::string_view name, uint32_t lineNumber,
-                      const Any* pexpr, bool muteErrors = false);
-
-  std::pair<const TaskFunc*, const Scope*> getTaskFunc(std::string_view name,
-                                                       const Any* pexpr);
-
-  const Any* getObject(std::string_view name, const Any* pexpr);
+  Expr* reduceExpr(const Any* expr, bool& invalidValue, const Any* pexpr,
+                   bool muteErrors = false);
 
   void setRange(const Constant* c, uint16_t lr, uint16_t rr);
 
@@ -72,9 +71,10 @@ class Reducer final {
   const Design* getDesign(std::string_view name) const;
   const Package* getPackage(std::string_view name) const;
 
-  bool loopDetected(uint32_t lineNumber);
-  const Expr* getComplexValue(const Any* any, std::string_view name) const;
+  bool loopDetected();
+  Expr* getComplexValue(const Any* any, std::string_view name) const;
 
+ public:
   Serializer* const m_serializer = nullptr;
   UhdmFinder m_finder;
   std::map<const Any*, Any*> m_swaps;

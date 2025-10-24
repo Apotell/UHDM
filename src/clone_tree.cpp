@@ -775,7 +775,8 @@ ContAssign* ContAssign::deepClone(BaseClass* parent,
       if (StructVar* stv = ro->getActual<StructVar>()) {
         if (RefTypespec* rt = stv->getTypespec()) {
           if (Typespec* ts = rt->getActual()) {
-            ExprEval eval(elaboratorContext->m_elaborator.muteErrors());
+            ExprEval eval(nullptr,
+                          elaboratorContext->m_elaborator.muteErrors());
             if (Expr* res = eval.flattenPatternAssignments(
                     *context->m_serializer, ts, rhs)) {
               if (res->getUhdmType() == UhdmType::Operation) {

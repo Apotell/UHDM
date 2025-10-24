@@ -31,30 +31,44 @@
 #include <uhdm/uhdm_forward_decl.h>
 #include <uhdm/vpi_user.h>
 
-#include <functional>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <string_view>
 
 namespace uhdm {
 class Serializer;
-#ifndef SWIG
-using GetObjectFunctor = std::function<Any*(std::string_view name,
-                                            const Any* inst, const Any* pexpr)>;
 
-using GetTaskFuncFunctor =
-    std::function<TaskFunc*(std::string_view name, const Any* inst)>;
-#endif
 /* This UHDM extension offers expression reduction and other utilities that can
  be operating either:
  - standalone using UHDM fully elaborated tree
  - as a utility in a greater context, example: Surelog elaboration */
 
+class ObjectProvider {
+ public:
+  virtual const Any* getObject(std::string_view name, const Any* inst,
+                               const Any* pexpr, bool muteErrors = false) = 0;
+  virtual const TaskFunc* getTaskFunc(std::string_view name, const Any* inst,
+                                      const Any* pexpr,
+                                      bool muteErrors = false) = 0;
+  virtual Any* getValue(std::string_view name, const Any* inst,
+                        const Any* pexpr, bool muteErrors = false) = 0;
+
+ public:
+  virtual ~ObjectProvider() = default;
+  ObjectProvider(const ObjectProvider&) = delete;
+  ObjectProvider& operator=(const ObjectProvider&) = delete;
+
+ protected:
+  ObjectProvider() = default;
+};
+
 class ExprEval {
  public:
-  ExprEval(bool muteError = false) : m_muteError(muteError) {}
+  ExprEval(ObjectProvider* provider, bool muteError = false)
+      : m_provider(provider), m_muteError(muteError) {}
 #ifndef SWIG
-  bool isFullySpecified(const Typespec* tps);
+  static bool isFullySpecified(const Typespec* tps);
   /* Computes the size in bits of an object {typespec, var, net, operation...}.
    */
   uint64_t size(
@@ -71,7 +85,7 @@ class ExprEval {
       bool muteError = false);
 
 #ifndef SWIG
-  void reduceExceptions(const std::vector<int32_t> operationTypes) {
+  void reduceExceptions(const std::vector<int32_t> &operationTypes) {
     m_skipOperationTypes = operationTypes;
   }
   /* Tries to reduce Any expression into a constant, returns the orignal
@@ -84,13 +98,13 @@ class ExprEval {
 
   uint64_t getValue(const Expr* expr);
 
-  std::string toBinary(const Constant* c);
+  std::string toBinary(const Constant* c) const;
 
   Any* getValue(std::string_view name, const Any* inst, const Any* pexpr,
                 bool muteError = false, const Any* checkLoop = nullptr);
 
-  Any* getObject(std::string_view name, const Any* inst, const Any* pexpr,
-                 bool muteError = false);
+  const Any* getObject(std::string_view name, const Any* inst, const Any* pexpr,
+                       bool muteError = false);
 
   int64_t get_value(bool& invalidValue, const Expr* expr, bool strict = true);
 
@@ -101,15 +115,10 @@ class ExprEval {
   Expr* flattenPatternAssignments(Serializer& s, const Typespec* tps,
                                   Expr* assignExpr);
 
-  void prettyPrint(Serializer& s, const Any* tree, uint32_t indent,
-                   std::ostream& out);
-
-  std::string prettyPrint(const Any* handle);
-
   Expr* reduceCompOp(Operation* op, bool& invalidValue, const Any* inst,
                      const Any* pexpr, bool muteError = false);
 
-  Expr* reduceBitSelect(Expr* op, uint32_t index_val, bool& invalidValue,
+  Expr* reduceBitSelect(const Expr* op, uint32_t index_val, bool& invalidValue,
                         const Any* inst, const Any* pexpr,
                         bool muteError = false);
 
@@ -121,15 +130,17 @@ class ExprEval {
                       const Any* pexpr, bool returnTypespec,
                       bool muteError = false);
 
-  Any* hierarchicalSelector(std::vector<std::string>& select_path,
-                            uint32_t level, Any* object, bool& invalidValue,
-                            const Any* inst, const Any* pexpr,
-                            bool returnTypespec, bool muteError = false);
+  const Any* hierarchicalSelector(std::vector<std::string>& select_path,
+                                  uint32_t level, const Any* object,
+                                  bool& invalidValue, const Any* inst,
+                                  const Any* pexpr, bool returnTypespec,
+                                  bool muteError = false);
 
   using Scopes = std::vector<const Instance*>;
 
-  Expr* evalFunc(Function* func, std::vector<Any*>* args, bool& invalidValue,
-                 const Any* inst, Any* pexpr, bool muteError = false);
+  Expr* evalFunc(const Function* func, std::vector<Any*>* args,
+                 bool& invalidValue, const Any* inst, Any* pexpr,
+                 bool muteError = false);
 
   void evalStmt(std::string_view funcName, Scopes& scopes, bool& invalidValue,
                 bool& continue_flag, bool& break_flag, bool& return_flag,
@@ -143,23 +154,22 @@ class ExprEval {
                           std::map<std::string, const Typespec*>& local_vars,
                           int opType, bool muteError);
   void setDesign(Design* des) { m_design = des; }
-  /* For Surelog or other UHDM clients to use the UHDM expr evaluator in their
-   * context */
-  void setGetObjectFunctor(GetObjectFunctor func) { getObjectFunctor = func; }
-  void setGetValueFunctor(GetObjectFunctor func) { getValueFunctor = func; }
-  void setGetTaskFuncFunctor(GetTaskFuncFunctor func) {
-    getTaskFuncFunctor = func;
-  }
 
-  TaskFunc* getTaskFunc(std::string_view name, const Any* inst);
+  const TaskFunc* getTaskFunc(std::string_view name, const Any* inst,
+                              const Any* pexpr);
 
   std::vector<std::string_view> tokenizeMulti(
       std::string_view str, std::string_view multichar_separator);
 #endif
+
+  static void prettyPrint(const Any* tree, uint32_t indent, std::ostream& out);
+  static std::string prettyPrint(const Any* handle);
+
  private:
-  GetObjectFunctor getObjectFunctor = nullptr;
-  GetObjectFunctor getValueFunctor = nullptr;
-  GetTaskFuncFunctor getTaskFuncFunctor = nullptr;
+  void resize(Expr* resizedExp, int32_t size);
+
+ private:
+  ObjectProvider* const m_provider = nullptr;
   const Design* m_design = nullptr;
   bool m_muteError = false;
   std::vector<int32_t> m_skipOperationTypes;

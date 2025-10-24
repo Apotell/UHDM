@@ -217,7 +217,7 @@ void UhdmLint::leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) {
   }
   if (!baseType) return;
   static std::regex r("^[0-9]*'");
-  ExprEval eval;
+  ExprEval eval(nullptr);
   eval.setDesign(m_design);
 
   bool invalidValue = false;
@@ -314,7 +314,7 @@ void UhdmLint::leavePropertySpec(const PropertySpec* prop_s, vpiHandle handle) {
 }
 
 void UhdmLint::leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) {
-  ExprEval eval;
+  ExprEval eval(nullptr);
   eval.setDesign(m_design);
   if (object->getName() == "$past") {
     if (auto arg = object->getArguments()) {

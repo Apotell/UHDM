@@ -98,8 +98,7 @@ void Reducer::reduce(const ArrayExpr *const object) {
 void Reducer::reduce(const SysFuncCall *const object) {
   bool bIsInvalid = false;
   if (Any *const updatedExpr =
-          reduceExpr(object, bIsInvalid, object->getStartLine(),
-                     object->getParent(), false)) {
+          reduceExpr(object, bIsInvalid, object->getParent(), false)) {
     if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
   }
 }
@@ -107,43 +106,25 @@ void Reducer::reduce(const SysFuncCall *const object) {
 void Reducer::reduce(const Operation *const object) {
   bool bIsInvalid = false;
   if (Any *const updatedExpr =
-          reduceExpr(object, bIsInvalid, object->getStartLine(),
-                     object->getParent(), false)) {
+          reduceExpr(object, bIsInvalid, object->getParent(), false)) {
     if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
   }
 }
 
-std::pair<const TaskFunc *, const Scope *> Reducer::getTaskFunc(
-    std::string_view name, const Any *pexpr) {
-  std::pair<const TaskFunc *, const Scope *> result = {nullptr, nullptr};
-  return result;
+const TaskFunc *Reducer::getTaskFunc(std::string_view name, const Any *inst,
+                                     const Any *pexpr,
+                                     bool muteErrors /* = false */) {
+  return nullptr;
 }
 
-const Any *Reducer::getObject(std::string_view name, const Any *pexpr) {
+const Any *Reducer::getObject(std::string_view name, const Any *inst,
+                              const Any *pexpr, bool muteErrors /* = false */) {
   return m_finder.findObject(name, pexpr);
 }
 
 Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue,
-                          uint32_t lineNumber, const Any *pexpr,
-                          bool muteErrors) {
-  GetObjectFunctor getObjectFunctor =
-      [&](std::string_view name, const Any *inst, const Any *pexpr) -> Any * {
-    return const_cast<Any *>(getObject(name, pexpr));
-  };
-  GetObjectFunctor getValueFunctor = [&](std::string_view name, const Any *inst,
-                                         const Any *pexpr) -> Any * {
-    return (Expr *)getValue(name, lineNumber, (Any *)pexpr, muteErrors);
-  };
-  GetTaskFuncFunctor getTaskFuncFunctor = [&](std::string_view name,
-                                              const Any *inst) -> TaskFunc * {
-    auto ret = getTaskFunc(name, pexpr);
-    return const_cast<TaskFunc *>(ret.first);
-  };
-
-  ExprEval eval(muteErrors);
-  eval.setGetObjectFunctor(getObjectFunctor);
-  eval.setGetValueFunctor(getValueFunctor);
-  eval.setGetTaskFuncFunctor(getTaskFuncFunctor);
+                          const Any *pexpr, bool muteErrors /* = false */) {
+  ExprEval eval(this, muteErrors);
   if (m_exprEvalPlaceHolder == nullptr) {
     m_exprEvalPlaceHolder = m_serializer->make<Module>();
     m_exprEvalPlaceHolder->setParamAssigns(
@@ -184,7 +165,7 @@ void Reducer::setRange(const Constant *c, uint16_t lr, uint16_t rr) {
   }
 }
 
-bool Reducer::loopDetected(uint32_t lineNumber) {
+bool Reducer::loopDetected() {
   // @todo: Need to implement loop detection in different way. Currently
   // returning false.
   return false;
@@ -211,16 +192,15 @@ const Package *Reducer::getPackage(std::string_view name) const {
 // then if it is complex then fill the ,map and utilize the lookup form built
 // map
 
-const Expr *Reducer::getComplexValue(const Any *any,
-                                     std::string_view name) const {
+Expr *Reducer::getComplexValue(const Any *any, std::string_view name) const {
   const Any *p = any;
   while (p != nullptr) {
     if (const Scope *const s = any_cast<Scope>(p)) {
       if (const ParamAssignCollection *param_assigns = s->getParamAssigns()) {
-        for (const ParamAssign *param : *param_assigns) {
+        for (ParamAssign *param : *param_assigns) {
           if (param && param->getLhs()) {
             if (param->getLhs()->getName() == name) {
-              if (const Expr *exp = param->getRhs<Expr>()) {
+              if (Expr *exp = param->getRhs<Expr>()) {
                 return exp;
               }
             }
@@ -234,11 +214,11 @@ const Expr *Reducer::getComplexValue(const Any *any,
 }
 
 // on the fly just get the expr using name
-const Any *Reducer::getValue(std::string_view name, uint32_t lineNumber,
-                             const Any *pexpr, bool muteErrors) {
+Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
+                       bool muteErrors /* = false */) {
   // Value *sval = nullptr;
-  const Any *result = nullptr;
-  if (loopDetected(lineNumber)) {
+  Any *result = nullptr;
+  if (loopDetected()) {
     return nullptr;
   }
   if (m_checkForLoops) {
@@ -251,7 +231,7 @@ const Any *Reducer::getValue(std::string_view name, uint32_t lineNumber,
       const std::string_view packName = res[0];
       const std::string_view varName = res[1];
       if (const Package *pack = getPackage(packName)) {
-        if (const Expr *val = getComplexValue(pack, varName)) {
+        if (Expr *val = getComplexValue(pack, varName)) {
           result = val;
           if (result->getUhdmType() == UhdmType::Operation) {
             Operation *op = (Operation *)result;
@@ -287,7 +267,7 @@ const Any *Reducer::getValue(std::string_view name, uint32_t lineNumber,
   }
 
   if (result == nullptr) {
-    if (const Expr *val = getComplexValue(pexpr, name)) {
+    if (Expr *val = getComplexValue(pexpr, name)) {
       result = val;
       if (result->getUhdmType() == UhdmType::Constant) {
         // sval = instance->getValue(name);
@@ -315,8 +295,7 @@ const Any *Reducer::getValue(std::string_view name, uint32_t lineNumber,
     if (resultType == UhdmType::Constant) {
     } else if (resultType == UhdmType::RefObj) {
       if (result->getName() != name) {
-        if (const Any *tmp =
-                getValue(result->getName(), lineNumber, pexpr, muteErrors)) {
+        if (Any *tmp = getValue(result->getName(), nullptr, pexpr)) {
           result = tmp;
         }
       }
@@ -325,8 +304,7 @@ const Any *Reducer::getValue(std::string_view name, uint32_t lineNumber,
                resultType == UhdmType::BitSelect ||
                resultType == UhdmType::SysFuncCall) {
       bool invalidValue = false;
-      if (const Any *tmp =
-              reduceExpr(result, invalidValue, lineNumber, pexpr, muteErrors)) {
+      if (Any *tmp = reduceExpr(result, invalidValue, pexpr, muteErrors)) {
         result = tmp;
       }
     } else {

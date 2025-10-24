@@ -294,8 +294,7 @@ void SynthSubset::removeFromVector(AnyCollection* vec, const Any* object) {
         const std::string_view name = object->getName();
         if (name == "$error" || name == "$finish" || name == "$display") {
           bool inInitialBLock = objectIsInitialBlock(object);
-          if (!inInitialBLock)
-            vec->push_back(makeStubDisplayStmt(object));
+          if (!inInitialBLock) vec->push_back(makeStubDisplayStmt(object));
         } else {
           vec->push_back(makeStubDisplayStmt(object));
         }
@@ -308,19 +307,19 @@ void SynthSubset::removeFromVector(AnyCollection* vec, const Any* object) {
 
 void SynthSubset::removeFromStmt(Any* parent, const Any* object) {
   if (parent->getUhdmType() == UhdmType::ForStmt) {
-    ForStmt* st = (ForStmt*) parent;
+    ForStmt* st = (ForStmt*)parent;
     st->setStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::IfStmt) {
-    IfStmt* st = (IfStmt*) parent;
+    IfStmt* st = (IfStmt*)parent;
     st->setStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::IfElse) {
-    IfElse* st = (IfElse*) parent;
+    IfElse* st = (IfElse*)parent;
     if (st->getStmt() && (st->getStmt() == object))
       st->setStmt(makeStubDisplayStmt(object));
     else if (st->getElseStmt() && (st->getElseStmt() == object))
-      st->setElseStmt(makeStubDisplayStmt(object)); 
+      st->setElseStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::Initial) {
-    Initial* st = (Initial*) parent;
+    Initial* st = (Initial*)parent;
     const std::string_view name = object->getName();
     if (name == "$error" || name == "$finish") {
       st->setStmt(makeStubDisplayStmt(object));
@@ -329,7 +328,7 @@ void SynthSubset::removeFromStmt(Any* parent, const Any* object) {
     } else {
       st->setStmt(makeStubDisplayStmt(object));
     }
-  } 
+  }
 }
 
 void SynthSubset::filterNonSynthesizable() {
@@ -341,7 +340,6 @@ void SynthSubset::filterNonSynthesizable() {
   }
 }
 
-
 void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
                                    vpiHandle handle) {
   const std::string_view name = object->getName();
@@ -349,33 +347,33 @@ void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
     reportError(object);
     const Any* parent = object->getParent();
     if (parent->getUhdmType() == UhdmType::Begin) {
-      Begin* st = (Begin*) parent;
+      Begin* st = (Begin*)parent;
       if (st->getStmts()) {
         m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(), object);
       }
     } else if (parent->getUhdmType() == UhdmType::ForStmt) {
-      ForStmt* st = (ForStmt*) parent;
+      ForStmt* st = (ForStmt*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::IfStmt) {
-      IfStmt* st = (IfStmt*) parent;
+      IfStmt* st = (IfStmt*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::IfElse) {
-      IfElse* st = (IfElse*) parent;
+      IfElse* st = (IfElse*)parent;
       if (st->getStmt() && (st->getStmt() == object)) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       } else if (st->getElseStmt() && (st->getElseStmt() == object)) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::Initial) {
-      Initial* st = (Initial*) parent;
+      Initial* st = (Initial*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
-    } 
+    }
   }
   // Filter out sys func calls stmt from initial block
   if (name == "$error" || name == "$finish" || name == "$display") {
@@ -383,12 +381,13 @@ void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
     if (inInitialBlock) {
       const Any* parent = object->getParent();
       if (parent->getUhdmType() == UhdmType::Begin) {
-        Begin* st = (Begin*) parent;
+        Begin* st = (Begin*)parent;
         if (st->getStmts()) {
-          m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(), object);
+          m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(),
+                                                          object);
         }
       } else if (parent->getUhdmType() == UhdmType::Initial) {
-        Initial* st = (Initial*) parent;
+        Initial* st = (Initial*)parent;
         if (st->getStmt()) {
           m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
         }
@@ -539,7 +538,7 @@ void SynthSubset::leaveForStmt(const ForStmt* object, vpiHandle handle) {
           }
         }
         if (needsTransform) {
-          ExprEval eval;
+          ExprEval eval(nullptr);
           bool invalidValue = false;
           uint32_t size = eval.size(var, invalidValue, parent->getParent(),
                                     parent, true, true);
@@ -678,7 +677,8 @@ void SynthSubset::leaveAlways(const Always* object, vpiHandle handle) {
 
 // Transform 3 vars sensitivity list into 2 vars sensitivity list because of a
 // Yosys limitation
-void SynthSubset::sensitivityListRewrite(const Always* object, vpiHandle handle) {
+void SynthSubset::sensitivityListRewrite(const Always* object,
+                                         vpiHandle handle) {
   // Transform: always @ (posedge clk or posedge rst or posedge start)
   //              if (rst | start) ...
   // Into:
@@ -812,9 +812,10 @@ void SynthSubset::sensitivityListRewrite(const Always* object, vpiHandle handle)
   }
 }
 
-void collectAssignmentStmt(const Any* stmt, std::vector<const Assignment*>& blocking_assigns, std::vector<const Assignment*>& nonblocking_assigns) {
-  if (stmt == nullptr)
-    return;
+void collectAssignmentStmt(
+    const Any* stmt, std::vector<const Assignment*>& blocking_assigns,
+    std::vector<const Assignment*>& nonblocking_assigns) {
+  if (stmt == nullptr) return;
   UhdmType stmt_type = stmt->getUhdmType();
   switch (stmt_type) {
     case UhdmType::Begin: {
@@ -838,15 +839,15 @@ void collectAssignmentStmt(const Any* stmt, std::vector<const Assignment*>& bloc
       break;
     }
     case UhdmType::CaseStmt: {
-      //VectorOfcase_item* items = any_cast<case_stmt*>(stmt)->Case_items();
-      // TODO
+      // VectorOfcase_item* items = any_cast<case_stmt*>(stmt)->Case_items();
+      //  TODO
       break;
     }
     case UhdmType::Assignment: {
       const Assignment* as = any_cast<Assignment*>(stmt);
       if (as->getBlocking()) {
         blocking_assigns.push_back(as);
-      } else { 
+      } else {
         nonblocking_assigns.push_back(as);
       }
       break;
@@ -871,27 +872,29 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
       // Collect all the blocking and non blocking assignments
       std::vector<const Assignment*> blocking_assigns;
       std::vector<const Assignment*> nonblocking_assigns;
-      collectAssignmentStmt(ec->getStmt(), blocking_assigns, nonblocking_assigns);
+      collectAssignmentStmt(ec->getStmt(), blocking_assigns,
+                            nonblocking_assigns);
       // Identify a potential RAM in the LHSs
       std::string ram_name;
       // 1) It has to be a LHS of a blocking assignment to be a candidate
       for (const Assignment* stmt : blocking_assigns) {
         const Expr* lhs = stmt->getLhs();
-        // LHS assigns to a bit select 
+        // LHS assigns to a bit select
         // RAM[addr] = ...
         if (lhs->getUhdmType() == UhdmType::BitSelect) {
-          // The actual has to be an array_net with 2 dimensions (packed and unpacked):
+          // The actual has to be an array_net with 2 dimensions (packed and
+          // unpacked):
           const BitSelect* bs = any_cast<BitSelect*>(lhs);
           const Any* actual = bs->getActual();
           if (actual && (actual->getUhdmType() == UhdmType::ArrayNet)) {
             const ArrayNet* arr_net = any_cast<ArrayNet*>(actual);
-            if (arr_net->getRanges()) { // Unpacked dimension
+            if (arr_net->getRanges()) {  // Unpacked dimension
               if (NetCollection* nets = arr_net->getNets()) {
                 if (nets->size()) {
                   Net* n = nets->at(0);
                   RefTypespec* reft = n->getTypespec();
                   Typespec* tps = reft->getActual();
-                  bool has_packed_dimm = false; // Packed dimension
+                  bool has_packed_dimm = false;  // Packed dimension
                   if (tps->getUhdmType() == UhdmType::LogicTypespec) {
                     LogicTypespec* ltps = any_cast<LogicTypespec>(tps);
                     if (ltps->getRanges()) {
@@ -915,7 +918,8 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
           ram_name = "";
         }
       }
-      // 3) Check that it is referenced in RHS of blocking assignments exactly once, and assigned exactly once
+      // 3) Check that it is referenced in RHS of blocking assignments exactly
+      // once, and assigned exactly once
       int countAssignments = 0;
       int countUsages = 0;
       if (!ram_name.empty()) {
@@ -930,12 +934,14 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
           }
         }
       }
-      if ((countUsages == 1) && (countAssignments == 1)) { 
-        // Match all the criteria: Convert all blocking assignments writing or reading the ram to non blocking
+      if ((countUsages == 1) && (countAssignments == 1)) {
+        // Match all the criteria: Convert all blocking assignments writing or
+        // reading the ram to non blocking
         for (const Assignment* stmt : blocking_assigns) {
           const Expr* lhs = stmt->getLhs();
           const Any* rhs = stmt->getRhs();
-          if ((lhs && lhs->getName() == ram_name) || (rhs && rhs->getName() == ram_name)) {
+          if ((lhs && lhs->getName() == ram_name) ||
+              (rhs && rhs->getName() == ram_name)) {
             ((Assignment*)stmt)->setBlocking(false);
           }
         }

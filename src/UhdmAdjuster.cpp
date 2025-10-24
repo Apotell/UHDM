@@ -209,7 +209,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
     const Any* parent = object->getParent();
     int32_t size = object->getSize();
     bool invalidValue = false;
-    ExprEval eval;
+    ExprEval eval(nullptr);
     ElaboratorContext elaboratorContext(m_serializer);
     if (parent) {
       if (parent->getUhdmType() == UhdmType::Operation) {
@@ -285,7 +285,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
 void UhdmAdjuster::updateParentWithReducedExpression(const Any* object,
                                                      const Any* parent) {
   bool invalidValue = false;
-  ExprEval eval(true);
+  ExprEval eval(nullptr, true);
   eval.reduceExceptions({vpiAssignmentPatternOp, vpiMultiAssignmentPatternOp,
                          vpiConcatOp, vpiMultiConcatOp, vpiBitNegOp});
   Expr* tmp =
@@ -361,7 +361,7 @@ void UhdmAdjuster::leaveFuncCall(const FuncCall* object, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
   const std::string_view name = object->getName();
   if (name.find("::") != std::string::npos) {
-    ExprEval eval;
+    ExprEval eval(nullptr);
     std::vector<std::string_view> res = eval.tokenizeMulti(name, "::");
     const std::string_view packName = res[0];
     const std::string_view funcName = res[1];

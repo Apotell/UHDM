@@ -363,7 +363,7 @@ def _get_deepClone_implementation(model, models):
 
     if classname in ['bit_select']:
         includes.add('ExprEval')
-        content.append(f'  ExprEval eval;')
+        content.append(f'  ExprEval eval(nullptr);')
         content.append(f'  bool invalidValue = false;')
         content.append( '  if (Any* val = eval.reduceExpr(getIndex(), invalidValue, parent, parent, true)) {')
         content.append( '    if (!invalidValue) {')
