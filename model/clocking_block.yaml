@@ -46,7 +46,7 @@
   card: any
 - obj_ref: prefix
   vpi: vpiPrefix
-  type: virtual_interface_var
+  type: variable
   card: 1
 - obj_ref: actual
   vpi: vpiActual

@@ -31,9 +31,9 @@
   vpi: vpiPropFormalDecl
   type: prop_formal_decl
   card: any
-- class_ref: variables
-  vpi: vpiVariables
-  type: variables
+- obj_ref: variable
+  vpi: vpiVariable
+  type: variable
   card: any
 - obj_ref: property_spec
   vpi: vpiPropertySpec

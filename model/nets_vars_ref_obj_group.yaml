@@ -16,7 +16,7 @@
 
 - group_def: nets_vars_ref_obj_group
 - class_ref: nets
-- class_ref: variables
-- obj_ref: ref_obj
 - obj_ref: hier_path
 - obj_ref: operation
+- obj_ref: ref_obj
+- obj_ref: variable

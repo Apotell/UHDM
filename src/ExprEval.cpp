@@ -418,7 +418,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
       const ClassDefn *defn = (ClassDefn *)pexpr;
       while (defn) {
         if (defn->getVariables()) {
-          for (Variables *member : *defn->getVariables()) {
+          for (Variable *member : *defn->getVariables()) {
             if (member->getName() == name) {
               result = member;
               break;
@@ -444,7 +444,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
   if (result == nullptr) {
     while (inst) {
       ParamAssignCollection *ParamAssigns = nullptr;
-      VariablesCollection *Variables = nullptr;
+      VariableCollection *Variables = nullptr;
       ArrayNetCollection *array_nets = nullptr;
       NetCollection *nets = nullptr;
       TypespecCollection *Typespecs = nullptr;
@@ -1358,49 +1358,35 @@ uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst,
           bits = tmpS;
         }
       }
-      ranges = lts->getRanges();
       break;
     }
-    case UhdmType::LogicVar: {
-      bits = 1;
-      LogicVar *lts = (LogicVar *)ts;
-      if (const RefTypespec *rt = lts->getTypespec()) {
-        bool tmpInvalidValue = false;
-        uint64_t tmpS =
-            size(rt->getActual(), tmpInvalidValue, inst, pexpr, full);
-        if (tmpInvalidValue == false) {
-          bits = tmpS;
+    case UhdmType::Variable: {
+      if (const RefTypespec *const rt =
+              static_cast<const Variable *>(ts)->getTypespec()) {
+        if (const LogicTypespec *const lt = rt->getActual<LogicTypespec>()) {
+          bits = 1;
+          bool tmpInvalidValue = false;
+          uint64_t tmpS = size(lt, tmpInvalidValue, inst, pexpr, full);
+          if (tmpInvalidValue == false) {
+            bits = tmpS;
+          }
+        } else if (const BitTypespec *const bt = rt->getActual<BitTypespec>()) {
+          bits = size(bt, invalidValue, inst, pexpr, full);
+          ranges = bt->getRanges();
+        } else if (rt->getActual<ByteTypespec>() != nullptr) {
+          bits = 8;
+        } else if (const StructTypespec *const st =
+                       rt->getActual<StructTypespec>()) {
+          bits += size(st, invalidValue, inst, pexpr, full);
+        } else if (const ArrayTypespec *const at =
+                       rt->getActual<ArrayTypespec>()) {
+          bits += size(at, invalidValue, inst, pexpr, full);
+          ranges = at->getRanges();
+        } else if (const EnumTypespec *const et =
+                       rt->getActual<EnumTypespec>()) {
+          bits = size(et, invalidValue, inst, pexpr, full);
         }
       }
-      ranges = lts->getRanges();
-      break;
-    }
-    case UhdmType::BitVar: {
-      bits = 1;
-      BitVar *lts = (BitVar *)ts;
-      if (const RefTypespec *rt = lts->getTypespec()) {
-        bits = size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      ranges = lts->getRanges();
-      break;
-    }
-    case UhdmType::ByteVar: {
-      bits = 8;
-      break;
-    }
-    case UhdmType::StructVar: {
-      if (const RefTypespec *rt = ((const StructVar *)ts)->getTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::ArrayVar: {
-      const ArrayVar *var = (ArrayVar *)ts;
-      Variables *regv = var->getVariables()->at(0);
-      if (const RefTypespec *rt = regv->getTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      ranges = var->getRanges();
       break;
     }
     case UhdmType::StructNet: {
@@ -1417,12 +1403,6 @@ uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst,
             bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
           }
         }
-      }
-      break;
-    }
-    case UhdmType::EnumVar: {
-      if (const RefTypespec *rt = ((const EnumVar *)ts)->getTypespec()) {
-        bits = size(rt->getActual(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1918,10 +1898,12 @@ int64_t ExprEval::get_value(bool &invalidValue, const Expr *Expr, bool strict) {
   if (const Constant *c = any_cast<Constant>(Expr)) {
     type = c->getConstType();
     sv = c->getValue();
-  } else if (const Variables *v = any_cast<Variables>(Expr)) {
-    if (v->getUhdmType() == UhdmType::EnumVar) {
-      type = vpiUIntConst;
-      sv = v->getValue();
+  } else if (const Variable *v = any_cast<Variable>(Expr)) {
+    if (const RefTypespec *const rt = v->getTypespec()) {
+      if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
+        type = vpiUIntConst;
+        sv = v->getValue();
+      }
     }
   } else {
     invalidValue = true;
@@ -2027,10 +2009,12 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *Expr,
   if (const Constant *c = any_cast<Constant>(Expr)) {
     type = c->getConstType();
     sv = c->getValue();
-  } else if (const Variables *v = any_cast<Variables>(Expr)) {
-    if (v->getUhdmType() == UhdmType::EnumVar) {
-      type = vpiUIntConst;
-      sv = v->getValue();
+  } else if (const Variable *v = any_cast<Variable>(Expr)) {
+    if (const RefTypespec *const rt = v->getTypespec()) {
+      if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
+        type = vpiUIntConst;
+        sv = v->getValue();
+      }
     }
   }
   if (sv.empty()) {
@@ -2281,71 +2265,63 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
   }
   std::string elemName = select_path[level];
   bool lastElem = (level == select_path.size() - 1);
-  if (Variables *var = any_cast<Variables>(object)) {
-    UhdmType ttps = var->getUhdmType();
-    if (ttps == UhdmType::StructVar) {
-      if (const RefTypespec *svrt = var->getTypespec()) {
-        if (const StructTypespec *stpt = svrt->getActual<StructTypespec>()) {
-          for (TypespecMember *member : *stpt->getMembers()) {
-            if (member->getName() == elemName) {
-              if (returnTypespec) {
-                if (RefTypespec *mrt = member->getTypespec()) {
-                  Any *res = mrt->getActual();
-                  if (lastElem) {
-                    return res;
-                  } else {
-                    return hierarchicalSelector(select_path, level + 1, res,
-                                                invalidValue, inst, pexpr,
-                                                returnTypespec, muteError);
-                  }
+  if (Variable *var = any_cast<Variable>(object)) {
+    if (const RefTypespec *rt = var->getTypespec()) {
+      if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
+        for (TypespecMember *member : *stpt->getMembers()) {
+          if (member->getName() == elemName) {
+            if (returnTypespec) {
+              if (RefTypespec *mrt = member->getTypespec()) {
+                Any *res = mrt->getActual();
+                if (lastElem) {
+                  return res;
+                } else {
+                  return hierarchicalSelector(select_path, level + 1, res,
+                                              invalidValue, inst, pexpr,
+                                              returnTypespec, muteError);
                 }
-              } else {
-                return member->getDefaultValue();
               }
+            } else {
+              return member->getDefaultValue();
             }
           }
         }
-      }
-    } else if (ttps == UhdmType::ClassVar) {
-      if (RefTypespec *rt = var->getTypespec()) {
-        if (ClassTypespec *ctps = rt->getActual<ClassTypespec>()) {
-          const ClassDefn *defn = ctps->getClassDefn();
-          while (defn) {
-            if (defn->getVariables()) {
-              for (Variables *member : *defn->getVariables()) {
-                if (member->getName() == elemName) {
-                  if (returnTypespec) {
-                    if (RefTypespec *mrt = member->getTypespec()) {
-                      return mrt->getActual();
-                    }
-                  } else {
-                    return member;
+      } else if (const ClassTypespec *ctps = rt->getActual<ClassTypespec>()) {
+        const ClassDefn *defn = ctps->getClassDefn();
+        while (defn) {
+          if (defn->getVariables()) {
+            for (Variable *member : *defn->getVariables()) {
+              if (member->getName() == elemName) {
+                if (returnTypespec) {
+                  if (RefTypespec *mrt = member->getTypespec()) {
+                    return mrt->getActual();
                   }
+                } else {
+                  return member;
                 }
               }
             }
-            const ClassDefn *base_defn = nullptr;
-            if (const Extends *ext = defn->getExtends()) {
-              if (const RefTypespec *rt = ext->getClassTypespec()) {
-                if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
-                  base_defn = tp->getClassDefn();
-                }
-              }
-            }
-            defn = base_defn;
           }
+          const ClassDefn *base_defn = nullptr;
+          if (const Extends *ext = defn->getExtends()) {
+            if (const RefTypespec *rt = ext->getClassTypespec()) {
+              if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
+                base_defn = tp->getClassDefn();
+              }
+            }
+          }
+          defn = base_defn;
         }
-      }
-    } else if (ttps == UhdmType::ArrayVar) {
-      if (returnTypespec) {
+      } else if (returnTypespec) {
         if (RefTypespec *rt = var->getTypespec()) {
-          Any *res = rt->getActual();
-          if (lastElem) {
-            return res;
-          } else {
-            return hierarchicalSelector(select_path, level + 1, res,
-                                        invalidValue, inst, pexpr,
-                                        returnTypespec, muteError);
+          if (ArrayTypespec *const at = rt->getActual<ArrayTypespec>()) {
+            if (lastElem) {
+              return at;
+            } else {
+              return hierarchicalSelector(select_path, level + 1, at,
+                                          invalidValue, inst, pexpr,
+                                          returnTypespec, muteError);
+            }
           }
         }
       }
@@ -2377,27 +2353,24 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       }
     }
   } else if (IODecl *decl = any_cast<IODecl>(object)) {
-    if (const Any *exp = decl->getExpr()) {
-      UhdmType ttps = exp->getUhdmType();
-      if (ttps == UhdmType::StructVar) {
-        if (const RefTypespec *rt = ((StructVar *)exp)->getTypespec()) {
-          if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
-            for (TypespecMember *member : *stpt->getMembers()) {
-              if (member->getName() == elemName) {
-                if (returnTypespec) {
-                  if (RefTypespec *mrt = member->getTypespec()) {
-                    Any *res = mrt->getActual();
-                    if (lastElem) {
-                      return res;
-                    } else {
-                      return hierarchicalSelector(select_path, level + 1, res,
-                                                  invalidValue, inst, pexpr,
-                                                  returnTypespec, muteError);
-                    }
+    if (const Variable *exp = decl->getExpr<Variable>()) {
+      if (const RefTypespec *const rt = exp->getTypespec()) {
+        if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
+          for (TypespecMember *member : *stpt->getMembers()) {
+            if (member->getName() == elemName) {
+              if (returnTypespec) {
+                if (RefTypespec *mrt = member->getTypespec()) {
+                  Any *res = mrt->getActual();
+                  if (lastElem) {
+                    return res;
+                  } else {
+                    return hierarchicalSelector(select_path, level + 1, res,
+                                                invalidValue, inst, pexpr,
+                                                returnTypespec, muteError);
                   }
-                } else {
-                  return member->getDefaultValue();
                 }
+              } else {
+                return member->getDefaultValue();
               }
             }
           }
@@ -2429,7 +2402,7 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             const ClassDefn *defn = stpt->getClassDefn();
             while (defn) {
               if (defn->getVariables()) {
-                for (Variables *member : *defn->getVariables()) {
+                for (Variable *member : *defn->getVariables()) {
                   if (member->getName() == elemName) {
                     if (RefTypespec *mrt = member->getTypespec()) {
                       return mrt->getActual();
@@ -2571,7 +2544,7 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         }
         tmp->setRanges(tmpR);
         return tmp;
-      } 
+      }
     } else if (const ArrayTypespec *ltps = any_cast<ArrayTypespec>(object)) {
       if (const RefTypespec *rt = ltps->getElemTypespec()) {
         return (Typespec *)rt->getActual();
@@ -2853,10 +2826,16 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
         } else if (optype == UhdmType::BitSelect) {
         } else if (optype == UhdmType::HierPath) {
         } else if (optype == UhdmType::VarSelect) {
-        } else if (optype == UhdmType::EnumVar) {
         } else if (optype != UhdmType::Constant) {
           constantOperands = false;
           break;
+        } else if (optype == UhdmType::Variable) {
+          if (const RefTypespec *rt = any_cast<Variable>(oper)->getTypespec()) {
+            if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
+              constantOperands = false;
+              break;
+            }
+          }
         }
       }
       if (constantOperands) {
@@ -3987,14 +3966,18 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
             object = getValue(objname, inst, pexpr, muteError);
           }
           const Typespec *tps = nullptr;
-          if (any_cast<ArrayVar>(object)) {
-            // Size the object, not its Typespec
-          } else if (Expr *exp = any_cast<Expr>(object)) {
+          if (Expr *exp = any_cast<Expr>(object)) {
             if (RefTypespec *rt = exp->getTypespec()) {
               tps = rt->getActual();
             }
           } else if (Typespec *tp = any_cast<Typespec>(object)) {
             tps = tp;
+          }
+
+          if ((tps != nullptr) &&
+              (tps->getUhdmType() == UhdmType::ArrayTypespec)) {
+            // Size the object, not its Typespec
+            tps = nullptr;
           }
 
           if ((name == "$high") || (name == "$low") || (name == "$left") ||
@@ -4280,19 +4263,19 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
           object = tmp;
         }
         UhdmType otype = object->getUhdmType();
-        if (otype == UhdmType::PackedArrayVar) {
-          PackedArrayVar *array = (PackedArrayVar *)object;
-          AnyCollection *elems = array->getElements();
-          if (elems && index_val < elems->size()) {
-            Any *elem = elems->at(index_val);
-            if (elem->getUhdmType() == UhdmType::EnumVar ||
-                elem->getUhdmType() == UhdmType::StructVar ||
-                elem->getUhdmType() == UhdmType::UnionVar ||
-                elem->getUhdmType() == UhdmType::LogicVar) {
-            } else {
-              result = elems->at(index_val);
-            }
-          }
+        if (otype == UhdmType::Variable) {
+          // PackedArrayVar *array = (PackedArrayVar *)object;
+          // AnyCollection *elems = array->getElements();
+          // if (elems && index_val < elems->size()) {
+          //   Any *elem = elems->at(index_val);
+          //   if (elem->getUhdmType() == UhdmType::EnumVar ||
+          //       elem->getUhdmType() == UhdmType::StructVar ||
+          //       elem->getUhdmType() == UhdmType::UnionVar ||
+          //       elem->getUhdmType() == UhdmType::LogicVar) {
+          //   } else {
+          //     result = elems->at(index_val);
+          //   }
+          // }
         } else if (otype == UhdmType::ArrayExpr) {
           ArrayExpr *array = (ArrayExpr *)object;
           ExprCollection *elems = array->getExprs();
@@ -5353,7 +5336,7 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args,
   if (funcReturnTypespec == nullptr) {
     funcReturnTypespec = s.make<LogicTypespec>();
   }
-  LogicVar *var = s.make<LogicVar>();
+  Variable *var = s.make<Variable>();
   var->setName(name);
   RefTypespec *frtrt = s.make<RefTypespec>();
   frtrt->setParent(var);

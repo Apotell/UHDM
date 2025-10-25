@@ -146,9 +146,7 @@ void SynthSubset::leaveAny(const Any* object, vpiHandle handle) {
     case UhdmType::CaseProperty:
     case UhdmType::MulticlockSequenceExpr:
     case UhdmType::ClockedSeq:
-    case UhdmType::RealVar:
-    case UhdmType::TimeVar:
-    case UhdmType::ChandleVar:
+    case UhdmType::Variable:
     case UhdmType::CheckerPort:
     case UhdmType::CheckerInstPort:
     case UhdmType::SwitchTran:
@@ -165,7 +163,6 @@ void SynthSubset::leaveAny(const Any* object, vpiHandle handle) {
     case UhdmType::TchkTerm:
     case UhdmType::TimeNet:
     case UhdmType::NamedEvent:
-    case UhdmType::VirtualInterfaceVar:
     case UhdmType::Extends:
     case UhdmType::ClassDefn:
     case UhdmType::ClassObj:
@@ -294,8 +291,7 @@ void SynthSubset::removeFromVector(AnyCollection* vec, const Any* object) {
         const std::string_view name = object->getName();
         if (name == "$error" || name == "$finish" || name == "$display") {
           bool inInitialBLock = objectIsInitialBlock(object);
-          if (!inInitialBLock)
-            vec->push_back(makeStubDisplayStmt(object));
+          if (!inInitialBLock) vec->push_back(makeStubDisplayStmt(object));
         } else {
           vec->push_back(makeStubDisplayStmt(object));
         }
@@ -308,19 +304,19 @@ void SynthSubset::removeFromVector(AnyCollection* vec, const Any* object) {
 
 void SynthSubset::removeFromStmt(Any* parent, const Any* object) {
   if (parent->getUhdmType() == UhdmType::ForStmt) {
-    ForStmt* st = (ForStmt*) parent;
+    ForStmt* st = (ForStmt*)parent;
     st->setStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::IfStmt) {
-    IfStmt* st = (IfStmt*) parent;
+    IfStmt* st = (IfStmt*)parent;
     st->setStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::IfElse) {
-    IfElse* st = (IfElse*) parent;
+    IfElse* st = (IfElse*)parent;
     if (st->getStmt() && (st->getStmt() == object))
       st->setStmt(makeStubDisplayStmt(object));
     else if (st->getElseStmt() && (st->getElseStmt() == object))
-      st->setElseStmt(makeStubDisplayStmt(object)); 
+      st->setElseStmt(makeStubDisplayStmt(object));
   } else if (parent->getUhdmType() == UhdmType::Initial) {
-    Initial* st = (Initial*) parent;
+    Initial* st = (Initial*)parent;
     const std::string_view name = object->getName();
     if (name == "$error" || name == "$finish") {
       st->setStmt(makeStubDisplayStmt(object));
@@ -329,7 +325,7 @@ void SynthSubset::removeFromStmt(Any* parent, const Any* object) {
     } else {
       st->setStmt(makeStubDisplayStmt(object));
     }
-  } 
+  }
 }
 
 void SynthSubset::filterNonSynthesizable() {
@@ -341,7 +337,6 @@ void SynthSubset::filterNonSynthesizable() {
   }
 }
 
-
 void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
                                    vpiHandle handle) {
   const std::string_view name = object->getName();
@@ -349,33 +344,33 @@ void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
     reportError(object);
     const Any* parent = object->getParent();
     if (parent->getUhdmType() == UhdmType::Begin) {
-      Begin* st = (Begin*) parent;
+      Begin* st = (Begin*)parent;
       if (st->getStmts()) {
         m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(), object);
       }
     } else if (parent->getUhdmType() == UhdmType::ForStmt) {
-      ForStmt* st = (ForStmt*) parent;
+      ForStmt* st = (ForStmt*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::IfStmt) {
-      IfStmt* st = (IfStmt*) parent;
+      IfStmt* st = (IfStmt*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::IfElse) {
-      IfElse* st = (IfElse*) parent;
+      IfElse* st = (IfElse*)parent;
       if (st->getStmt() && (st->getStmt() == object)) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       } else if (st->getElseStmt() && (st->getElseStmt() == object)) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
     } else if (parent->getUhdmType() == UhdmType::Initial) {
-      Initial* st = (Initial*) parent;
+      Initial* st = (Initial*)parent;
       if (st->getStmt()) {
         m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
       }
-    } 
+    }
   }
   // Filter out sys func calls stmt from initial block
   if (name == "$error" || name == "$finish" || name == "$display") {
@@ -383,12 +378,13 @@ void SynthSubset::leaveSysFuncCall(const SysFuncCall* object,
     if (inInitialBlock) {
       const Any* parent = object->getParent();
       if (parent->getUhdmType() == UhdmType::Begin) {
-        Begin* st = (Begin*) parent;
+        Begin* st = (Begin*)parent;
         if (st->getStmts()) {
-          m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(), object);
+          m_scheduledFilteredObjectsInVector.emplace_back(st->getStmts(),
+                                                          object);
         }
       } else if (parent->getUhdmType() == UhdmType::Initial) {
-        Initial* st = (Initial*) parent;
+        Initial* st = (Initial*)parent;
         if (st->getStmt()) {
           m_scheduledFilteredObjectsInStmt.emplace_back(st, object);
         }
@@ -405,7 +401,7 @@ void SynthSubset::leaveClassTypespec(const ClassTypespec* object,
     reportError(object);
 }
 
-void SynthSubset::leaveClassVar(const ClassVar* object, vpiHandle handle) {
+void SynthSubset::leaveVariable(const Variable* object, vpiHandle handle) {
   if (const RefTypespec* rt = object->getTypespec()) {
     if (const ClassTypespec* spec = rt->getActual<ClassTypespec>()) {
       if (const ClassDefn* def = spec->getClassDefn()) {
@@ -611,19 +607,14 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
   bool signedLowConn = false;
   if (const Any* lc = object->getLowConn()) {
     if (const RefObj* ref = any_cast<RefObj>(lc)) {
-      if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::LogicVar) {
-          LogicVar* var = (LogicVar*)actual;
-          if (var->getSigned()) {
-            signedLowConn = true;
+      if (const Variable* const actual = ref->getActual<Variable>()) {
+        if (const RefTypespec* const rt = actual->getTypespec()) {
+          if (const LogicTypespec* const lt = rt->getActual<LogicTypespec>()) {
+            if (actual->getSigned()) signedLowConn = true;
           }
         }
-        if (actual->getUhdmType() == UhdmType::LogicNet) {
-          LogicNet* var = (LogicNet*)actual;
-          if (var->getSigned()) {
-            signedLowConn = true;
-          }
-        }
+      } else if (const LogicNet *const actual = ref->getActual<LogicNet>()) {
+        if (actual->getSigned()) signedLowConn = true;
       }
     }
   }
@@ -634,30 +625,23 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
   if (const Any* hc = object->getHighConn()) {
     if (const RefObj* ref = any_cast<RefObj>(hc)) {
       reportObject = ref;
-      if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::LogicVar) {
-          LogicVar* var = (LogicVar*)actual;
-          if (var->getSigned()) {
-            highConnSignal = actual->getName();
-            var->setSigned(false);
-            if (const RefTypespec* tps = var->getTypespec()) {
-              if (const LogicTypespec* ltps =
-                      any_cast<LogicTypespec>(tps->getActual())) {
-                ((LogicTypespec*)ltps)->setSigned(false);
-              }
+      if (const Variable* actual = ref->getActual<Variable>()) {
+        if (actual->getSigned()) {
+          highConnSignal = actual->getName();
+          const_cast<Variable*>(actual)->setSigned(false);
+          if (const RefTypespec* tps = actual->getTypespec()) {
+            if (const LogicTypespec* ltps = tps->getActual<LogicTypespec>()) {
+              ((LogicTypespec*)ltps)->setSigned(false);
             }
           }
         }
-        if (actual->getUhdmType() == UhdmType::LogicNet) {
-          LogicNet* var = (LogicNet*)actual;
-          if (var->getSigned()) {
-            highConnSignal = actual->getName();
-            var->setSigned(false);
-            if (const RefTypespec* tps = var->getTypespec()) {
-              if (const LogicTypespec* ltps =
-                      any_cast<LogicTypespec>(tps->getActual())) {
-                ((LogicTypespec*)ltps)->setSigned(false);
-              }
+      } else if (const LogicNet* const actual = ref->getActual<LogicNet>()) {
+        if (actual->getSigned()) {
+          highConnSignal = actual->getName();
+          const_cast<LogicNet*>(actual)->setSigned(false);
+          if (const RefTypespec* tps = actual->getTypespec()) {
+            if (const LogicTypespec* ltps = tps->getActual<LogicTypespec>()) {
+              ((LogicTypespec*)ltps)->setSigned(false);
             }
           }
         }
@@ -678,7 +662,8 @@ void SynthSubset::leaveAlways(const Always* object, vpiHandle handle) {
 
 // Transform 3 vars sensitivity list into 2 vars sensitivity list because of a
 // Yosys limitation
-void SynthSubset::sensitivityListRewrite(const Always* object, vpiHandle handle) {
+void SynthSubset::sensitivityListRewrite(const Always* object,
+                                         vpiHandle handle) {
   // Transform: always @ (posedge clk or posedge rst or posedge start)
   //              if (rst | start) ...
   // Into:
@@ -812,9 +797,10 @@ void SynthSubset::sensitivityListRewrite(const Always* object, vpiHandle handle)
   }
 }
 
-void collectAssignmentStmt(const Any* stmt, std::vector<const Assignment*>& blocking_assigns, std::vector<const Assignment*>& nonblocking_assigns) {
-  if (stmt == nullptr)
-    return;
+void collectAssignmentStmt(
+    const Any* stmt, std::vector<const Assignment*>& blocking_assigns,
+    std::vector<const Assignment*>& nonblocking_assigns) {
+  if (stmt == nullptr) return;
   UhdmType stmt_type = stmt->getUhdmType();
   switch (stmt_type) {
     case UhdmType::Begin: {
@@ -838,15 +824,15 @@ void collectAssignmentStmt(const Any* stmt, std::vector<const Assignment*>& bloc
       break;
     }
     case UhdmType::CaseStmt: {
-      //VectorOfcase_item* items = any_cast<case_stmt*>(stmt)->Case_items();
-      // TODO
+      // VectorOfcase_item* items = any_cast<case_stmt*>(stmt)->Case_items();
+      //  TODO
       break;
     }
     case UhdmType::Assignment: {
       const Assignment* as = any_cast<Assignment*>(stmt);
       if (as->getBlocking()) {
         blocking_assigns.push_back(as);
-      } else { 
+      } else {
         nonblocking_assigns.push_back(as);
       }
       break;
@@ -871,42 +857,44 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
       // Collect all the blocking and non blocking assignments
       std::vector<const Assignment*> blocking_assigns;
       std::vector<const Assignment*> nonblocking_assigns;
-      collectAssignmentStmt(ec->getStmt(), blocking_assigns, nonblocking_assigns);
+      collectAssignmentStmt(ec->getStmt(), blocking_assigns,
+                            nonblocking_assigns);
       // Identify a potential RAM in the LHSs
       std::string ram_name;
       // 1) It has to be a LHS of a blocking assignment to be a candidate
-      for (const Assignment* stmt : blocking_assigns) {
-        const Expr* lhs = stmt->getLhs();
-        // LHS assigns to a bit select 
-        // RAM[addr] = ...
-        if (lhs->getUhdmType() == UhdmType::BitSelect) {
-          // The actual has to be an array_net with 2 dimensions (packed and unpacked):
-          const BitSelect* bs = any_cast<BitSelect*>(lhs);
-          const Any* actual = bs->getActual();
-          if (actual && (actual->getUhdmType() == UhdmType::ArrayNet)) {
-            const ArrayNet* arr_net = any_cast<ArrayNet*>(actual);
-            if (arr_net->getRanges()) { // Unpacked dimension
-              if (NetCollection* nets = arr_net->getNets()) {
-                if (nets->size()) {
-                  Net* n = nets->at(0);
-                  RefTypespec* reft = n->getTypespec();
-                  Typespec* tps = reft->getActual();
-                  bool has_packed_dimm = false; // Packed dimension
-                  if (tps->getUhdmType() == UhdmType::LogicTypespec) {
-                    LogicTypespec* ltps = any_cast<LogicTypespec>(tps);
-                    if (ltps->getRanges()) {
-                      has_packed_dimm = true;
-                    }
-                  }
-                  if (has_packed_dimm) {
-                    ram_name = lhs->getName();
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      // for (const Assignment* stmt : blocking_assigns) {
+      //   const Expr* lhs = stmt->getLhs();
+      //   // LHS assigns to a bit select
+      //   // RAM[addr] = ...
+      //   if (lhs->getUhdmType() == UhdmType::BitSelect) {
+      //     // The actual has to be an array_net with 2 dimensions (packed and
+      //     // unpacked):
+      //     const BitSelect* bs = any_cast<BitSelect*>(lhs);
+      //     const Any* actual = bs->getActual();
+      //     if (actual && (actual->getUhdmType() == UhdmType::ArrayNet)) {
+      //       const ArrayNet* arr_net = any_cast<ArrayNet*>(actual);
+      //       if (arr_net->getRanges()) {  // Unpacked dimension
+      //         if (NetCollection* nets = arr_net->getNets()) {
+      //           if (nets->size()) {
+      //             Net* n = nets->at(0);
+      //             RefTypespec* reft = n->getTypespec();
+      //             Typespec* tps = reft->getActual();
+      //             bool has_packed_dimm = false;  // Packed dimension
+      //             if (tps->getUhdmType() == UhdmType::LogicTypespec) {
+      //               LogicTypespec* ltps = any_cast<LogicTypespec>(tps);
+      //               if (ltps->getRanges()) {
+      //                 has_packed_dimm = true;
+      //               }
+      //             }
+      //             if (has_packed_dimm) {
+      //               ram_name = lhs->getName();
+      //             }
+      //           }
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
       // 2) It cannot be a LHS of a non blocking assignment
       for (const Assignment* stmt : nonblocking_assigns) {
         const Expr* lhs = stmt->getLhs();
@@ -915,7 +903,8 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
           ram_name = "";
         }
       }
-      // 3) Check that it is referenced in RHS of blocking assignments exactly once, and assigned exactly once
+      // 3) Check that it is referenced in RHS of blocking assignments exactly
+      // once, and assigned exactly once
       int countAssignments = 0;
       int countUsages = 0;
       if (!ram_name.empty()) {
@@ -930,41 +919,17 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
           }
         }
       }
-      if ((countUsages == 1) && (countAssignments == 1)) { 
-        // Match all the criteria: Convert all blocking assignments writing or reading the ram to non blocking
+      if ((countUsages == 1) && (countAssignments == 1)) {
+        // Match all the criteria: Convert all blocking assignments writing or
+        // reading the ram to non blocking
         for (const Assignment* stmt : blocking_assigns) {
           const Expr* lhs = stmt->getLhs();
           const Any* rhs = stmt->getRhs();
-          if ((lhs && lhs->getName() == ram_name) || (rhs && rhs->getName() == ram_name)) {
+          if ((lhs && lhs->getName() == ram_name) ||
+              (rhs && rhs->getName() == ram_name)) {
             ((Assignment*)stmt)->setBlocking(false);
           }
         }
-      }
-    }
-  }
-}
-
-void SynthSubset::leaveArrayVar(const ArrayVar* object, vpiHandle handle) {
-  VariablesCollection* vars = object->getVariables();
-  if (!vars) return;
-  if (vars->empty()) return;
-  Variables* var = vars->at(0);
-  const RefTypespec* ref_tps = var->getTypespec();
-  if (!ref_tps) return;
-  const Typespec* tps = ref_tps->getActual();
-  if (tps->getUhdmType() == UhdmType::LogicTypespec) {
-    LogicTypespec* ltps = (LogicTypespec*)tps;
-    if ((tps->getName().empty())) {
-      if (ltps->getRanges() && ltps->getRanges()->size() == 1) {
-        ((ArrayVar*)object)->setTypespec((RefTypespec*)ref_tps);
-      }
-    } else {
-      if (ltps->getRanges() && ltps->getRanges()->size() == 1) {
-        ElaboratorContext elaboratorContext(m_serializer);
-        LogicTypespec* clone =
-            (LogicTypespec*)clone_tree(ltps, &elaboratorContext);
-        ((RefTypespec*)ref_tps)->setActual(clone);
-        ((ArrayVar*)object)->setTypespec((RefTypespec*)ref_tps);
       }
     }
   }

@@ -15,5 +15,5 @@
 # Universal Hardware Data Model (UHDM) "variables operation group" formal description
 
 - group_def: variables_operation_group
-- class_ref: variables
 - obj_ref: operation
+- obj_ref: variable

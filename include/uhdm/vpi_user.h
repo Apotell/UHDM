@@ -252,7 +252,7 @@ typedef PLI_UINT32 *vpiHandle;
 #define vpiOperand            97   /* operand of expression */
 #define vpiPortInst           98   /* connected port instance */
 #define vpiProcess            99   /* process in module, program or interface */
-#define vpiVariables         100   /* variables in module */
+#define vpiVariable          100   /* variables in module */
 #define vpiUse               101   /* usage */
 
 /******** methods which can traverse 1 to 1, or 1 to many relationships *******/

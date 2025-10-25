@@ -27,9 +27,9 @@
   vpi: vpiAttribute
   type: attribute
   card: any
-- class_ref: variables
-  vpi: vpiVariables
-  type: variables
+- obj_ref: variable
+  vpi: vpiVariable
+  type: variable
   card: any
 - group_ref: expr
   vpi: vpiExpr

@@ -29,7 +29,7 @@
   card: 1
 - obj_ref: gen_var
   vpi: vpiGenVar
-  type: gen_var
+  type: variable
   card: 1
 - obj_ref: gen_scope
   vpi: vpiGenScope

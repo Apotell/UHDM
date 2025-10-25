@@ -35,10 +35,14 @@ namespace uhdm {
 
 void UhdmLint::leaveBitSelect(const BitSelect* object, vpiHandle handle) {
   if (const RefObj* index = object->getIndex<RefObj>()) {
-    if (const RealVar* actual = index->getActual<RealVar>()) {
-      const std::string errMsg(actual->getName());
-      m_serializer->getErrorHandler()(ErrorType::UHDM_REAL_TYPE_AS_SELECT,
-                                      errMsg, index, nullptr);
+    if (const Variable* const actual = index->getActual<Variable>()) {
+      if (const RefTypespec* const rt = actual->getTypespec()) {
+        if (rt->getActual<RealTypespec>() != nullptr) {
+          const std::string errMsg(actual->getName());
+          m_serializer->getErrorHandler()(ErrorType::UHDM_REAL_TYPE_AS_SELECT,
+                                          errMsg, index, nullptr);
+        }
+      }
     }
   }
 }
@@ -344,11 +348,15 @@ void UhdmLint::leavePort(const Port* object, vpiHandle handle) {
     if (const RefObj* ref = any_cast<const RefObj*>(hc)) {
       reportObject = ref;
       if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::LogicVar) {
-          LogicVar* var = (LogicVar*)actual;
-          highConn = true;
-          if (var->getSigned()) {
-            signedHighConn = true;
+        if (actual->getUhdmType() == UhdmType::Variable) {
+          Variable* var = (Variable*)actual;
+          if (const RefTypespec* const rt = var->getTypespec()) {
+            if (rt->getActual<LogicTypespec>() != nullptr) {
+              highConn = true;
+              if (var->getSigned()) {
+                signedHighConn = true;
+              }
+            }
           }
         }
         if (actual->getUhdmType() == UhdmType::LogicNet) {
@@ -364,10 +372,14 @@ void UhdmLint::leavePort(const Port* object, vpiHandle handle) {
   if (const Any* lc = object->getLowConn()) {
     if (const RefObj* ref = any_cast<const RefObj*>(lc)) {
       if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::LogicVar) {
-          LogicVar* var = (LogicVar*)actual;
-          if (var->getSigned()) {
-            signedLowConn = true;
+        if (actual->getUhdmType() == UhdmType::Variable) {
+          Variable* var = (Variable*)actual;
+          if (const RefTypespec* const rt = var->getTypespec()) {
+            if (rt->getActual<LogicTypespec>() != nullptr) {
+              if (var->getSigned()) {
+                signedLowConn = true;
+              }
+            }
           }
         }
         if (actual->getUhdmType() == UhdmType::LogicNet) {

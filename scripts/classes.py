@@ -6,19 +6,16 @@ import file_utils
 _collector_class_types = {
     'Scope': set([
         ( 'array_net', 'InstanceItems' ),
-        ( 'array_var', 'RegArrays' ),
         ( 'assert_stmt', 'InstanceItems' ),
         ( 'assume', 'InstanceItems' ),
         ( 'checker_inst', 'InstanceItems' ),
         ( 'class_defn', 'InstanceItems' ),
         ( 'concurrent_assertions', 'ConcurrentAssertions' ),
         ( 'cover', 'InstanceItems' ),
-        ( 'gen_var', 'GenVars' ),
         ( 'immediate_assert', 'InstanceItems' ),
         ( 'immediate_assume', 'InstanceItems' ),
         ( 'immediate_cover', 'InstanceItems' ),
         ( 'let_decl', 'LetDecls' ),
-        ( 'logic_var', 'Regs' ),
         ( 'named_event', 'InstanceItems' ),
         ( 'named_event', 'NamedEvents' ),
         ( 'named_event_array', 'InstanceItems' ),
@@ -39,9 +36,8 @@ _collector_class_types = {
         ( 'type_parameter', 'Parameters' ),
         ( 'typespec', 'InstanceItems' ),
         ( 'typespec', 'Typespecs' ),
-        ( 'variables', 'InstanceItems' ),
-        ( 'variables', 'Variables' ),
-        ( 'virtual_interface_var', 'VirtualInterfaceVars' ),
+        ( 'variable', 'InstanceItems' ),
+        ( 'variable', 'Variables' ),
     ]),
     'UdpDefn': set([
         ( 'io_decl', 'IODecls' ),
@@ -187,7 +183,7 @@ _special_parenting_types = set([
     'Tchk',
     'Thread',
     'Typespec',
-    'Variables',
+    'Variable',
 ])
 
 
@@ -448,11 +444,11 @@ def _get_deepClone_implementation(model, models):
                     content.append( '  }')
 
                 elif (ClassName == 'IntTypespec') and (varName == 'castToExpr'):
-                    includes.add('variables')
+                    includes.add('variable')
                     content.append(f'  clone->m_{varName} = m_{varName};')
 
                 elif (ClassName == 'Function') and (varName == 'return'):
-                    includes.add('variables')
+                    includes.add('variable')
                     content.append(f'  clone->m_{varName} = m_{varName};')
 
                 elif (ClassName == 'ClassTypespec') and (varName == 'Class_defn'):
@@ -1088,7 +1084,6 @@ def _generate_one_class(model, models, templates):
     header_file_content = header_file_content.replace('<PRIVATE_METHODS>', '\n\n'.join(private_declarations))
     header_file_content = header_file_content.replace('<MEMBERS>', '\n'.join(data_members))
     header_file_content = header_file_content.replace('<GROUP_HEADER_DEPENDENCY>', '\n'.join(f'#include <uhdm/{include}.h>' for include in sorted(group_headers)))
-    header_file_content = header_file_content.replace('<TYPE_FORWARD_DECLARE>', '\n'.join([f'class {type};' for type in sorted(forward_declares)]))
 
     source_file_content = source_file_content.replace('<CLASSNAME>', ClassName)
     source_file_content = source_file_content.replace('<CLASSNAME_HEADER>', classname)

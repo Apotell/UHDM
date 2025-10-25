@@ -43,29 +43,9 @@
   vpi: vpiNamedEventArray
   type: named_event_array
   card: any
-- class_ref: variables
-  vpi: vpiVariables
-  type: variables
-  card: any
-- obj_ref: virtual_interface_var
-  vpi: vpiVirtualInterfaceVar
-  type: virtual_interface_var
-  card: any
-- obj_ref: reg
-  vpi: vpiReg
-  type: logic_var
-  card: any
-- obj_ref: reg_array
-  vpi: vpiRegArray
-  type: array_var
-  card: any
-- obj_ref: memory
-  vpi: vpiMemory
-  type: array_var
-  card: any
-- obj_ref: gen_var
-  vpi: vpiGenVar
-  type: gen_var
+- obj_ref: variable
+  vpi: vpiVariable
+  type: variable
   card: any
 - group_ref: parameter
   vpi: vpiParameter

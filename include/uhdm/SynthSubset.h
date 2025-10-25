@@ -56,7 +56,8 @@ class SynthSubset final : public VpiListener {
   void leaveClassTypespec(const ClassTypespec* object,
                           vpiHandle handle) override;
 
-  void leaveClassVar(const ClassVar* object, vpiHandle handle) override;
+  // Typespec substitution to allow Yosys to perform RAM  Inference
+  void leaveVariable(const Variable* object, vpiHandle handle) override;
 
   // Apply some rewrite rule for Yosys limitations
   void leaveForStmt(const ForStmt* object, vpiHandle handle) override;
@@ -69,9 +70,6 @@ class SynthSubset final : public VpiListener {
 
   // Signed/Unsigned port transform to allow Yosys to Synthesize
   void leavePort(const Port* object, vpiHandle handle) override;
-
-  // Typespec substitution to allow Yosys to perform RAM  Inference
-  void leaveArrayVar(const ArrayVar* object, vpiHandle handle) override;
 
   // Remove Typespec information on allModules to allow Yosys to perform RAM
   // Inference

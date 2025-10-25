@@ -16,9 +16,9 @@
 
 - obj_def: constr_foreach
 - extends: constraint_expr
-- class_ref: variables
-  vpi: vpiVariables
-  type: variables
+- obj_ref: variable
+  vpi: vpiVariable
+  type: variable
   card: 1
 - group_ref: loop_vars
   vpi: vpiLoopVars

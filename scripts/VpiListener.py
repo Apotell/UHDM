@@ -54,12 +54,13 @@ def generate(models):
     if modeltype == 'group_def':
       continue
 
-    classname = config.make_class_name(model['name'])
+    classname = model['name']
+    ClassName = config.make_class_name(classname)
     baseclass = model.get('extends') or 'BaseClass'
 
     if model.get('subclasses') or modeltype == 'obj_def':
-      private_declarations.append(f'  void listen{classname}_(vpiHandle handle);')
-      private_implementations.append(f'void VpiListener::listen{classname}_(vpiHandle handle) {{')
+      private_declarations.append(f'  void listen{ClassName}_(vpiHandle handle);')
+      private_implementations.append(f'void VpiListener::listen{ClassName}_(vpiHandle handle) {{')
       if baseclass:
         BaseClass = config.make_class_name(baseclass)
         private_implementations.append(f'  listen{BaseClass}_(handle);')
@@ -73,23 +74,23 @@ def generate(models):
           if key == 'group_ref':
             type = 'any'
 
-          private_implementations.extend(_get_listeners(classname, vpi, type, card))
+          private_implementations.extend(_get_listeners(ClassName, vpi, type, card))
 
       private_implementations.append( '}')
       private_implementations.append( '')
 
     if modeltype != 'class_def':
-      classnames.add(classname)
+      classnames.add(ClassName)
 
-      public_implementations.append(f'void VpiListener::listen{classname}(vpiHandle handle) {{')
-      public_implementations.append(f'  const {classname}* object = (const {classname}*) ((const uhdm_handle*)handle)->object;')
-      public_implementations.append(f'  enter{classname}(object, handle);')
+      public_implementations.append(f'void VpiListener::listen{ClassName}(vpiHandle handle) {{')
+      public_implementations.append(f'  const {ClassName}* object = (const {ClassName}*) ((const uhdm_handle*)handle)->object;')
+      public_implementations.append(f'  enter{ClassName}(object, handle);')
       public_implementations.append( '  if (m_visited.insert(object).second) {')
       public_implementations.append( '    m_callstack.emplace_back(object);')
-      public_implementations.append(f'    listen{classname}_(handle);')
+      public_implementations.append(f'    listen{ClassName}_(handle);')
       public_implementations.append( '    m_callstack.pop_back();')
       public_implementations.append( '  }')
-      public_implementations.append(f'  leave{classname}(object, handle);')
+      public_implementations.append(f'  leave{ClassName}(object, handle);')
       public_implementations.append(f'}}')
       public_implementations.append( '')
 

@@ -67,10 +67,12 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
       }
       break;
     }
-    case UhdmType::ClassVar: {
-      ClassVar* var = (ClassVar*)target;
-      if (const RefTypespec* rt = var->getTypespec()) {
-        propagateParamAssign(pass, rt->getActual());
+    case UhdmType::Variable: {
+      Variable* var = (Variable*)target;
+      if (const RefTypespec* const rt = var->getTypespec()) {
+        if (const ClassTypespec* const ct = rt->getActual<ClassTypespec>()) {
+          propagateParamAssign(pass, ct);
+        }
       }
       break;
     }
@@ -104,16 +106,16 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
   }
 }
 
-void ElaboratorListener::enterVariables(const Variables* object,
-                                        vpiHandle handle) {
-  if (object->getUhdmType() == UhdmType::ClassVar) {
-    if (!m_inHierarchy)
-      return;  // Only do class var propagation while in elaboration
-    const ClassVar* cv = (ClassVar*)object;
-    ClassVar* const rw_cv = (ClassVar*)cv;
-    if (const RefTypespec* tps = cv->getTypespec()) {
-      RefTypespec* ctps = tps->deepClone(rw_cv, m_context);
-      rw_cv->setTypespec(ctps);
+void ElaboratorListener::enterVariable(const Variable* object,
+                                       vpiHandle handle) {
+  if (const RefTypespec* const rt = object->getTypespec()) {
+    if (const ClassTypespec* const ct = rt->getActual<ClassTypespec>()) {
+      if (!m_inHierarchy)
+        return;  // Only do class var propagation while in elaboration
+
+      Variable* const var = (Variable*)object;
+      RefTypespec* ctps = rt->deepClone(var, m_context);
+      var->setTypespec(ctps);
       if (const ClassTypespec* cctps = ctps->getActual<ClassTypespec>()) {
         if (ParamAssignCollection* params = cctps->getParamAssigns()) {
           for (ParamAssign* pass : *params) {
@@ -122,12 +124,6 @@ void ElaboratorListener::enterVariables(const Variables* object,
         }
       }
     }
-  }
-}
-
-void ElaboratorListener::enterAny(const Any* object, vpiHandle handle) {
-  if (const Variables* const var = any_cast<Variables>(object)) {
-    enterVariables(var, handle);
   }
 }
 
@@ -173,18 +169,15 @@ void ElaboratorListener::enterModule(const Module* object, vpiHandle handle) {
     }
 
     if (object->getVariables()) {
-      for (Variables* var : *object->getVariables()) {
+      for (Variable* var : *object->getVariables()) {
         if (!var->getName().empty()) {
           netMap.emplace(var->getName(), var);
         }
-        if (var->getUhdmType() == UhdmType::EnumVar) {
-          EnumVar* evar = (EnumVar*)var;
-          if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
-              for (auto c : *etps->getEnumConsts()) {
-                if (!c->getName().empty()) {
-                  netMap.emplace(c->getName(), c);
-                }
+        if (const RefTypespec* rt = var->getTypespec()) {
+          if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
+            for (auto c : *etps->getEnumConsts()) {
+              if (!c->getName().empty()) {
+                netMap.emplace(c->getName(), c);
               }
             }
           }
@@ -445,27 +438,16 @@ void ElaboratorListener::leaveModule(const Module* object, vpiHandle handle) {
 
 void ElaboratorListener::enterPackage(const Package* object, vpiHandle handle) {
   ComponentMap netMap;
-
-  if (object->getRegArrays()) {
-    for (Variables* var : *object->getRegArrays()) {
-      if (!var->getName().empty()) {
-        netMap.emplace(var->getName(), var);
-      }
-    }
-  }
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         netMap.emplace(var->getName(), var);
       }
-      if (var->getUhdmType() == UhdmType::EnumVar) {
-        EnumVar* evar = (EnumVar*)var;
-        if (const RefTypespec* rt = evar->getTypespec()) {
-          if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
-            for (auto c : *etps->getEnumConsts()) {
-              if (!c->getName().empty()) {
-                netMap.emplace(c->getName(), c);
-              }
+      if (const RefTypespec* rt = var->getTypespec()) {
+        if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
+          for (auto c : *etps->getEnumConsts()) {
+            if (!c->getName().empty()) {
+              netMap.emplace(c->getName(), c);
             }
           }
         }
@@ -536,18 +518,15 @@ void ElaboratorListener::enterClassDefn(const ClassDefn* object,
   while (defn != nullptr) {
     // Collect instance elaborated nets
     if (defn->getVariables()) {
-      for (Variables* var : *defn->getVariables()) {
+      for (Variable* var : *defn->getVariables()) {
         if (!var->getName().empty()) {
           varMap.emplace(var->getName(), var);
         }
-        if (var->getUhdmType() == UhdmType::EnumVar) {
-          EnumVar* evar = (EnumVar*)var;
-          if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
-              for (auto c : *etps->getEnumConsts()) {
-                if (!c->getName().empty()) {
-                  varMap.emplace(c->getName(), c);
-                }
+        if (const RefTypespec* rt = var->getTypespec()) {
+          if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
+            for (auto c : *etps->getEnumConsts()) {
+              if (!c->getName().empty()) {
+                varMap.emplace(c->getName(), c);
               }
             }
           }
@@ -615,7 +594,7 @@ void ElaboratorListener::elabClassDefn(const ClassDefn* object,
 void ElaboratorListener::bindScheduledTaskFunc() {
   for (auto& call_prefix : m_scheduledTfCallBinding) {
     TFCall* call = call_prefix.first;
-    const ClassVar* prefix = call_prefix.second;
+    const Variable* prefix = call_prefix.second;
     if (call->getUhdmType() == UhdmType::FuncCall) {
       if (Function* f =
               any_cast<Function*>(bindTaskFunc(call->getName(), prefix))) {
@@ -685,18 +664,15 @@ void ElaboratorListener::enterInterface(const Interface* object,
     }
 
     if (object->getVariables()) {
-      for (Variables* var : *object->getVariables()) {
+      for (Variable* var : *object->getVariables()) {
         if (!var->getName().empty()) {
           netMap.emplace(var->getName(), var);
         }
-        if (var->getUhdmType() == UhdmType::EnumVar) {
-          EnumVar* evar = (EnumVar*)var;
-          if (const RefTypespec* rt = evar->getTypespec()) {
-            if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
-              for (auto c : *etps->getEnumConsts()) {
-                if (!c->getName().empty()) {
-                  netMap.emplace(c->getName(), c);
-                }
+        if (const RefTypespec* rt = var->getTypespec()) {
+          if (const EnumTypespec* etps = rt->getActual<EnumTypespec>()) {
+            for (auto c : *etps->getEnumConsts()) {
+              if (!c->getName().empty()) {
+                netMap.emplace(c->getName(), c);
               }
             }
           }
@@ -950,7 +926,7 @@ Any* ElaboratorListener::bindParam(std::string_view name) const {
 
 // Bind to a function or task in the current scope
 Any* ElaboratorListener::bindTaskFunc(std::string_view name,
-                                      const ClassVar* prefix) const {
+                                      const Variable* prefix) const {
   if (name.empty()) return nullptr;
   for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
        i != m_instStack.rend(); ++i) {
@@ -1007,9 +983,13 @@ bool ElaboratorListener::isFunctionCall(std::string_view name,
   }
   if (prefix) {
     if (const RefObj* ref = any_cast<RefObj>(prefix)) {
-      if (const ClassVar* vprefix = ref->getActual<ClassVar>()) {
-        if (const Any* func = bindTaskFunc(name, vprefix)) {
-          return (func->getUhdmType() == UhdmType::Function);
+      if (const Variable* vprefix = ref->getActual<Variable>()) {
+        if (const RefTypespec* const rt = vprefix->getTypespec()) {
+          if (rt->getActual<ClassTypespec>() != nullptr) {
+            if (const Any* func = bindTaskFunc(name, vprefix)) {
+              return (func->getUhdmType() == UhdmType::Function);
+            }
+          }
         }
       }
     }
@@ -1029,9 +1009,13 @@ bool ElaboratorListener::isTaskCall(std::string_view name,
   }
   if (prefix) {
     if (const RefObj* ref = any_cast<RefObj>(prefix)) {
-      if (const ClassVar* vprefix = ref->getActual<ClassVar>()) {
-        if (const Any* task = bindTaskFunc(name, vprefix)) {
-          return (task->getUhdmType() == UhdmType::Task);
+      if (const Variable* vprefix = ref->getActual<Variable>()) {
+        if (const RefTypespec* const rt = vprefix->getTypespec()) {
+          if (rt->getActual<ClassTypespec>() != nullptr) {
+            if (const Any* task = bindTaskFunc(name, vprefix)) {
+              return (task->getUhdmType() == UhdmType::Task);
+            }
+          }
         }
       }
     }
@@ -1044,7 +1028,7 @@ void ElaboratorListener::enterTaskFunc(const TaskFunc* object,
   // Collect instance elaborated nets
   ComponentMap varMap;
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         varMap.emplace(var->getName(), var);
       }
@@ -1101,15 +1085,8 @@ void ElaboratorListener::leaveTaskFunc(const TaskFunc* object,
 
 void ElaboratorListener::enterForStmt(const ForStmt* object, vpiHandle handle) {
   ComponentMap varMap;
-  if (object->getRegArrays()) {
-    for (Variables* var : *object->getRegArrays()) {
-      if (!var->getName().empty()) {
-        varMap.emplace(var->getName(), var);
-      }
-    }
-  }
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         varMap.emplace(var->getName(), var);
       }
@@ -1120,10 +1097,8 @@ void ElaboratorListener::enterForStmt(const ForStmt* object, vpiHandle handle) {
       if (stmt->getUhdmType() == UhdmType::Assignment) {
         Assignment* astmt = (Assignment*)stmt;
         const Any* lhs = astmt->getLhs();
-        if (lhs->getUhdmType() != UhdmType::RefVar) {
-          if (!lhs->getName().empty()) {
-            varMap.emplace(lhs->getName(), lhs);
-          }
+        if (!lhs->getName().empty()) {
+          varMap.emplace(lhs->getName(), lhs);
         }
       }
     }
@@ -1143,15 +1118,8 @@ void ElaboratorListener::leaveForStmt(const ForStmt* object, vpiHandle handle) {
 void ElaboratorListener::enterForeachStmt(const ForeachStmt* object,
                                           vpiHandle handle) {
   ComponentMap varMap;
-  if (object->getRegArrays()) {
-    for (Variables* var : *object->getRegArrays()) {
-      if (!var->getName().empty()) {
-        varMap.emplace(var->getName(), var);
-      }
-    }
-  }
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         varMap.emplace(var->getName(), var);
       }
@@ -1180,15 +1148,8 @@ void ElaboratorListener::leaveForeachStmt(const ForeachStmt* object,
 
 void ElaboratorListener::enterBegin(const Begin* object, vpiHandle handle) {
   ComponentMap varMap;
-  if (object->getRegArrays()) {
-    for (Variables* var : *object->getRegArrays()) {
-      if (!var->getName().empty()) {
-        varMap.emplace(var->getName(), var);
-      }
-    }
-  }
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         varMap.emplace(var->getName(), var);
       }
@@ -1210,15 +1171,8 @@ void ElaboratorListener::leaveBegin(const Begin* object, vpiHandle handle) {
 void ElaboratorListener::enterForkStmt(const ForkStmt* object,
                                        vpiHandle handle) {
   ComponentMap varMap;
-  if (object->getRegArrays()) {
-    for (Variables* var : *object->getRegArrays()) {
-      if (!var->getName().empty()) {
-        varMap.emplace(var->getName(), var);
-      }
-    }
-  }
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         varMap.emplace(var->getName(), var);
       }
@@ -1276,18 +1230,15 @@ void ElaboratorListener::enterGenScope(const GenScope* object,
   }
 
   if (object->getVariables()) {
-    for (Variables* var : *object->getVariables()) {
+    for (Variable* var : *object->getVariables()) {
       if (!var->getName().empty()) {
         netMap.emplace(var->getName(), var);
       }
-      if (var->getUhdmType() == UhdmType::EnumVar) {
-        EnumVar* evar = (EnumVar*)var;
-        if (const RefTypespec* rt = evar->getTypespec()) {
-          if (const EnumTypespec* etps = rt->getTypespec<EnumTypespec>()) {
-            for (auto c : *etps->getEnumConsts()) {
-              if (!c->getName().empty()) {
-                netMap.emplace(c->getName(), c);
-              }
+      if (const RefTypespec* rt = var->getTypespec()) {
+        if (const EnumTypespec* etps = rt->getTypespec<EnumTypespec>()) {
+          for (auto c : *etps->getEnumConsts()) {
+            if (!c->getName().empty()) {
+              netMap.emplace(c->getName(), c);
             }
           }
         }

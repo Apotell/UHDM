@@ -16,11 +16,3 @@
 
 - obj_def: array_net
 - extends: nets
-- obj_ref: range
-  vpi: vpiRange
-  type: range
-  card: any
-- class_ref: net
-  vpi: vpiNet
-  type: net
-  card: any

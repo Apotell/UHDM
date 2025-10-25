@@ -67,16 +67,14 @@ class ElaboratorListener final : public VpiListener {
 
   // Bind to a function or task in the current scope
   Any* bindTaskFunc(std::string_view name,
-                    const ClassVar* prefix = nullptr) const;
+                    const Variable* prefix = nullptr) const;
 
-  void scheduleTaskFuncBinding(TFCall* clone, const ClassVar* prefix) {
+  void scheduleTaskFuncBinding(TFCall* clone, const Variable* prefix) {
     m_scheduledTfCallBinding.emplace_back(clone, prefix);
   }
   void bindScheduledTaskFunc();
 
   using ComponentMap = std::map<std::string, const BaseClass*, std::less<>>;
-
-  void enterAny(const Any* object, vpiHandle handle) final;
 
   void leaveDesign(const Design* object, vpiHandle handle) final;
 
@@ -127,6 +125,8 @@ class ElaboratorListener final : public VpiListener {
   void leaveMethodFuncCall(const MethodFuncCall* object,
                            vpiHandle handle) final;
 
+  void enterVariable(const Variable* object, vpiHandle handle) final;
+
   void pushVar(Any* var);
   void popVar(Any* var);
 
@@ -134,8 +134,6 @@ class ElaboratorListener final : public VpiListener {
   explicit ElaboratorListener(Serializer* serializer, bool debug = false,
                               bool muteErrors = false)
       : m_serializer(serializer), m_debug(debug), m_muteErrors(muteErrors) {}
-
-  void enterVariables(const Variables* object, vpiHandle handle);
 
   void enterTaskFunc(const TaskFunc* object, vpiHandle handle);
   void leaveTaskFunc(const TaskFunc* object, vpiHandle handle);
@@ -157,7 +155,7 @@ class ElaboratorListener final : public VpiListener {
   bool m_uniquifyTypespec = true;
   bool m_clone = true;
   bool m_ignoreLastInstance = false;
-  std::vector<std::pair<TFCall*, const ClassVar*>> m_scheduledTfCallBinding;
+  std::vector<std::pair<TFCall*, const Variable*>> m_scheduledTfCallBinding;
 
   friend class ElaboratorContext;
 };

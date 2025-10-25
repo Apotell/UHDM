@@ -33,9 +33,9 @@
   vpi: vpiExtends
   type: ref_typespec
   card: 1
-- class_ref: variables
-  vpi: vpiVariables
-  type: variables
+- obj_ref: variable
+  vpi: vpiVariable
+  type: variable
   card: any
 - class_ref: method
   vpi: vpiMethod
@@ -55,7 +55,7 @@
   card: any
 - obj_ref: virtual_interface_var
   vpi: vpiVirtualInterfaceVar
-  type: virtual_interface_var
+  type: variable
   card: any
 - obj_ref: named_event
   vpi: vpiNamedEvent

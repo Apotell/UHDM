@@ -16,18 +16,6 @@
 
 - obj_def: packed_array_net
 - extends: net
-- property: packed_array_member
-  vpi: vpiPackedArrayMember
-  type: bool
-  card: 1
-- class_ref: left_expr
-  vpi: vpiLeftRange
-  type: expr
-  card: 1
-- class_ref: right_expr
-  vpi: vpiRightRange
-  type: expr
-  card: 1
 - obj_ref: range
   vpi: vpiRange
   type: range

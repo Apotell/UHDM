@@ -26,4 +26,4 @@
 - class_ref: gen_stmt
 - class_ref: process_stmt
 - obj_ref: param_assign
-- obj_ref: gen_var
+- obj_ref: variable

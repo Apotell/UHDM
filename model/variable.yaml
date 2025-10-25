@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Universal Hardware Data Model (UHDM) "variables" formal description
+# Universal Hardware Data Model (UHDM) "variable" formal description
 
-- class_def: variables
+- obj_def: variable
 - extends: simple_expr
 - property: array_member
   vpi: vpiArrayMember
@@ -116,3 +116,7 @@
   vpi: vpiIndex
   type: expr
   card: any
+- group_ref: actual
+  vpi: vpiActual
+  type: actual_group
+  card: 1

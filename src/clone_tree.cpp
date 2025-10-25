@@ -98,8 +98,8 @@ TFCall* MethodFuncCall::deepClone(BaseClass* parent,
     if (auto obj = getPrefix())
       clone->setPrefix(obj->deepClone(clone, context));
     const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
-    const ClassVar* varprefix = nullptr;
-    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
+    const Variable* varprefix = nullptr;
+    if (ref) varprefix = ref->getActual<Variable>();
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
     Any* pushedVar = nullptr;
     if (auto vec = getArguments()) {
@@ -125,20 +125,20 @@ TFCall* MethodFuncCall::deepClone(BaseClass* parent,
                   override = true;
                 }
                 if (override) {
-                  if (actual->getUhdmType() == UhdmType::ArrayVar) {
-                    ArrayVar* arr = (ArrayVar*)actual;
-                    if (arr->getVariables() && !arr->getVariables()->empty()) {
-                      Variables* var = arr->getVariables()->front();
-                      if (Variables* varclone =
-                              (Variables*)clone_tree(var, context)) {
-                        varclone->setName(obj->getName());
-                        varclone->setParent(obj->getParent());
-                        actual = varclone;
-                        elaboratorContext->m_elaborator.pushVar(varclone);
-                        pushedVar = varclone;
-                      }
-                    }
-                  }
+                  //if (actual->getUhdmType() == UhdmType::ArrayVar) {
+                  //  ArrayVar* arr = (ArrayVar*)actual;
+                  //  if (arr->getVariables() && !arr->getVariables()->empty()) {
+                  //    Variables* var = arr->getVariables()->front();
+                  //    if (Variables* varclone =
+                  //            (Variables*)clone_tree(var, context)) {
+                  //      varclone->setName(obj->getName());
+                  //      varclone->setParent(obj->getParent());
+                  //      actual = varclone;
+                  //      elaboratorContext->m_elaborator.pushVar(varclone);
+                  //      pushedVar = varclone;
+                  //    }
+                  //  }
+                  //}
                   refarg->setActual((Any*)actual);
                 }
               }
@@ -172,8 +172,8 @@ TFCall* MethodFuncCall::deepClone(BaseClass* parent,
     if (auto obj = getPrefix())
       clone->setPrefix(obj->deepClone(clone, context));
     const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
-    const ClassVar* varprefix = nullptr;
-    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
+    const Variable* varprefix = nullptr;
+    if (ref) varprefix = ref->getActual<Variable>();
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
     if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
     if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
@@ -247,8 +247,8 @@ TFCall* MethodTaskCall::deepClone(BaseClass* parent,
     if (auto obj = getPrefix())
       clone->setPrefix(obj->deepClone(clone, context));
     const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
-    const ClassVar* varprefix = nullptr;
-    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
+    const Variable* varprefix = nullptr;
+    if (ref) varprefix = ref->getActual<Variable>();
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
     if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
     if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
@@ -278,8 +278,8 @@ TFCall* MethodTaskCall::deepClone(BaseClass* parent,
     if (auto obj = getPrefix())
       clone->setPrefix(obj->deepClone(clone, context));
     const RefObj* ref = any_cast<RefObj>(clone->getPrefix());
-    const ClassVar* varprefix = nullptr;
-    if (ref) varprefix = any_cast<ClassVar>(ref->getActual());
+    const Variable* varprefix = nullptr;
+    if (ref) varprefix = ref->getActual<Variable>();
     elaboratorContext->m_elaborator.scheduleTaskFuncBinding(clone, varprefix);
     if (auto obj = getWith()) clone->setWith(obj->deepClone(clone, context));
     if (auto obj = getScope()) clone->setScope(obj->deepClone(clone, context));
@@ -519,34 +519,6 @@ Function* Function::deepClone(BaseClass* parent, CloneContext* context) const {
       clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = getVirtualInterfaceVars()) {
-    clone->setVirtualInterfaceVars(nullptr);
-    auto clone_vec = clone->getVirtualInterfaceVars(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getRegs()) {
-    clone->setRegs(nullptr);
-    auto clone_vec = clone->getRegs(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getRegArrays()) {
-    clone->setRegArrays(nullptr);
-    auto clone_vec = clone->getRegArrays(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getMemorys()) {
-    clone->setMemorys(nullptr);
-    auto clone_vec = clone->getMemorys(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
   if (auto vec = getParamAssigns()) {
     clone->setParamAssigns(nullptr);
     auto clone_vec = clone->getParamAssigns(true);
@@ -665,34 +637,6 @@ Task* Task::deepClone(BaseClass* parent, CloneContext* context) const {
       clone_vec->emplace_back(obj->deepClone(clone, context));
     }
   }
-  if (auto vec = getVirtualInterfaceVars()) {
-    clone->setVirtualInterfaceVars(nullptr);
-    auto clone_vec = clone->getVirtualInterfaceVars(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getRegs()) {
-    clone->setRegs(nullptr);
-    auto clone_vec = clone->getRegs(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getRegArrays()) {
-    clone->setRegArrays(nullptr);
-    auto clone_vec = clone->getRegArrays(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
-  if (auto vec = getMemorys()) {
-    clone->setMemorys(nullptr);
-    auto clone_vec = clone->getMemorys(true);
-    for (auto obj : *vec) {
-      clone_vec->emplace_back(obj->deepClone(clone, context));
-    }
-  }
   if (auto vec = getParamAssigns()) {
     clone->setParamAssigns(nullptr);
     auto clone_vec = clone->getParamAssigns(true);
@@ -772,9 +716,9 @@ ContAssign* ContAssign::deepClone(BaseClass* parent,
     }
     clone->setRhs(rhs);
     if (RefObj* ro = any_cast<RefObj>(lhs)) {
-      if (StructVar* stv = ro->getActual<StructVar>()) {
+      if (Variable* stv = ro->getActual<Variable>()) {
         if (RefTypespec* rt = stv->getTypespec()) {
-          if (Typespec* ts = rt->getActual()) {
+          if (StructTypespec* ts = rt->getActual<StructTypespec>()) {
             ExprEval eval(elaboratorContext->m_elaborator.muteErrors());
             if (Expr* res = eval.flattenPatternAssignments(
                     *context->m_serializer, ts, rhs)) {
@@ -805,7 +749,7 @@ Any* bindClassTypespec(ClassTypespec* ctps, Any* current, std::string_view name,
   const ClassDefn* defn = ctps->getClassDefn();
   while (defn) {
     if (defn->getVariables()) {
-      for (Variables* var : *defn->getVariables()) {
+      for (Variable* var : *defn->getVariables()) {
         if (var->getName() == name) {
           if (RefObj* ro = any_cast<RefObj>(current)) {
             ro->setActual(var);
@@ -1075,12 +1019,12 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 break;
               }
               case UhdmType::ArrayNet: {
-                ArrayNet* anet = (ArrayNet*)actual;
-                NetCollection* vars = anet->getNets();
-                if (vars && vars->size()) {
-                  actual = vars->at(0);
-                  actual_type = actual->getUhdmType();
-                }
+                //ArrayNet* anet = (ArrayNet*)actual;
+                //NetCollection* vars = anet->getNets();
+                //if (vars && vars->size()) {
+                //  actual = vars->at(0);
+                //  actual_type = actual->getUhdmType();
+                //}
                 if (name == "size" || name == "exists" || name == "find" ||
                     name == "max" || name == "min") {
                   FuncCall* call = context->m_serializer->make<FuncCall>();
@@ -1098,41 +1042,19 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 break;
               }
-              case UhdmType::ArrayVar:
-              case UhdmType::PackedArrayVar: {
+              case UhdmType::Variable: {
                 const Typespec* tps = nullptr;
-                if (actual_type == UhdmType::PackedArrayVar) {
-                  PackedArrayVar* avar = (PackedArrayVar*)actual;
-                  if (AnyCollection* vars = avar->getElements()) {
-                    if (!vars->empty()) {
-                      actual = vars->front();
-                      actual_type = actual->getUhdmType();
+                Variable* const avar = (Variable*)actual;
+                if (const RefTypespec* rt = avar->getTypespec()) {
+                  if (const PackedArrayTypespec* ptps =
+                          rt->getActual<PackedArrayTypespec>()) {
+                    if (const RefTypespec* ert = ptps->getElemTypespec()) {
+                      tps = ert->getActual();
                     }
-                  }
-                  if (const RefTypespec* rt = avar->getTypespec()) {
-                    tps = rt->getActual();
-                    if (const PackedArrayTypespec* ptps =
-                            rt->getActual<PackedArrayTypespec>()) {
-                      if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                        tps = ert->getActual();
-                      }
-                    }
-                  }
-                } else {
-                  ArrayVar* avar = (ArrayVar*)actual;
-                  if (VariablesCollection* vars = avar->getVariables()) {
-                    if (!vars->empty()) {
-                      actual = vars->front();
-                      actual_type = actual->getUhdmType();
-                    }
-                  }
-                  if (const RefTypespec* rt = avar->getTypespec()) {
-                    tps = rt->getActual();
-                    if (const ArrayTypespec* atps =
-                            rt->getActual<ArrayTypespec>()) {
-                      if (const RefTypespec* ert = atps->getElemTypespec()) {
-                        tps = ert->getActual();
-                      }
+                  } else if (const ArrayTypespec* atps =
+                                 rt->getActual<ArrayTypespec>()) {
+                    if (const RefTypespec* ert = atps->getElemTypespec()) {
+                      tps = ert->getActual();
                     }
                   }
                 }
@@ -1253,7 +1175,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
               case UhdmType::Module: {
                 Module* mod = (Module*)actual;
                 if (!found && mod->getVariables()) {
-                  for (Variables* var : *mod->getVariables()) {
+                  for (Variable* var : *mod->getVariables()) {
                     if (var->getName() == name) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
                         cro->setActual(var);
@@ -1335,10 +1257,10 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 break;
               }
-              case UhdmType::ClassVar: {
+              case UhdmType::Variable: {
                 const Typespec* tps = nullptr;
                 if (const RefTypespec* rt =
-                        ((ClassVar*)actual)->getTypespec()) {
+                        ((Variable*)actual)->getTypespec()) {
                   tps = rt->getActual();
                 }
                 if (tps == nullptr) break;
@@ -1367,61 +1289,61 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 break;
               }
-              case UhdmType::StructNet:
-              case UhdmType::StructVar: {
-                TypespecMemberCollection* members = nullptr;
-                if (actual->getUhdmType() == UhdmType::StructNet) {
-                  if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
-                    if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
-                      members = sts->getMembers();
-                    } else if (UnionTypespec* uts =
-                                   rt->getActual<UnionTypespec>()) {
-                      members = uts->getMembers();
-                    }
-                  }
-                } else if (actual->getUhdmType() == UhdmType::StructVar) {
-                  if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
-                    if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
-                      members = sts->getMembers();
-                    }
-                  }
-                }
-                if (members) {
-                  for (TypespecMember* member : *members) {
-                    if (member->getName() == name) {
-                      if (RefObj* cro = any_cast<RefObj>(current)) {
-                        cro->setActual(member);
-                      }
-                      previous = member;
-                      found = true;
-                      break;
-                    }
-                  }
-                }
-                break;
-              }
-              case UhdmType::UnionVar: {
-                UnionTypespec* stpt = nullptr;
-                if (RefTypespec* rt = ((UnionVar*)actual)->getTypespec()) {
-                  stpt = rt->getActual<UnionTypespec>();
-                }
-                if (stpt == nullptr) break;
-                for (TypespecMember* member : *stpt->getMembers()) {
-                  if (member->getName() == name) {
-                    if (RefObj* cro = any_cast<RefObj>(current)) {
-                      cro->setActual(member);
-                    }
-                    previous = member;
-                    found = true;
-                    break;
-                  }
-                }
-                break;
-              }
+              // case UhdmType::StructNet:
+              // case UhdmType::StructVar: {
+              //   TypespecMemberCollection* members = nullptr;
+              //   if (actual->getUhdmType() == UhdmType::StructNet) {
+              //     if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
+              //       if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
+              //         members = sts->getMembers();
+              //       } else if (UnionTypespec* uts =
+              //                      rt->getActual<UnionTypespec>()) {
+              //         members = uts->getMembers();
+              //       }
+              //     }
+              //   } else if (actual->getUhdmType() == UhdmType::StructVar) {
+              //     if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
+              //       if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
+              //         members = sts->getMembers();
+              //       }
+              //     }
+              //   }
+              //   if (members) {
+              //     for (TypespecMember* member : *members) {
+              //       if (member->getName() == name) {
+              //         if (RefObj* cro = any_cast<RefObj>(current)) {
+              //           cro->setActual(member);
+              //         }
+              //         previous = member;
+              //         found = true;
+              //         break;
+              //       }
+              //     }
+              //   }
+              //   break;
+              // }
+              // case UhdmType::UnionVar: {
+              //   UnionTypespec* stpt = nullptr;
+              //   if (RefTypespec* rt = ((UnionVar*)actual)->getTypespec()) {
+              //     stpt = rt->getActual<UnionTypespec>();
+              //   }
+              //   if (stpt == nullptr) break;
+              //   for (TypespecMember* member : *stpt->getMembers()) {
+              //     if (member->getName() == name) {
+              //       if (RefObj* cro = any_cast<RefObj>(current)) {
+              //         cro->setActual(member);
+              //       }
+              //       previous = member;
+              //       found = true;
+              //       break;
+              //     }
+              //   }
+              //   break;
+              // }
               case UhdmType::Interface: {
                 Interface* interf = (Interface*)actual;
                 if (!found && interf->getVariables()) {
-                  for (Variables* var : *interf->getVariables()) {
+                  for (Variable* var : *interf->getVariables()) {
                     if (var->getName() == name) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
                         cro->setActual(var);
@@ -1534,20 +1456,20 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 break;
               }
-              case UhdmType::ArrayVar: {
-                if (current->getUhdmType() == UhdmType::MethodFuncCall)
-                  found = true;
-                else if (current->getUhdmType() == UhdmType::BitSelect)
-                  found = true;
-                break;
-              }
-              case UhdmType::StringVar: {
-                if (current->getUhdmType() == UhdmType::MethodFuncCall)
-                  found = true;
-                else if (current->getUhdmType() == UhdmType::BitSelect)
-                  found = true;
-                break;
-              }
+              // case UhdmType::ArrayVar: {
+              //   if (current->getUhdmType() == UhdmType::MethodFuncCall)
+              //     found = true;
+              //   else if (current->getUhdmType() == UhdmType::BitSelect)
+              //     found = true;
+              //   break;
+              // }
+              // case UhdmType::StringVar: {
+              //   if (current->getUhdmType() == UhdmType::MethodFuncCall)
+              //     found = true;
+              //   else if (current->getUhdmType() == UhdmType::BitSelect)
+              //     found = true;
+              //   break;
+              // }
               case UhdmType::ClassTypespec: {
                 ClassTypespec* ctps = (ClassTypespec*)actual;
                 Any* tmp = bindClassTypespec(ctps, current, name, found);
@@ -1772,11 +1694,11 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 previous = res;
                 break;
               }
-              case UhdmType::RefVar: {
-                found = true;
-                // TODO: class var support
-                break;
-              }
+              // case UhdmType::RefVar: {
+              //   found = true;
+              //   // TODO: class var support
+              //   break;
+              // }
               default:
                 // TODO: class method support
                 if (current->getUhdmType() == UhdmType::MethodFuncCall)
@@ -1853,54 +1775,54 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
               found = true;
             }
           }
-        } else if (previous->getUhdmType() == UhdmType::ArrayVar) {
-          ArrayVar* avar = (ArrayVar*)previous;
-          if (VariablesCollection* vars = avar->getVariables()) {
-            if (!vars->empty()) {
-              Variables* actual = vars->front();
-              UhdmType actual_type = actual->getUhdmType();
-              switch (actual_type) {
-                case UhdmType::StructNet:
-                case UhdmType::StructVar: {
-                  TypespecMemberCollection* members = nullptr;
-                  if (actual->getUhdmType() == UhdmType::StructNet) {
-                    if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
-                      if (StructTypespec* sts =
-                              rt->getActual<StructTypespec>()) {
-                        members = sts->getMembers();
-                      } else if (UnionTypespec* uts =
-                                     rt->getActual<UnionTypespec>()) {
-                        members = uts->getMembers();
-                      }
-                    }
-                  } else if (actual->getUhdmType() == UhdmType::StructVar) {
-                    if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
-                      if (StructTypespec* sts =
-                              rt->getActual<StructTypespec>()) {
-                        members = sts->getMembers();
-                      }
-                    }
-                  }
-                  if (members) {
-                    for (TypespecMember* member : *members) {
-                      if (member->getName() == name) {
-                        if (RefObj* cro = any_cast<RefObj>(current)) {
-                          cro->setActual(member);
-                        }
-                        previous = member;
-                        found = true;
-                        break;
-                      }
-                    }
-                  }
-                  break;
-                }
-                default:
-                  break;
-              }
-            }
-          }
-        } else if (previous->getUhdmType() == UhdmType::StructVar ||
+        //} else if (previous->getUhdmType() == UhdmType::ArrayVar) {
+        //  ArrayVar* avar = (ArrayVar*)previous;
+        //  if (VariablesCollection* vars = avar->getVariables()) {
+        //    if (!vars->empty()) {
+        //      Variables* actual = vars->front();
+        //      UhdmType actual_type = actual->getUhdmType();
+        //      switch (actual_type) {
+        //        case UhdmType::StructNet:
+        //        case UhdmType::StructVar: {
+        //          TypespecMemberCollection* members = nullptr;
+        //          if (actual->getUhdmType() == UhdmType::StructNet) {
+        //            if (RefTypespec* rt = ((StructNet*)actual)->getTypespec()) {
+        //              if (StructTypespec* sts =
+        //                      rt->getActual<StructTypespec>()) {
+        //                members = sts->getMembers();
+        //              } else if (UnionTypespec* uts =
+        //                             rt->getActual<UnionTypespec>()) {
+        //                members = uts->getMembers();
+        //              }
+        //            }
+        //          } else if (actual->getUhdmType() == UhdmType::StructVar) {
+        //            if (RefTypespec* rt = ((StructVar*)actual)->getTypespec()) {
+        //              if (StructTypespec* sts =
+        //                      rt->getActual<StructTypespec>()) {
+        //                members = sts->getMembers();
+        //              }
+        //            }
+        //          }
+        //          if (members) {
+        //            for (TypespecMember* member : *members) {
+        //              if (member->getName() == name) {
+        //                if (RefObj* cro = any_cast<RefObj>(current)) {
+        //                  cro->setActual(member);
+        //                }
+        //                previous = member;
+        //                found = true;
+        //                break;
+        //              }
+        //            }
+        //          }
+        //          break;
+        //        }
+        //        default:
+        //          break;
+        //      }
+        //    }
+        //  }
+        } else if (previous->getUhdmType() == UhdmType::Variable ||
                    previous->getUhdmType() == UhdmType::StructNet) {
           TypespecMemberCollection* members = nullptr;
           if (previous->getUhdmType() == UhdmType::StructNet) {
@@ -1911,8 +1833,8 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 members = uts->getMembers();
               }
             }
-          } else if (previous->getUhdmType() == UhdmType::StructVar) {
-            if (RefTypespec* rt = ((StructVar*)previous)->getTypespec()) {
+          } else if (previous->getUhdmType() == UhdmType::Variable) {
+            if (RefTypespec* rt = ((Variable*)previous)->getTypespec()) {
               if (StructTypespec* sts = rt->getActual<StructTypespec>()) {
                 members = sts->getMembers();
               }
@@ -1933,7 +1855,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
         } else if (previous->getUhdmType() == UhdmType::Module) {
           Module* mod = (Module*)previous;
           if (mod->getVariables()) {
-            for (Variables* var : *mod->getVariables()) {
+            for (Variable* var : *mod->getVariables()) {
               if (var->getName() == name) {
                 if (RefObj* cro = any_cast<RefObj>(current)) {
                   cro->setActual(var);

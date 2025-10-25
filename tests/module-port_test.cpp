@@ -35,7 +35,7 @@ static std::vector<vpiHandle> buildModulePortDesign(Serializer* s) {
   m1->setFile("fake1.sv");
   m1->setStartLine(10);
 
-  LogicVar* lvar = s->make<LogicVar>();
+  Variable* lvar = s->make<Variable>();
   lvar->setFullName("top::M1::v1");
   lvar->setParent(m1);
 
