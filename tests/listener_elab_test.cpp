@@ -86,10 +86,10 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     m2->setPorts(vp);
     // M2 Nets
     NetCollection* vn = s->makeCollection<Net>();
-    LogicNet* n = s->make<LogicNet>();
+    Net* n = s->make<Net>();
     n->setName("i1");
     vn->push_back(n);
-    n = s->make<LogicNet>();
+    n = s->make<Net>();
     n->setName("o1");
     vn->push_back(n);
     m2->setNets(vn);
@@ -138,7 +138,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     inst_vp->push_back(p2);
     // M2 Nets
     NetCollection* vn = s->makeCollection<Net>();  // Create elaborated nets
-    LogicNet* n = s->make<LogicNet>();
+    Net* n = s->make<Net>();
     n->setName("i1");
     n->setFullName("M1.inst.i1");
     RefObj* low_conn = s->make<RefObj>();
@@ -146,7 +146,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     low_conn->setName("i1");
     p1->setLowConn(low_conn);
     vn->push_back(n);
-    n = s->make<LogicNet>();
+    n = s->make<Net>();
     n->setName("o1");
     n->setFullName("M1.inst.o1");
     low_conn = s->make<RefObj>();

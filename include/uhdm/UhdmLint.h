@@ -48,7 +48,7 @@ class UhdmLint final : public VpiListener {
 
   void leaveAssignment(const Assignment* object, vpiHandle handle) override;
 
-  void leaveLogicNet(const LogicNet* object, vpiHandle handle) override;
+  void leaveNet(const Net* object, vpiHandle handle) override;
 
   void leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) override;
 

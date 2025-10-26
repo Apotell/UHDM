@@ -23,16 +23,17 @@
  *
  * Created on Feb 16, 2022, 9:03 PM
  */
-#include <string.h>
 #include <uhdm/ElaboratorListener.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/Serializer.h>
 #include <uhdm/SynthSubset.h>
+#include <uhdm/Utils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 
 #include <algorithm>
+#include <cstring>
 
 namespace uhdm {
 
@@ -161,7 +162,6 @@ void SynthSubset::leaveAny(const Any* object, vpiHandle handle) {
     case UhdmType::SwitchArray:
     case UhdmType::UdpArray:
     case UhdmType::TchkTerm:
-    case UhdmType::TimeNet:
     case UhdmType::NamedEvent:
     case UhdmType::Extends:
     case UhdmType::ClassDefn:
@@ -199,6 +199,11 @@ void SynthSubset::leaveAny(const Any* object, vpiHandle handle) {
     case UhdmType::ImmediateAssume:
     case UhdmType::ImmediateCover:
       if (!m_allowFormal) reportError(object);
+      break;
+    case UhdmType::Net:
+      if (getTypespec<TimeTypespec>(object) != nullptr) {
+        if (!m_allowFormal) reportError(object);
+      }
       break;
     default:
       break;
@@ -508,16 +513,15 @@ void SynthSubset::leaveForStmt(const ForStmt* object, vpiHandle handle) {
         //       for(j=0;j<1;j=j+1) Q = 1'b1;
         //   endcase
         bool needsTransform = false;
-        LogicNet* var = nullptr;
+        Net* var = nullptr;
         if (operands->size() == 2) {
           Any* op = operands->at(1);
           if (op->getUhdmType() == UhdmType::RefObj) {
             RefObj* ref = (RefObj*)op;
-            Any* actual = ref->getActual();
-            if (actual) {
-              if (actual->getUhdmType() == UhdmType::LogicNet) {
+            if (Net* actual = ref->getActual<Net>()) {
+              if (getTypespec<LogicTypespec>(actual) != nullptr) {
                 needsTransform = true;
-                var = (LogicNet*)actual;
+                var = actual;
               }
             }
           }
@@ -608,13 +612,13 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
   if (const Any* lc = object->getLowConn()) {
     if (const RefObj* ref = any_cast<RefObj>(lc)) {
       if (const Variable* const actual = ref->getActual<Variable>()) {
-        if (const RefTypespec* const rt = actual->getTypespec()) {
-          if (const LogicTypespec* const lt = rt->getActual<LogicTypespec>()) {
-            if (actual->getSigned()) signedLowConn = true;
-          }
+        if (getTypespec<LogicTypespec>(actual) != nullptr) {
+          if (actual->getSigned()) signedLowConn = true;
         }
-      } else if (const LogicNet *const actual = ref->getActual<LogicNet>()) {
-        if (actual->getSigned()) signedLowConn = true;
+      } else if (const Net* const actual = ref->getActual<Net>()) {
+        if (getTypespec<LogicTypespec>(actual) != nullptr) {
+          if (actual->getSigned()) signedLowConn = true;
+        }
       }
     }
   }
@@ -635,14 +639,12 @@ void SynthSubset::leavePort(const Port* object, vpiHandle handle) {
             }
           }
         }
-      } else if (const LogicNet* const actual = ref->getActual<LogicNet>()) {
-        if (actual->getSigned()) {
-          highConnSignal = actual->getName();
-          const_cast<LogicNet*>(actual)->setSigned(false);
-          if (const RefTypespec* tps = actual->getTypespec()) {
-            if (const LogicTypespec* ltps = tps->getActual<LogicTypespec>()) {
-              ((LogicTypespec*)ltps)->setSigned(false);
-            }
+      } else if (const Net* const actual = ref->getActual<Net>()) {
+        if (const LogicTypespec* const lt = getTypespec<LogicTypespec>(actual)) {
+          if (actual->getSigned()) {
+            highConnSignal = actual->getName();
+            const_cast<Net*>(actual)->setSigned(false);
+            const_cast<LogicTypespec*>(lt)->setSigned(false);
           }
         }
       }
@@ -747,7 +749,7 @@ void SynthSubset::sensitivityListRewrite(const Always* object,
 
                     // Create: wire \synlig_tmp = rst | start;
                     ContAssign* ass = m_serializer->make<ContAssign>();
-                    LogicNet* lhs = m_serializer->make<LogicNet>();
+                    Net* lhs = m_serializer->make<Net>();
                     std::string tmpName = std::string("synlig_tmp_") +
                                           std::string(var2Name) + "_or_" +
                                           std::string(var3Name);
@@ -935,9 +937,11 @@ void SynthSubset::blockingToNonBlockingRewrite(const Always* object,
   }
 }
 
-void SynthSubset::leaveLogicNet(const LogicNet* object, vpiHandle handle) {
+void SynthSubset::leaveNet(const Net* object, vpiHandle handle) {
   if (!isInUhdmAllIterator()) return;
-  ((LogicNet*)object)->setTypespec(nullptr);
+  if (getTypespec<LogicTypespec>(object) != nullptr) {
+    const_cast<Net*>(object)->setTypespec(nullptr);
+  }
 }
 
 }  // namespace uhdm

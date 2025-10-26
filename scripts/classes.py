@@ -5,7 +5,6 @@ import file_utils
 
 _collector_class_types = {
     'Scope': set([
-        ( 'array_net', 'InstanceItems' ),
         ( 'assert_stmt', 'InstanceItems' ),
         ( 'assume', 'InstanceItems' ),
         ( 'checker_inst', 'InstanceItems' ),
@@ -70,7 +69,6 @@ _collector_class_types = {
         ( 'thread_obj', 'Threads' ),
     ]),
     'Instance': set([
-        ( 'array_net', 'ArrayNets' ),
         ( 'class_defn', 'ClassDefns' ),
         ( 'net', 'Nets' ),
         ( 'program', 'Programs' ),
@@ -86,6 +84,9 @@ _collector_class_types = {
     ]),
     'CheckerInst': set([
         ( 'checker_inst_port', 'Ports' )
+    ]),
+    'GenScope': set([
+        ( 'net', 'Nets' )
     ]),
     'Interface': set([
         ( 'clocking_block', 'ClockingBlocks' ),

@@ -179,6 +179,11 @@ class Serializer final {
   ErrorHandler getErrorHandler() { return m_errorHandler; }
 
   IdMap getAllObjects() const;
+
+  template <typename T>
+  Factory* getFactory() {
+    return m_factories[T::kUhdmType];
+  }
 #endif
 
   const std::vector<vpiHandle> restore(const std::filesystem::path& filepath);

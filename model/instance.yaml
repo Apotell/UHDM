@@ -104,10 +104,6 @@
   vpi: vpiNet
   type: net
   card: any
-- obj_ref: array_net
-  vpi: vpiArrayNet
-  type: array_net
-  card: any
 - obj_ref: spec_param
   vpi: vpiSpecParam
   type: spec_param

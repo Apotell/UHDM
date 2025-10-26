@@ -82,10 +82,10 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     p->setParent(m2);
 
     // M2 Nets
-    LogicNet* n = s->make<LogicNet>();
+    Net* n = s->make<Net>();
     n->setName("i1");
     n->setParent(m2);
-    n = s->make<LogicNet>();
+    n = s->make<Net>();
     n->setName("o1");
     n->setParent(m2);
 
@@ -128,7 +128,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     p2->setParent(m4);
 
     // M2 Nets
-    LogicNet* n = s->make<LogicNet>();
+    Net* n = s->make<Net>();
     n->setName("i1");
     n->setFullName("M1.inst.i1");
     RefObj* low_conn = s->make<RefObj>();
@@ -137,7 +137,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     low_conn->setParent(p1);
     p1->setLowConn(low_conn);
     n->setParent(m4);
-    n = s->make<LogicNet>();
+    n = s->make<Net>();
     n->setName("o1");
     n->setFullName("M1.inst.o1");
     low_conn = s->make<RefObj>();
@@ -196,8 +196,8 @@ TEST(FullElabTest, ElaborationRoundtrip) {
             "ContAssign 1\n"
             "Design 1\n"
             "Identifier 2\n"
-            "LogicNet 4\n"
             "Module 4\n"
+            "Net 4\n"
             "Port 4\n"
             "RefObj 4\n");
 

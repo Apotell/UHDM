@@ -23,15 +23,16 @@
  *
  * Created on Jan 3, 2022, 9:03 PM
  */
-#include <string.h>
 #include <uhdm/ElaboratorListener.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmAdjuster.h>
+#include <uhdm/Utils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
+#include <cstring>
 #include <stack>
 
 namespace uhdm {
@@ -73,14 +74,16 @@ const Any* UhdmAdjuster::resize(const Any* object, int32_t maxsize,
     RefObj* ref = (RefObj*)result;
     const Any* actual = ref->getActual();
     return resize(actual, maxsize, is_overall_unsigned);
-  } else if (type == UhdmType::LogicNet) {
-    const Any* parent = result->getParent();
-    if (parent && (parent->getUhdmType() == UhdmType::Module)) {
-      Module* mod = (Module*)parent;
-      if (mod->getParamAssigns()) {
-        for (ParamAssign* cass : *mod->getParamAssigns()) {
-          if (cass->getLhs()->getName() == result->getName()) {
-            return resize(cass->getRhs(), maxsize, is_overall_unsigned);
+  } else if (type == UhdmType::Net) {
+    if (getTypespec<LogicTypespec>(result) != nullptr) {
+      const Any* parent = result->getParent();
+      if (parent && (parent->getUhdmType() == UhdmType::Module)) {
+        Module* mod = (Module*)parent;
+        if (mod->getParamAssigns()) {
+          for (ParamAssign* cass : *mod->getParamAssigns()) {
+            if (cass->getLhs()->getName() == result->getName()) {
+              return resize(cass->getRhs(), maxsize, is_overall_unsigned);
+            }
           }
         }
       }
@@ -132,21 +135,23 @@ void UhdmAdjuster::leaveCaseStmt(const CaseStmt* object, vpiHandle handle) {
         RefObj* ref = (RefObj*)exp;
         const Any* actual = ref->getActual();
         expressions.push((const Expr*)actual);
-      } else if (type == UhdmType::LogicNet) {
-        const Any* parent = exp->getParent();
-        if (parent && (parent->getUhdmType() == UhdmType::Module)) {
-          Module* mod = (Module*)parent;
-          if (mod->getContAssigns()) {
-            for (ContAssign* cass : *mod->getContAssigns()) {
-              if (cass->getLhs()->getName() == exp->getName()) {
-                expressions.push((const Expr*)cass->getRhs());
+      } else if (type == UhdmType::Net) {
+        if (getTypespec<LogicTypespec>(exp) != nullptr) {
+          const Any* parent = exp->getParent();
+          if (parent && (parent->getUhdmType() == UhdmType::Module)) {
+            Module* mod = (Module*)parent;
+            if (mod->getContAssigns()) {
+              for (ContAssign* cass : *mod->getContAssigns()) {
+                if (cass->getLhs()->getName() == exp->getName()) {
+                  expressions.push((const Expr*)cass->getRhs());
+                }
               }
             }
-          }
-          if (mod->getParamAssigns()) {
-            for (ParamAssign* cass : *mod->getParamAssigns()) {
-              if (cass->getLhs()->getName() == exp->getName()) {
-                expressions.push((const Expr*)cass->getRhs());
+            if (mod->getParamAssigns()) {
+              for (ParamAssign* cass : *mod->getParamAssigns()) {
+                if (cass->getLhs()->getName() == exp->getName()) {
+                  expressions.push((const Expr*)cass->getRhs());
+                }
               }
             }
           }

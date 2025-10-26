@@ -56,11 +56,11 @@ std::vector<vpiHandle> build_designs_MinusOp(Serializer* s) {
     AnyCollection* operands = s->makeCollection<Any>();
     oper->setOperands(operands);
 
-    RefObj* SIZE = s->make<RefObj>();
-    operands->push_back(SIZE);
-    SIZE->setName("SIZE");
-    LogicNet* n = s->make<LogicNet>();
-    SIZE->setActual(n);
+    RefObj* ref = s->make<RefObj>();
+    operands->push_back(ref);
+    ref->setName("SIZE");
+    Net* n = s->make<Net>();
+    ref->setActual(n);
 
     Constant* c1 = s->make<Constant>();
     c1->setValue("UINT:1");
@@ -268,7 +268,7 @@ std::vector<vpiHandle> build_designs_functionCall(Serializer* s) {
     RefObj* b = s->make<RefObj>();
     b->setName("b");
     args->push_back(b);
-    LogicNet* n = s->make<LogicNet>();
+    Net* n = s->make<Net>();
     b->setActual(n);
   }
 

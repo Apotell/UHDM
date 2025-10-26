@@ -25,6 +25,7 @@
  */
 
 #include <uhdm/ElaboratorListener.h>
+#include <uhdm/Utils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
@@ -108,12 +109,12 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
 
 void ElaboratorListener::enterVariable(const Variable* object,
                                        vpiHandle handle) {
-  if (const RefTypespec* const rt = object->getTypespec()) {
-    if (const ClassTypespec* const ct = rt->getActual<ClassTypespec>()) {
-      if (!m_inHierarchy)
-        return;  // Only do class var propagation while in elaboration
+  if (!m_inHierarchy)
+    return;  // Only do class var propagation while in elaboration
 
-      Variable* const var = (Variable*)object;
+  if (const RefTypespec* const rt = object->getTypespec()) {
+    if (getActual<ClassTypespec>(object) != nullptr) {
+      Variable* const var = const_cast<Variable*>(object);
       RefTypespec* ctps = rt->deepClone(var, m_context);
       var->setTypespec(ctps);
       if (const ClassTypespec* cctps = ctps->getActual<ClassTypespec>()) {
@@ -213,13 +214,6 @@ void ElaboratorListener::enterModule(const Module* object, vpiHandle handle) {
               netMap.emplace(port->getName(), actual);
             }
           }
-        }
-      }
-    }
-    if (object->getArrayNets()) {
-      for (ArrayNet* net : *object->getArrayNets()) {
-        if (!net->getName().empty()) {
-          netMap.emplace(net->getName(), net);
         }
       }
     }
@@ -655,14 +649,6 @@ void ElaboratorListener::enterInterface(const Interface* object,
         }
       }
     }
-    if (object->getArrayNets()) {
-      for (ArrayNet* net : *object->getArrayNets()) {
-        if (!net->getName().empty()) {
-          netMap.emplace(net->getName(), net);
-        }
-      }
-    }
-
     if (object->getVariables()) {
       for (Variable* var : *object->getVariables()) {
         if (!var->getName().empty()) {
@@ -1216,13 +1202,6 @@ void ElaboratorListener::enterGenScope(const GenScope* object,
   ComponentMap netMap;
   if (object->getNets()) {
     for (Net* net : *object->getNets()) {
-      if (!net->getName().empty()) {
-        netMap.emplace(net->getName(), net);
-      }
-    }
-  }
-  if (object->getArrayNets()) {
-    for (ArrayNet* net : *object->getArrayNets()) {
       if (!net->getName().empty()) {
         netMap.emplace(net->getName(), net);
       }

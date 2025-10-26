@@ -74,8 +74,6 @@ def generate(models):
     private_declarations = []
     private_implementations = []
 
-    ignored_objects = set(['vpiNet'])
-
     for model in models.values():
         modeltype = model['type']
         if modeltype == 'group_def':
@@ -88,8 +86,7 @@ def generate(models):
         baseclass = (model.get('extends', None) or 'BaseClass').lower()
 
         vpi_name = config.make_vpi_name(classname)
-        if vpi_name not in ignored_objects:
-            case_statements.append(f'    case {vpi_name}: visit_{classname}(obj_h, indent, relation, shallowVisit); break;')
+        case_statements.append(f'    case {vpi_name}: visit_{classname}(obj_h, indent, relation, shallowVisit); break;')
 
         private_declarations.append(f'  void visit_{classname}(vpiHandle obj_h, int32_t indent, const char *relation, bool shallowVisit);')
         private_implementations.append(f'void VpiVisitor::visit_{classname}(vpiHandle obj_h, int32_t indent, const char *relation, bool shallowVisit) {{')

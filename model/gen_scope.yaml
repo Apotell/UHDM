@@ -36,10 +36,6 @@
   vpi: vpiNet
   type: net
   card: any
-- obj_ref: array_net
-  vpi: vpiArrayNet
-  type: array_net
-  card: any
 - class_ref: process
   vpi: vpiProcess
   type: process_stmt

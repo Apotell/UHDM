@@ -169,16 +169,7 @@ prim_term.yaml
 path_term.yaml
 tchk_term.yaml
 nets.yaml
-net_bit.yaml
 net.yaml
-struct_net.yaml
-enum_net.yaml
-integer_net.yaml
-time_net.yaml
-logic_net.yaml
-array_net.yaml
-enum_struct_packed_net_group.yaml
-packed_array_net.yaml
 event_typespec.yaml
 named_event.yaml
 named_event_array.yaml
@@ -214,7 +205,6 @@ udp_defn_typespec.yaml
 struct_typespec.yaml
 union_typespec.yaml
 logic_typespec.yaml
-enum_struct_union_packed_array_typespec_group.yaml
 packed_array_typespec.yaml
 array_typespec.yaml
 void_typespec.yaml

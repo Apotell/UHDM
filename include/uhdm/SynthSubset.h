@@ -73,7 +73,7 @@ class SynthSubset final : public VpiListener {
 
   // Remove Typespec information on allModules to allow Yosys to perform RAM
   // Inference
-  void leaveLogicNet(const LogicNet* object, vpiHandle handle) override;
+  void leaveNet(const Net* object, vpiHandle handle) override;
 
   void reportError(const Any* object);
   void mark(const Any* object);

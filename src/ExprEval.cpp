@@ -22,10 +22,10 @@
  * Created on July 3, 2021, 8:03 PM
  */
 
-#include <string.h>
 #include <uhdm/ElaboratorListener.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
+#include <uhdm/Utils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
@@ -445,7 +445,6 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
     while (inst) {
       ParamAssignCollection *ParamAssigns = nullptr;
       VariableCollection *Variables = nullptr;
-      ArrayNetCollection *array_nets = nullptr;
       NetCollection *nets = nullptr;
       TypespecCollection *Typespecs = nullptr;
       ScopeCollection *scopes = nullptr;
@@ -459,16 +458,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst,
         Typespecs = spe->getTypespecs();
         scopes = spe->getInternalScopes();
         if (const Instance *in = any_cast<Instance>(inst)) {
-          array_nets = in->getArrayNets();
           nets = in->getNets();
-        }
-      }
-      if ((result == nullptr) && array_nets) {
-        for (auto o : *array_nets) {
-          if (o->getName() == name) {
-            result = o;
-            break;
-          }
         }
       }
       if ((result == nullptr) && nets) {
@@ -1347,16 +1337,18 @@ uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst,
       invalidValue = true;
       break;
     }
-    case UhdmType::LogicNet: {
+    case UhdmType::Net: {
       bits = 1;
-      LogicNet *lts = (LogicNet *)ts;
-      if (const RefTypespec *rt = lts->getTypespec()) {
+      if (const LogicTypespec *const lt =
+              uhdm::getTypespec<LogicTypespec>(ts)) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS =
-            size(rt->getActual(), tmpInvalidValue, inst, pexpr, full);
-        if (tmpInvalidValue == false) {
+        uint64_t tmpS = size(lt, tmpInvalidValue, inst, pexpr, full);
+        if (!tmpInvalidValue) {
           bits = tmpS;
         }
+      } else if (const StructTypespec *const st =
+                     uhdm::getTypespec<StructTypespec>(ts)) {
+        bits += size(st, invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1386,12 +1378,6 @@ uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst,
                        rt->getActual<EnumTypespec>()) {
           bits = size(et, invalidValue, inst, pexpr, full);
         }
-      }
-      break;
-    }
-    case UhdmType::StructNet: {
-      if (const RefTypespec *rt = ((const StructNet *)ts)->getTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
       }
       break;
     }
@@ -1899,11 +1885,9 @@ int64_t ExprEval::get_value(bool &invalidValue, const Expr *Expr, bool strict) {
     type = c->getConstType();
     sv = c->getValue();
   } else if (const Variable *v = any_cast<Variable>(Expr)) {
-    if (const RefTypespec *const rt = v->getTypespec()) {
-      if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
-        type = vpiUIntConst;
-        sv = v->getValue();
-      }
+    if (uhdm::getTypespec<EnumTypespec>(v) != nullptr) {
+      type = vpiUIntConst;
+      sv = v->getValue();
     }
   } else {
     invalidValue = true;
@@ -2001,20 +1985,18 @@ int64_t ExprEval::get_value(bool &invalidValue, const Expr *Expr, bool strict) {
   return result;
 }
 
-uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *Expr,
+uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *expr,
                               bool strict) {
   uint64_t result = 0;
   int32_t type = 0;
   std::string_view sv;
-  if (const Constant *c = any_cast<Constant>(Expr)) {
+  if (const Constant *c = any_cast<Constant>(expr)) {
     type = c->getConstType();
     sv = c->getValue();
-  } else if (const Variable *v = any_cast<Variable>(Expr)) {
-    if (const RefTypespec *const rt = v->getTypespec()) {
-      if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
-        type = vpiUIntConst;
-        sv = v->getValue();
-      }
+  } else if (const Variable *v = any_cast<Variable>(expr)) {
+    if (uhdm::getTypespec<EnumTypespec>(v) != nullptr) {
+      type = vpiUIntConst;
+      sv = v->getValue();
     }
   }
   if (sv.empty()) {
@@ -2024,7 +2006,7 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *Expr,
   if (!invalidValue) {
     switch (type) {
       case vpiBinaryConst: {
-        if (Expr->getSize() > 64) {
+        if (expr->getSize() > 64) {
           invalidValue = true;
         } else {
           sv = ltrim(sv, '\'');
@@ -2042,7 +2024,7 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *Expr,
         break;
       }
       case vpiHexConst: {
-        if (Expr->getSize() > 64) {
+        if (expr->getSize() > 64) {
           invalidValue = true;
         } else {
           sv = ltrim(sv, '\'');
@@ -2054,7 +2036,7 @@ uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *Expr,
         break;
       }
       case vpiOctConst: {
-        if (Expr->getSize() > 64) {
+        if (expr->getSize() > 64) {
           invalidValue = true;
         } else {
           sv = ltrim(sv, '\'');
@@ -2425,34 +2407,30 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         }
       }
     }
-  } else if (Nets *nt = any_cast<Nets>(object)) {
-    UhdmType ttps = nt->getUhdmType();
-    if (ttps == UhdmType::StructNet) {
-      if (const RefTypespec *rt = ((StructNet *)nt)->getTypespec()) {
-        TypespecMemberCollection *members = nullptr;
-        if (const StructTypespec *sts = rt->getActual<StructTypespec>()) {
-          members = sts->getMembers();
-        } else if (const UnionTypespec *uts = rt->getActual<UnionTypespec>()) {
-          members = uts->getMembers();
-        }
-        if (members) {
-          for (TypespecMember *member : *members) {
-            if (member->getName() == elemName) {
-              if (returnTypespec) {
-                if (RefTypespec *mrt = member->getTypespec()) {
-                  Any *res = mrt->getActual();
-                  if (lastElem) {
-                    return res;
-                  } else {
-                    return hierarchicalSelector(select_path, level + 1, res,
-                                                invalidValue, inst, pexpr,
-                                                returnTypespec, muteError);
-                  }
-                }
+  } else if (Net *nt = any_cast<Net>(object)) {
+    TypespecMemberCollection *members = nullptr;
+    if (const StructTypespec *sts = uhdm::getTypespec<StructTypespec>(nt)) {
+      members = sts->getMembers();
+    } else if (const UnionTypespec *uts =
+                   uhdm::getTypespec<UnionTypespec>(nt)) {
+      members = uts->getMembers();
+    }
+    if (members) {
+      for (TypespecMember *member : *members) {
+        if (member->getName() == elemName) {
+          if (returnTypespec) {
+            if (RefTypespec *mrt = member->getTypespec()) {
+              Any *res = mrt->getActual();
+              if (lastElem) {
+                return res;
               } else {
-                return member->getDefaultValue();
+                return hierarchicalSelector(select_path, level + 1, res,
+                                            invalidValue, inst, pexpr,
+                                            returnTypespec, muteError);
               }
             }
+          } else {
+            return member->getDefaultValue();
           }
         }
       }
@@ -2815,7 +2793,7 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
         if (optype == UhdmType::RefObj) {
           RefObj *ref = (RefObj *)oper;
           const std::string_view name = ref->getName();
-          if (name == "default" && ref->getStructMember()) continue;
+          if ((name == "default") && ref->getStructMember()) continue;
           if (getValue(name, inst, pexpr, muteError, result) == nullptr) {
             constantOperands = false;
             break;
@@ -2830,11 +2808,9 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
           constantOperands = false;
           break;
         } else if (optype == UhdmType::Variable) {
-          if (const RefTypespec *rt = any_cast<Variable>(oper)->getTypespec()) {
-            if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
-              constantOperands = false;
-              break;
-            }
+          if (uhdm::getTypespec<EnumTypespec>(oper) != nullptr) {
+            constantOperands = false;
+            break;
           }
         }
       }

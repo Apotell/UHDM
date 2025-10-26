@@ -25,6 +25,7 @@
  */
 #include <uhdm/ExprEval.h>
 #include <uhdm/UhdmLint.h>
+#include <uhdm/Utils.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
@@ -138,13 +139,15 @@ void UhdmLint::checkMultiContAssign(const std::vector<ContAssign*>* assigns) {
 
       if (const RefObj* ref = as->getLhs<RefObj>()) {
         if (ref->getName() == lhs_exp->getName()) {
-          if (const LogicNet* ln = ref->getActual<LogicNet>()) {
-            int32_t nettype = ln->getNetType();
-            if ((nettype == vpiWor) || (nettype == vpiWand) ||
-                (nettype == vpiTri) || (nettype == vpiTriAnd) ||
-                (nettype == vpiTriOr) || (nettype == vpiTri0) ||
-                (nettype == vpiTri1) || (nettype == vpiTriReg))
-              continue;
+          if (const Net* const net = ref->getActual<Net>()) {
+            if (getTypespec<LogicTypespec>(net) != nullptr) {
+              int32_t nettype = net->getNetType();
+              if ((nettype == vpiWor) || (nettype == vpiWand) ||
+                  (nettype == vpiTri) || (nettype == vpiTriAnd) ||
+                  (nettype == vpiTriOr) || (nettype == vpiTri0) ||
+                  (nettype == vpiTri1) || (nettype == vpiTriReg))
+                continue;
+            }
           }
           if (const Operation* op = as->getRhs<Operation>()) {
             bool triStatedOp = false;
@@ -174,40 +177,40 @@ void UhdmLint::leaveAssignment(const Assignment* object, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
   if (!m_design->getElaborated()) return;  // -uhdmelab
   if (const RefObj* lhs = object->getLhs<RefObj>()) {
-    if (const LogicNet* n = lhs->getActual<LogicNet>()) {
-      if (n->getNetType() == vpiWire) {
-        bool inProcess = false;
-        const Any* tmp = object;
-        while (tmp) {
-          if ((tmp->getUhdmType() == UhdmType::Always) ||
-              (tmp->getUhdmType() == UhdmType::Initial) ||
-              (tmp->getUhdmType() == UhdmType::FinalStmt)) {
-            inProcess = true;
-            break;
+    if (const Net* n = lhs->getActual<Net>()) {
+      if (getTypespec<LogicTypespec>(n) != nullptr) {
+        if (n->getNetType() == vpiWire) {
+          bool inProcess = false;
+          const Any* tmp = object;
+          while (tmp) {
+            if ((tmp->getUhdmType() == UhdmType::Always) ||
+                (tmp->getUhdmType() == UhdmType::Initial) ||
+                (tmp->getUhdmType() == UhdmType::FinalStmt)) {
+              inProcess = true;
+              break;
+            }
+            tmp = tmp->getParent();
           }
-          tmp = tmp->getParent();
-        }
-        if (inProcess) {
-          const std::string errMsg(lhs->getName());
-          m_serializer->getErrorHandler()(ErrorType::UHDM_ILLEGAL_WIRE_LHS,
-                                          errMsg, lhs, 0);
+          if (inProcess) {
+            const std::string errMsg(lhs->getName());
+            m_serializer->getErrorHandler()(ErrorType::UHDM_ILLEGAL_WIRE_LHS,
+                                            errMsg, lhs, 0);
+          }
         }
       }
     }
   }
 }
 
-void UhdmLint::leaveLogicNet(const LogicNet* object, vpiHandle handle) {
-  if (const RefTypespec* rt = object->getTypespec()) {
-    if (const LogicTypespec* tps = rt->getActual<LogicTypespec>()) {
-      if (const RangeCollection* ranges = tps->getRanges()) {
-        Range* r0 = ranges->at(0);
-        if (const Constant* c = r0->getRightExpr<Constant>()) {
-          if (c->getValue() == "STRING:unsized") {
-            const std::string errMsg(object->getName());
-            m_serializer->getErrorHandler()(
-                ErrorType::UHDM_ILLEGAL_PACKED_DIMENSION, errMsg, c, nullptr);
-          }
+void UhdmLint::leaveNet(const Net* object, vpiHandle handle) {
+  if (const LogicTypespec* const tps = getTypespec<LogicTypespec>(object)) {
+    if (const RangeCollection* ranges = tps->getRanges()) {
+      Range* r0 = ranges->at(0);
+      if (const Constant* c = r0->getRightExpr<Constant>()) {
+        if (c->getValue() == "STRING:unsized") {
+          const std::string errMsg(object->getName());
+          m_serializer->getErrorHandler()(
+              ErrorType::UHDM_ILLEGAL_PACKED_DIMENSION, errMsg, c, nullptr);
         }
       }
     }
@@ -292,8 +295,8 @@ void UhdmLint::leavePropertySpec(const PropertySpec* prop_s, vpiHandle handle) {
   if (const Any* exp = prop_s->getPropertyExpr()) {
     if (exp->getUhdmType() == UhdmType::RefObj) {
       const RefObj* ref = any_cast<const RefObj*>(exp);
-      if (ref->getActual()) {
-        if (ref->getActual()->getUhdmType() == UhdmType::LogicNet) {
+      if (const Net* const net = ref->getActual<Net>()) {
+        if (getTypespec<LogicTypespec>(net) != nullptr) {
           const std::string errMsg(ref->getName());
           m_serializer->getErrorHandler()(ErrorType::UHDM_UNRESOLVED_PROPERTY,
                                           errMsg, ref, nullptr);
@@ -344,50 +347,21 @@ void UhdmLint::leavePort(const Port* object, vpiHandle handle) {
   bool signedLowConn = false;
   bool highConn = false;
   const Any* reportObject = object;
-  if (const Any* hc = object->getHighConn()) {
-    if (const RefObj* ref = any_cast<const RefObj*>(hc)) {
-      reportObject = ref;
-      if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::Variable) {
-          Variable* var = (Variable*)actual;
-          if (const RefTypespec* const rt = var->getTypespec()) {
-            if (rt->getActual<LogicTypespec>() != nullptr) {
-              highConn = true;
-              if (var->getSigned()) {
-                signedHighConn = true;
-              }
-            }
-          }
-        }
-        if (actual->getUhdmType() == UhdmType::LogicNet) {
-          LogicNet* var = (LogicNet*)actual;
-          highConn = true;
-          if (var->getSigned()) {
-            signedHighConn = true;
-          }
-        }
+  if (const RefObj* const ref = object->getHighConn<RefObj>()) {
+    reportObject = ref;
+    if (const LogicTypespec* const lt =
+            getTypespec<LogicTypespec>(ref->getActual())) {
+      highConn = true;
+      if (lt->getSigned()) {
+        signedHighConn = true;
       }
     }
   }
-  if (const Any* lc = object->getLowConn()) {
-    if (const RefObj* ref = any_cast<const RefObj*>(lc)) {
-      if (const Any* actual = ref->getActual()) {
-        if (actual->getUhdmType() == UhdmType::Variable) {
-          Variable* var = (Variable*)actual;
-          if (const RefTypespec* const rt = var->getTypespec()) {
-            if (rt->getActual<LogicTypespec>() != nullptr) {
-              if (var->getSigned()) {
-                signedLowConn = true;
-              }
-            }
-          }
-        }
-        if (actual->getUhdmType() == UhdmType::LogicNet) {
-          LogicNet* var = (LogicNet*)actual;
-          if (var->getSigned()) {
-            signedLowConn = true;
-          }
-        }
+  if (const RefObj* const ref = object->getLowConn<RefObj>()) {
+    if (const LogicTypespec* const lt =
+            getTypespec<LogicTypespec>(ref->getActual())) {
+      if (lt->getSigned()) {
+        signedLowConn = true;
       }
     }
   }

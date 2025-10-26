@@ -14,11 +14,11 @@
 
 # Universal Hardware Data Model (UHDM) "net" formal description
 
-- class_def: net
+- obj_def: net
 - extends: nets
 - obj_ref: bit
   vpi: vpiBit
-  type: net_bit
+  type: net
   card: any
 - class_ref: indexes
   vpi: vpiIndex
