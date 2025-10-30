@@ -221,6 +221,19 @@ inline bool setIndexTypespec(Typespec* typespec, Typespec* actual) {
   }
   return (rt != nullptr) && rt->setActual(actual);
 }
+
+template <typename R, typename T = Any>
+inline auto getParent(T* any) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+  auto* p = any;
+  while (p != nullptr) {
+    if (auto* const pp = any_cast<R>(p)) {
+      return pp;
+    }
+    p = p->getParent();
+  }
+  return nullptr;
+}
 }  // namespace uhdm
 
 #endif  // UHDM_UTILS_H

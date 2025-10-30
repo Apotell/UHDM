@@ -25,6 +25,7 @@
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmComparer.h>
 #include <uhdm/UhdmListener.h>
+#include <uhdm/Utils.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 
@@ -57,12 +58,27 @@ class TypespecUnifier final : public UhdmListener {
 
     using UhdmComparer::compare;
 
+    inline bool isOfPrimitiveType(const Any* any) const {
+      return (any->getUhdmType() == UhdmType::BitTypespec) ||
+             (any->getUhdmType() == UhdmType::ByteTypespec) ||
+             (any->getUhdmType() == UhdmType::IntTypespec) ||
+             (any->getUhdmType() == UhdmType::IntegerTypespec) ||
+             (any->getUhdmType() == UhdmType::LogicTypespec) ||
+             (any->getUhdmType() == UhdmType::LongIntTypespec) ||
+             (any->getUhdmType() == UhdmType::RealTypespec) ||
+             (any->getUhdmType() == UhdmType::ShortIntTypespec) ||
+             (any->getUhdmType() == UhdmType::ShortRealTypespec) ||
+             (any->getUhdmType() == UhdmType::StringTypespec);
+    }
+
     int32_t compare(const Any* plhs, uint16_t lhs, const Any* prhs,
                     uint16_t rhs, uint32_t relation, int32_t r) final {
       if ((relation == vpiStartColumn) || (relation == vpiEndColumn)) {
         // Ignore location information for typespecs
-        if (any_cast<Typespec>(plhs) != nullptr) {
-          return r;
+        if (const Typespec* const p = getParent<Typespec>(plhs)) {
+          if (isOfPrimitiveType(p)) {
+            return r;
+          }
         }
       }
       return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
@@ -72,8 +88,10 @@ class TypespecUnifier final : public UhdmListener {
                     uint32_t rhs, uint32_t relation, int32_t r) final {
       if ((relation == vpiStartLine) || (relation == vpiEndLine)) {
         // Ignore location information for typespecs
-        if (any_cast<Typespec>(plhs) != nullptr) {
-          return r;
+        if (const Typespec* const p = getParent<Typespec>(plhs)) {
+          if (isOfPrimitiveType(p)) {
+            return r;
+          }
         }
       }
       return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
@@ -95,8 +113,8 @@ class TypespecUnifier final : public UhdmListener {
     // Sort and find duplicates (keep first and delete others).
     std::sort(typespecs.begin(), typespecs.end(),
               [this](const T* const lhs, const T* const rhs) {
-                int32_t r = static_cast<uint32_t>(lhs->getUhdmType()) -
-                            static_cast<uint32_t>(rhs->getUhdmType());
+                int32_t r = static_cast<int32_t>(lhs->getUhdmType()) -
+                            static_cast<int32_t>(rhs->getUhdmType());
                 if (r == 0) r = m_comparer.compare(lhs, rhs);
                 if (r == 0) r = lhs->getUhdmId() - rhs->getUhdmId();
                 return r < 0;
@@ -106,8 +124,7 @@ class TypespecUnifier final : public UhdmListener {
     for (size_t i = 1, ni = typespecs.size(); i < ni; ++i) {
       const T* const any = typespecs[i];
 
-      if ((first != any) &&
-          (first->getUhdmType() == any->getUhdmType()) &&
+      if ((first != any) && (first->getUhdmType() == any->getUhdmType()) &&
           (m_comparer.compare(first, any) == 0)) {
         m_replacements.emplace(any, first);
       } else {
@@ -282,7 +299,8 @@ class TypespecUnifier final : public UhdmListener {
     for (Any* any : factory->getObjects()) listenAny(any);
 
     if (!m_references.empty()) {
-      for (TypespecUnifier::references_t::const_reference entry : m_references) {
+      for (TypespecUnifier::references_t::const_reference entry :
+           m_references) {
         if (entry.second.size() == 1) {
           m_replacements.emplace(entry.first, nullptr);
         }
@@ -354,7 +372,7 @@ void Serializer::swap(const Any* what, Any* with) {
   }
 }
 
-void Serializer::swap(const std::map<const Any *, Any *> &replacements) {
+void Serializer::swap(const std::map<const Any*, Any*>& replacements) {
   for (factories_t::const_reference entry : m_factories) {
     for (Any* any : entry.second->m_objects) {
       any->swap(replacements);
@@ -377,14 +395,13 @@ void Serializer::collectGarbage() {
     AnySet erased;
     while (true) {
       replacements_t replacements = collector->getReplacements(designFactory);
-      if (replacements.empty()) break;
-
-      swap(replacements);
+      if (!replacements.empty()) swap(replacements);
 
       for (factories_t::const_reference entry : m_factories) {
         entry.second->eraseIfNotIn(collector->m_referenced, erased);
       }
 
+      if (replacements.empty()) break;
       collector->m_visited.clear();
       collector->m_callstack.clear();
       collector->m_referenced.clear();
@@ -411,8 +428,7 @@ SymbolId Serializer::getSymbolId(std::string_view symbol) const {
   return m_symbolFactory.getId(symbol);
 }
 
-vpiHandle Serializer::makeUhdmHandle(UhdmType type,
-                                     const void* object) {
+vpiHandle Serializer::makeUhdmHandle(UhdmType type, const void* object) {
   return m_uhdmHandleFactory.make(type, object);
 }
 
@@ -443,7 +459,8 @@ std::string VpiTypeName(vpiHandle h) {
   return UhdmName(obj->getUhdmType());
 }
 
-std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats() const {
+std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats()
+    const {
   std::map<std::string, uint32_t, std::less<>> stats;
   for (factories_t::const_reference entry : m_factories) {
     stats.emplace(UhdmName(entry.first), entry.second->m_objects.size());
@@ -462,6 +479,8 @@ void Serializer::printStats(std::ostream& strm,
                    return std::string_view(pair.first);
                  });
   std::sort(names.begin(), names.end());
+
+  size_t total = 0;
   for (std::string_view name : names) {
     auto it = stats.find(name);
     if (it->second > 0) {
@@ -469,8 +488,12 @@ void Serializer::printStats(std::ostream& strm,
       // "enum_struct_union_packed_array_typespec_group"
       strm << std::setw(48) << std::left << name << std::setw(8) << std::right
            << it->second << std::endl;
+      total += it->second;
     }
   }
+  strm << std::string(60, '-') << std::endl;
+  strm << std::setw(48) << std::left << "Total:" << std::setw(8) << std::right
+       << total << std::endl;
   strm << "=== UHDM Object Stats End ===" << std::endl;
 }
 

@@ -126,12 +126,13 @@ template <typename T>
 int32_t UhdmComparer::compareT(const Any *plhs, const std::vector<T *> *lhs,
                                const Any *prhs, const std::vector<T *> *rhs,
                                uint32_t relation, int32_t r) {
-  if ((plhs == prhs) && (lhs == rhs)) return 0;
+  if ((plhs == prhs) && (lhs == rhs)) return r;
   if (isRelationIgnored(relation)) return r;
   if ((lhs != nullptr) && (rhs != nullptr)) {
-    if ((r = static_cast<int32_t>(lhs->size() - rhs->size())) != 0) {
+    if ((r = static_cast<int32_t>(lhs->size()) -
+             static_cast<int32_t>(rhs->size())) != 0) {
       setFailed(plhs, prhs, relation);
-      return 1;
+      return r;
     }
     for (size_t i = 0, n = lhs->size(); i < n; ++i) {
       if ((r = compare(static_cast<const Any *>(lhs->at(i)),
@@ -150,6 +151,12 @@ int32_t UhdmComparer::compareT(const Any *plhs, const std::vector<T *> *lhs,
   return r;
 }
 
+int32_t UhdmComparer::compare(const Any *plhs, const AnyCollection *lhs,
+                              const Any *prhs, const AnyCollection *rhs,
+                              uint32_t relation, int32_t r) {
+  return (r == 0) ? compareT<Any>(plhs, lhs, prhs, rhs, relation, r) : r;
+}
+
 // clang-format off
 // <UHDM_COMPARER_COLLECTION_IMPLEMENTATIONS>
 // clang-format on
@@ -157,7 +164,7 @@ int32_t UhdmComparer::compareT(const Any *plhs, const std::vector<T *> *lhs,
 int32_t UhdmComparer::compare(const Any *lhs, const Any *rhs,
                               uint32_t relation /* = 0 */,
                               int32_t r /* = 0 */) {
-  if (lhs == rhs) return 0;
+  if (lhs == rhs) return r;
   if (isRelationIgnored(relation)) return r;
 
   cache_t::const_iterator it = m_cache.find({lhs, rhs});
@@ -165,7 +172,7 @@ int32_t UhdmComparer::compare(const Any *lhs, const Any *rhs,
 
   // If the input lhs/rhs pair is already on the stack,
   // then assume equal.
-  if (!m_callstack.emplace(lhs, rhs).second) return 0;
+  if (!m_callstack.emplace(lhs, rhs).second) return r;
 
   UhdmType uhdmType = UhdmType::Any;
   if ((lhs != nullptr) && (rhs != nullptr)) {
@@ -173,7 +180,7 @@ int32_t UhdmComparer::compare(const Any *lhs, const Any *rhs,
     const UhdmType rhsType = rhs->getUhdmType();
     uhdmType = lhsType;
     if (r == 0) {
-      r = static_cast<uint32_t>(lhsType) - static_cast<uint32_t>(rhsType);
+      r = static_cast<int32_t>(lhsType) - static_cast<int32_t>(rhsType);
     }
     if (r == 0) {
       r = lhs->compare(rhs, this);

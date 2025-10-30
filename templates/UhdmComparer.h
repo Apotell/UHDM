@@ -92,6 +92,10 @@ class UhdmComparer : public RTTI {
   // clang-format on
 
  public:
+  virtual int32_t compare(const Any* plhs, const AnyCollection* lhs,
+                          const Any* prhs, const AnyCollection* rhs,
+                          uint32_t relation, int32_t r);
+
   // clang-format off
 // <UHDM_COMPARER_COLLECTION_DECLARATIONS>
   // clang-format on
