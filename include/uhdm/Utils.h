@@ -166,58 +166,38 @@ inline bool setTypespec(Any* object, Typespec* typespec) {
   return (rt != nullptr) && rt->setActual(typespec);
 }
 
-template <typename R = Typespec, typename T = Typespec>
+template <typename R = Typespec, typename T = ArrayTypespec>
 inline auto getElemTypespec(T* typespec) ->
     typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getElemTypespec());
-  } else if (auto* const pat = any_cast<PackedArrayTypespec>(typespec)) {
-    return getActual<R>(pat->getElemTypespec());
   }
   return nullptr;
 }
 
-inline bool setElemTypespec(Typespec* typespec, Typespec* actual) {
+inline bool setElemTypespec(ArrayTypespec* typespec, Typespec* actual) {
   RefTypespec* rt = nullptr;
-  if (ArrayTypespec* const at = any_cast<ArrayTypespec>(typespec)) {
-    if ((rt = at->getElemTypespec()) == nullptr) {
-      rt = at->getSerializer()->make<RefTypespec>();
-      at->setElemTypespec(rt);
-    }
-  } else if (PackedArrayTypespec* const pat =
-                 any_cast<PackedArrayTypespec>(typespec)) {
-    if ((rt = pat->getElemTypespec()) == nullptr) {
-      rt = pat->getSerializer()->make<RefTypespec>();
-      pat->setElemTypespec(rt);
-    }
+  if ((rt = typespec->getElemTypespec()) == nullptr) {
+    rt = typespec->getSerializer()->make<RefTypespec>();
+    typespec->setElemTypespec(rt);
   }
   return (rt != nullptr) && rt->setActual(actual);
 }
 
-template <typename R = Typespec, typename T = Typespec>
+template <typename R = Typespec, typename T = ArrayTypespec>
 inline auto getIndexTypespec(T* typespec) ->
     typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getIndexTypespec());
-  } else if (auto* const pat = any_cast<PackedArrayTypespec>(typespec)) {
-    return getActual<R>(pat->getIndexTypespec());
   }
   return nullptr;
 }
 
-inline bool setIndexTypespec(Typespec* typespec, Typespec* actual) {
+inline bool setIndexTypespec(ArrayTypespec* typespec, Typespec* actual) {
   RefTypespec* rt = nullptr;
-  if (ArrayTypespec* const at = any_cast<ArrayTypespec>(typespec)) {
-    if ((rt = at->getIndexTypespec()) == nullptr) {
-      rt = at->getSerializer()->make<RefTypespec>();
-      at->setIndexTypespec(rt);
-    }
-  } else if (PackedArrayTypespec* const pat =
-                 any_cast<PackedArrayTypespec>(typespec)) {
-    if ((rt = pat->getIndexTypespec()) == nullptr) {
-      rt = pat->getSerializer()->make<RefTypespec>();
-      pat->setIndexTypespec(rt);
-    }
+  if ((rt = typespec->getIndexTypespec()) == nullptr) {
+    rt = typespec->getSerializer()->make<RefTypespec>();
+    typespec->setIndexTypespec(rt);
   }
   return (rt != nullptr) && rt->setActual(actual);
 }

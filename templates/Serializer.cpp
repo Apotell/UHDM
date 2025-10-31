@@ -209,11 +209,6 @@ class TypespecUnifier final : public UhdmListener {
                                      uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterPackedArrayTypespecCollection(
-      const Any* object, const PackedArrayTypespecCollection& objects,
-      uint32_t relation) final {
-    enterTypespecCollection(objects);
-  }
   void enterProgramTypespecCollection(const Any* object,
                                       const ProgramTypespecCollection& objects,
                                       uint32_t relation) final {

@@ -205,7 +205,6 @@ udp_defn_typespec.yaml
 struct_typespec.yaml
 union_typespec.yaml
 logic_typespec.yaml
-packed_array_typespec.yaml
 array_typespec.yaml
 void_typespec.yaml
 unsupported_typespec.yaml

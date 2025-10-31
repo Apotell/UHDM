@@ -24,14 +24,6 @@
   vpi: vpiRange
   type: range
   card: any
-- class_ref: left_expr
-  vpi: vpiLeftRange
-  type: expr
-  card: 1
-- class_ref: right_expr
-  vpi: vpiRightRange
-  type: expr
-  card: 1
 - class_ref: index_typespec
   vpi: vpiIndexTypespec
   type: ref_typespec
@@ -43,4 +35,8 @@
 - obj_ref: resolution_func
   vpi: vpiFunction
   type: function
+  card: 1
+- property: packed
+  vpi: vpiPacked
+  type: bool
   card: 1

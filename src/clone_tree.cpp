@@ -1015,9 +1015,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 //   actual = vars->at(0);
                 //   actual_type = actual->getUhdmType();
                 // }
-                if ((uhdm::getTypespec<ArrayTypespec>(actual) != nullptr) ||
-                    (uhdm::getTypespec<PackedArrayTypespec>(actual) !=
-                     nullptr)) {
+                if (uhdm::getTypespec<ArrayTypespec>(actual) != nullptr) {
                   if (name == "size" || name == "exists" || name == "find" ||
                       name == "max" || name == "min") {
                     FuncCall* call = context->m_serializer->make<FuncCall>();
@@ -1040,13 +1038,8 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 const Typespec* tps = nullptr;
                 Variable* const avar = (Variable*)actual;
                 if (const RefTypespec* rt = avar->getTypespec()) {
-                  if (const PackedArrayTypespec* ptps =
-                          rt->getActual<PackedArrayTypespec>()) {
-                    if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                      tps = ert->getActual();
-                    }
-                  } else if (const ArrayTypespec* atps =
-                                 rt->getActual<ArrayTypespec>()) {
+                  if (const ArrayTypespec* atps =
+                          rt->getActual<ArrayTypespec>()) {
                     if (const RefTypespec* ert = atps->getElemTypespec()) {
                       tps = ert->getActual();
                     }
@@ -1067,11 +1060,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 if (found == false) {
                   if (tps) {
                     UhdmType ttype = tps->getUhdmType();
-                    if (ttype == UhdmType::PackedArrayTypespec) {
-                      PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
-                      tps = (Typespec*)ptps->getElemTypespec();
-                      if (tps) ttype = tps->getUhdmType();
-                    } else if (ttype == UhdmType::ArrayTypespec) {
+                    if (ttype == UhdmType::ArrayTypespec) {
                       ArrayTypespec* ptps = (ArrayTypespec*)tps;
                       tps = (Typespec*)ptps->getElemTypespec();
                       if (tps) ttype = tps->getUhdmType();
@@ -1529,15 +1518,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
                 }
                 if (tps == nullptr) break;
                 UhdmType ttype = tps->getUhdmType();
-                if (ttype == UhdmType::PackedArrayTypespec) {
-                  PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
-                  if (const RefTypespec* ert = ptps->getElemTypespec()) {
-                    if (const Typespec* ets = ert->getActual()) {
-                      tps = ets;
-                      ttype = ets->getUhdmType();
-                    }
-                  }
-                } else if (ttype == UhdmType::ArrayTypespec) {
+                if (ttype == UhdmType::ArrayTypespec) {
                   ArrayTypespec* ptps = (ArrayTypespec*)tps;
                   if (const RefTypespec* ert = ptps->getElemTypespec()) {
                     if (const Typespec* ets = ert->getActual()) {
@@ -1711,13 +1692,7 @@ HierPath* HierPath::deepClone(BaseClass* parent, CloneContext* context) const {
           }
           if (tps == nullptr) break;
           UhdmType ttype = tps->getUhdmType();
-          if (ttype == UhdmType::PackedArrayTypespec) {
-            PackedArrayTypespec* ptps = (PackedArrayTypespec*)tps;
-            if (const RefTypespec* rt = ptps->getElemTypespec()) {
-              tps = rt->getActual();
-              ttype = tps->getUhdmType();
-            }
-          } else if (ttype == UhdmType::ArrayTypespec) {
+          if (ttype == UhdmType::ArrayTypespec) {
             ArrayTypespec* ptps = (ArrayTypespec*)tps;
             if (const RefTypespec* rt = ptps->getElemTypespec()) {
               tps = rt->getActual();

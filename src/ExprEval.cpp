@@ -1447,14 +1447,6 @@ uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst,
       }
       break;
     }
-    case UhdmType::PackedArrayTypespec: {
-      PackedArrayTypespec *tmp = (PackedArrayTypespec *)ts;
-      if (const RefTypespec *rt = tmp->getElemTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      ranges = tmp->getRanges();
-      break;
-    }
     case UhdmType::TypespecMember: {
       if (const RefTypespec *rt = ((const TypespecMember *)ts)->getTypespec()) {
         bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
@@ -1692,12 +1684,7 @@ uint64_t ExprEval::getWordSize(const Expr *exp, const Any *inst,
   }
   if (const RefTypespec *ctsrt = exp->getTypespec()) {
     if (const Typespec *cts = ctsrt->getActual()) {
-      if (cts->getUhdmType() == UhdmType::PackedArrayTypespec) {
-        PackedArrayTypespec *patps = (PackedArrayTypespec *)cts;
-        if (const RefTypespec *etsro = patps->getElemTypespec()) {
-          cts = etsro->getActual();
-        }
-      } else if (cts->getUhdmType() == UhdmType::ArrayTypespec) {
+      if (cts->getUhdmType() == UhdmType::ArrayTypespec) {
         ArrayTypespec *atps = (ArrayTypespec *)cts;
         if (const RefTypespec *etsro = atps->getElemTypespec()) {
           cts = etsro->getActual();
@@ -2527,11 +2514,6 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       if (const RefTypespec *rt = ltps->getElemTypespec()) {
         return (Typespec *)rt->getActual();
       }
-    } else if (const PackedArrayTypespec *ltps =
-                   any_cast<PackedArrayTypespec>(object)) {
-      if (const RefTypespec *rt = ltps->getElemTypespec()) {
-        return (Typespec *)rt->getActual();
-      }
     } else if (Constant *c = any_cast<Constant>(object)) {
       if (Expr *tmp = reduceBitSelect(c, selectIndex, invalidValue, inst, pexpr,
                                       muteError)) {
@@ -2590,29 +2572,22 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             }
           }
 
-          if (tps) {
-            if (tps->getUhdmType() == UhdmType::PackedArrayTypespec) {
-              PackedArrayTypespec *tmp = (PackedArrayTypespec *)tps;
-              if (const RefTypespec *rt = tmp->getElemTypespec()) {
-                tps = rt->getActual();
-              }
-            } else if (tps->getUhdmType() == UhdmType::ArrayTypespec) {
-              ArrayTypespec *tmp = (ArrayTypespec *)tps;
-              if (const RefTypespec *rt = tmp->getElemTypespec()) {
-                tps = rt->getActual();
-              }
+          if (tps && (tps->getUhdmType() == UhdmType::ArrayTypespec)) {
+            ArrayTypespec *tmp = (ArrayTypespec *)tps;
+            if (const RefTypespec *rt = tmp->getElemTypespec()) {
+              tps = rt->getActual();
             }
-            if (tps->getUhdmType() == UhdmType::StructTypespec) {
-              StructTypespec *sts = (StructTypespec *)tps;
-              if (TypespecMemberCollection *members = sts->getMembers()) {
-                uint32_t i = 0;
-                for (TypespecMember *member : *members) {
-                  if (member->getName() == elemName) {
-                    bIndex = i;
-                    break;
-                  }
-                  i++;
+          }
+          if (tps && (tps->getUhdmType() == UhdmType::StructTypespec)) {
+            StructTypespec *sts = (StructTypespec *)tps;
+            if (TypespecMemberCollection *members = sts->getMembers()) {
+              uint32_t i = 0;
+              for (TypespecMember *member : *members) {
+                if (member->getName() == elemName) {
+                  bIndex = i;
+                  break;
                 }
+                i++;
               }
             }
           }
@@ -2637,15 +2612,7 @@ Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                           any_cast<Parameter>(param->getLhs())) {
                     if (const RefTypespec *rt = p->getTypespec()) {
                       if (const Typespec *tps = rt->getActual()) {
-                        if (tps->getUhdmType() ==
-                            UhdmType::PackedArrayTypespec) {
-                          if (const RefTypespec *ert =
-                                  ((PackedArrayTypespec *)tps)
-                                      ->getElemTypespec()) {
-                            tps = ert->getActual();
-                          }
-                        } else if (tps->getUhdmType() ==
-                                   UhdmType::ArrayTypespec) {
+                        if (tps->getUhdmType() == UhdmType::ArrayTypespec) {
                           if (const RefTypespec *ert =
                                   ((ArrayTypespec *)tps)->getElemTypespec()) {
                             tps = ert->getActual();
@@ -3981,11 +3948,6 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
                   ranges = bts->getRanges();
                   break;
                 }
-                case UhdmType::PackedArrayTypespec: {
-                  PackedArrayTypespec *bts = (PackedArrayTypespec *)tps;
-                  ranges = bts->getRanges();
-                  break;
-                }
                 default:
                   break;
               }
@@ -4270,19 +4232,6 @@ Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue,
                   if (const ArrayTypespec *atps =
                           oprt->getActual<ArrayTypespec>()) {
                     if (const RefTypespec *ert = atps->getElemTypespec()) {
-                      if (const Typespec *ertts = ert->getActual()) {
-                        ElaboratorContext elaboratorContext(&s, false,
-                                                            muteError);
-                        RefTypespec *celrt =
-                            (RefTypespec *)clone_tree(ert, &elaboratorContext);
-                        celrt->setActual(const_cast<Typespec *>(ertts));
-                        celrt->setParent((Any *)result);
-                        ((Operation *)result)->setTypespec(celrt);
-                      }
-                    }
-                  } else if (const PackedArrayTypespec *patps =
-                                 oprt->getActual<PackedArrayTypespec>()) {
-                    if (const RefTypespec *ert = patps->getElemTypespec()) {
                       if (const Typespec *ertts = ert->getActual()) {
                         ElaboratorContext elaboratorContext(&s, false,
                                                             muteError);

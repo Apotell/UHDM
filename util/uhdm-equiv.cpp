@@ -216,13 +216,6 @@ class EquivalenceComparer final : public uhdm::UhdmComparer {
     return compareT(plhs, lhs, prhs, rhs, relation, r);
   }
   int32_t compare(const uhdm::Any *plhs,
-                  const uhdm::PackedArrayTypespecCollection *lhs,
-                  const uhdm::Any *prhs,
-                  const uhdm::PackedArrayTypespecCollection *rhs,
-                  uint32_t relation, int32_t r) {
-    return compareT(plhs, lhs, prhs, rhs, relation, r);
-  }
-  int32_t compare(const uhdm::Any *plhs,
                   const uhdm::PropertyTypespecCollection *lhs,
                   const uhdm::Any *prhs,
                   const uhdm::PropertyTypespecCollection *rhs,
