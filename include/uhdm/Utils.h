@@ -48,8 +48,6 @@ inline auto getActual(T* object) ->
     return rm->template getActual<R>();
   } else if (auto* const rt = any_cast<RefTypespec>(object)) {
     return rt->template getActual<R>();
-  } else if (auto* const v = any_cast<Variable>(object)) {
-    return v->template getActual<R>();
   }
 
   return nullptr;
@@ -67,8 +65,6 @@ inline bool setActual(uhdm::Any* object, T* actual) {
     return rm->setActual(actual);
   } else if (RefTypespec* const rt = any_cast<RefTypespec>(object)) {
     return rt->setActual(actual);
-  } else if (Variable* const v = any_cast<Variable>(object)) {
-    return v->setActual(actual);
   }
 
   return false;
