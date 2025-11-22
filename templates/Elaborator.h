@@ -18,17 +18,17 @@
  */
 
 /*
- * File:   ElaboratorListener.h
+ * File:   Elaborator.h
  * Author: alaindargelas
  *
  * Created on May 6, 2020, 10:03 PM
  */
 
-#ifndef UHDM_ELABORATORLISTENER_H
-#define UHDM_ELABORATORLISTENER_H
+#ifndef UHDM_ELABORATOR_H
+#define UHDM_ELABORATOR_H
 
-#include <uhdm/BaseClass.h>
 #include <uhdm/VpiListener.h>
+#include <uhdm/containers.h>
 
 #include <map>
 #include <unordered_set>
@@ -36,25 +36,27 @@
 
 namespace UHDM {
 
-class ElaboratorContext;
-class ElaboratorListener;
+class Elaborator;
 class Serializer;
 
-class ElaboratorListener final : public VpiListener {
-  friend function;
-  friend task;
-  friend gen_scope_array;
-
+class Elaborator final : public VpiListener {
  public:
-  void setContext(ElaboratorContext* context) { context_ = context; }
-  void uniquifyTypespec(bool uniquify) { uniquifyTypespec_ = uniquify; }
-  bool uniquifyTypespec() { return uniquifyTypespec_; }
-  void bindOnly(bool bindOnly) { clone_ = !bindOnly; }
-  bool bindOnly() { return !clone_; }
+  explicit Elaborator(Serializer* serializer, bool debug = false,
+                      bool muteErrors = false);
+
+  template <typename T>
+  T* clone(const T* source, any* parent) {
+    return (T*)DeepCloneAny((const any *)source, parent);
+  }
+
+  void uniquifyTypespec(bool uniquify) { m_uniquifyTypespec = uniquify; }
+  bool uniquifyTypespec() const { return m_uniquifyTypespec; }
+  void bindOnly(bool bindOnly) { m_clone = !bindOnly; }
+  bool bindOnly() const { return !m_clone; }
   bool isFunctionCall(std::string_view name, const expr* prefix) const;
-  bool muteErrors() { return muteErrors_; }
+  bool muteErrors() const { return m_muteErrors; }
   bool isTaskCall(std::string_view name, const expr* prefix) const;
-  void ignoreLastInstance(bool ignore) override { ignoreLastInstance_ = ignore; }
+  void ignoreLastInstance(bool ignore) override { m_ignoreLastInstance = ignore; }
 
   // Bind to a net in the current instance
   any* bindNet(std::string_view name) const;
@@ -70,11 +72,9 @@ class ElaboratorListener final : public VpiListener {
                     const class_var* prefix = nullptr) const;
 
   void scheduleTaskFuncBinding(tf_call* clone, const class_var* prefix) {
-    scheduledTfCallBinding_.push_back(std::make_pair(clone, prefix));
+    m_scheduledTfCallBinding.push_back(std::make_pair(clone, prefix));
   }
   void bindScheduledTaskFunc();
-
-  typedef std::map<std::string, const BaseClass*, std::less<>> ComponentMap;
 
   void enterAny(const any* object, vpiHandle handle) final;
 
@@ -138,52 +138,62 @@ class ElaboratorListener final : public VpiListener {
   void pushVar(any* var);
   void popVar(any* var);
 
- private:
-  explicit ElaboratorListener(Serializer* serializer, bool debug = false,
-                              bool muteErrors = false)
-      : serializer_(serializer), debug_(debug), muteErrors_(muteErrors) {}
+  any* bindClassTypespec(class_typespec* ctps, any* current,
+                         std::string_view name, bool& found);
 
+  any* DeepCloneAny(const any* source, any* parent);
+
+  template <typename T>
+  std::vector<T*>* Clone(const std::vector<T*>* source);
+  template<typename T>
+  std::vector<T*>* DeepClone(const std::vector<T*>* source, any* parent);
+
+  template<typename T>
+  T* DeepClone(const T* source, any* parent);
+  sys_func_call* DeepClone(const sys_func_call* source, any* parent);
+  sys_task_call* DeepClone(const sys_task_call* source, any* parent);
+  tf_call* DeepClone(const method_func_call* source, any* parent);
+  constant* DeepClone(const constant* source, any* parent);
+  tagged_pattern* DeepClone(const tagged_pattern* source, any* parent);
+  tf_call* DeepClone(const method_task_call* source, any* parent);
+  tf_call* DeepClone(const func_call* source, any* parent);
+  tf_call* DeepClone(const task_call* source, any* parent);
+  gen_scope_array* DeepClone(const gen_scope_array* source, any* parent);
+  function* DeepClone(const function* source, any* parent);
+  task* DeepClone(const task* source, any* parent);
+  cont_assign* DeepClone(const cont_assign* source, any* parent);
+  hier_path* DeepClone(const hier_path* source, any* parent);
+
+  // clang-format off
+  void DeepCopy(const any* source, any* target);
+//<COPY_ANY_DECLARATIONS>
+  // clang-format on
+
+ private:
   void enterVariables(const variables* object, vpiHandle handle);
 
   void enterTask_func(const task_func* object, vpiHandle handle);
   void leaveTask_func(const task_func* object, vpiHandle handle);
 
+  using ComponentMap = std::map<std::string, const BaseClass*, std::less<>>;
   // Instance context stack
-  typedef std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap,
-                                 ComponentMap, ComponentMap>>
-      InstStack;
-  InstStack instStack_;
+  using InstStack = std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap,
+                                 ComponentMap, ComponentMap>>;
+  using ScheduledTfCallBinding = std::vector<std::pair<tf_call*, const class_var*>>;
 
+  Serializer* const m_serializer = nullptr;
+  bool m_debug = false;
+  bool m_muteErrors = false;
+  InstStack m_instStack;
   // Flat list of components (modules, udps, interfaces)
-  ComponentMap flatComponentMap_;
-
-  Serializer* serializer_ = nullptr;
-  ElaboratorContext* context_ = nullptr;
-  bool inHierarchy_ = false;
-  bool debug_ = false;
-  bool muteErrors_ = false;
-  bool uniquifyTypespec_ = true;
-  bool clone_ = true;
-  bool ignoreLastInstance_ = false;
-  std::vector<std::pair<tf_call*, const class_var*>> scheduledTfCallBinding_;
-
-  friend class ElaboratorContext;
+  ComponentMap m_flatComponentMap;
+  ScheduledTfCallBinding m_scheduledTfCallBinding;
+  bool m_inHierarchy = false;
+  bool m_uniquifyTypespec = true;
+  bool m_clone = true;
+  bool m_ignoreLastInstance = false;
+  bool m_isInUhdmAllIterator = false;
 };
-
-class ElaboratorContext final : public CloneContext {
-  UHDM_IMPLEMENT_RTTI(ElaboratorContext, CloneContext)
-
- public:
-  explicit ElaboratorContext(Serializer* serializer, bool debug = false,
-                             bool muteErrors = false)
-      : CloneContext(serializer), m_elaborator(serializer, debug, muteErrors) {
-    m_elaborator.setContext(this);
-  }
-  ~ElaboratorContext() final = default;
-
-  ElaboratorListener m_elaborator;
-};
-
 };  // namespace UHDM
 
-#endif  // UHDM_ELABORATORLISTENER_H
+#endif  // UHDM_ELABORATOR_H

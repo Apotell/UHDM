@@ -43,13 +43,14 @@ void Serializer::GarbageCollect() {
   if (!m_enableGC) return;
 
   UhdmListener* const listener = new UhdmListener();
-  for (auto d : designMaker.objects_) {
-    listener->listenDesign(d);
+  for (auto d : designMaker.m_objects) {
+    listener->listenDesign(static_cast<design*>(d));
   }
 
   const AnySet visited(listener->getVisited().begin(), listener->getVisited().end());
   delete listener;
 
+  AnySet erased;
 <FACTORY_GC>
 }
 
@@ -138,7 +139,7 @@ Serializer::~Serializer() {
 }
 
 void Serializer::Purge() {
-  anyVectMaker.Purge();
+  anyMaker.Purge();
   symbolMaker.Purge();
   uhdm_handleMaker.Purge();
 <FACTORY_PURGE>

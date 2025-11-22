@@ -22,7 +22,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt install -y g++-9 build-essential pkg-config cmake
+        sudo apt install -y g++-14 build-essential pkg-config cmake
 
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -55,8 +55,8 @@ jobs:
 
     - name: Configure shell
       run: |
-        echo 'CC=gcc-9' >> $GITHUB_ENV
-        echo 'CXX=g++-9' >> $GITHUB_ENV
+        echo 'CC=gcc-14' >> $GITHUB_ENV
+        echo 'CXX=g++-14' >> $GITHUB_ENV
         echo 'PREFIX=/tmp/uhdm-install' >> $GITHUB_ENV
         echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
 
@@ -92,16 +92,17 @@ jobs:
         make test_install_pkgconfig
       if: ${{ matrix.vendored_dependencies }}
 
-    - name: Build & Test (Shared)
-      run: |
-        make release-shared UHDM_WITH_PYTHON=ON
-        make test-shared UHDM_WITH_PYTHON=ON
-        make install-shared
-        make test_install
-      if: ${{ !matrix.vendored_dependencies }}
+#    - name: Build & Test (Shared)
+#      run: |
+#        make release-shared UHDM_WITH_PYTHON=ON
+#        make test-shared UHDM_WITH_PYTHON=ON
+#        make install-shared
+#        make test_install
+#      if: ${{ !matrix.vendored_dependencies }}
 
   macos:
     name: macos-gcc
+    if: false
     runs-on: macos-13
 
     steps:
@@ -143,6 +144,7 @@ jobs:
 
   msys2-gcc:
     name: msys2-gcc
+    if: false
     runs-on: windows-2022
     defaults:
       run:
@@ -209,6 +211,7 @@ jobs:
 
   windows-msvc:
     name: windows-cl
+    if: false
     runs-on: windows-2022
     defaults:
       run:

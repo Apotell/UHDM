@@ -30,7 +30,10 @@
 #include <uhdm/SymbolFactory.h>
 #include <uhdm/containers.h>
 #include <uhdm/vpi_uhdm.h>
+#include <uhdm/uhdm_types.h>
+#include <uhdm/uhdm.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <iostream>
@@ -78,8 +81,93 @@ typedef std::function<void(ErrorType errType, const std::string&,
 void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
                          const any* object1, const any* object2);
 
-template <typename T>
-class FactoryT;
+class Factory final {
+  friend Serializer;
+
+  using objects_t = std::vector<any*>;
+  using collections_t = std::vector<objects_t*>;
+
+ public:
+  template <typename T>
+  T* Make() {
+    T* const any = new T;
+    m_objects.emplace_back(any);
+    return any;
+  }
+
+  template <typename T>
+  std::vector<T*>* MakeVec() {
+    std::vector<T*>* const collection = new std::vector<T*>;
+    m_collections.emplace_back((objects_t*)collection);
+    return collection;
+  }
+
+  bool Erase(const any* obj) {
+    objects_t::iterator it = std::find(m_objects.begin(), m_objects.end(), obj);
+    if (it != m_objects.end()) {
+      delete obj;
+      m_objects.erase(it);
+      return true;
+    }
+    return false;
+  }
+
+  template <typename T>
+  bool Erase(const std::vector<T*>* collection) {
+    collections_t::iterator it =
+        std::find(m_collections.begin(), m_collections.end(),
+                  static_cast<const collections_t*>(collection));
+    if (it != m_collections.end()) {
+      delete collection;
+      m_collections.erase(it);
+      return true;
+    }
+    return false;
+  }
+
+  void EraseIfNotIn(const AnySet& container, AnySet& erased) {
+    objects_t keepers;
+    for (objects_t::reference obj : m_objects) {
+      if (container.find(obj) == container.cend()) {
+        erased.emplace(obj);
+        delete obj;
+      } else {
+        keepers.emplace_back(obj);
+      }
+    }
+    keepers.swap(m_objects);
+  }
+
+  void MapToIndex(std::map<const any*, uint32_t>& table,
+                  uint32_t index = 1) const {
+    for (objects_t::const_reference obj : m_objects) {
+      table.emplace(obj, index++);
+    }
+  }
+
+  void Purge() {
+    for (objects_t::reference obj : m_objects) {
+      delete obj;
+    }
+    for (collections_t::reference collection : m_collections) {
+      delete collection;
+    }
+
+    m_objects.clear();
+    m_collections.clear();
+  }
+
+  const objects_t& getObjects() { return m_objects; }
+  const objects_t& getObjects() const { return m_objects; }
+
+  const collections_t& getCollections() { return m_collections; }
+  const collections_t& getCollections() const { return m_collections; }
+
+ private:
+  objects_t m_objects;
+  collections_t m_collections;
+};
+
 #endif
 
 class Serializer final {
@@ -113,17 +201,20 @@ class Serializer final {
 #ifndef SWIG
  private:
   template <typename T>
-  T* Make(FactoryT<T>* const factory);
+  T* Make(Factory* factory);
 
   template <typename T>
-  void Make(FactoryT<T>* const factory, uint32_t count);
+  void Make(Factory* factory, uint32_t count);
 
   template <typename T>
-  std::vector<T*>* Make(FactoryT<std::vector<T*>>* const factory);
+  std::vector<T*>* MakeVec(Factory* factory) {
+    return factory->MakeVec<T>();
+  }
 
  public:
-  <FACTORY_FUNCTION_DECLARATIONS> std::vector<any*>* MakeAnyVec() {
-    return anyVectMaker.Make();
+<FACTORY_FUNCTION_DECLARATIONS>
+  std::vector<any*>* MakeAnyVec() {
+    return MakeVec<any>(&anyMaker);
   }
 
   SymbolId MakeSymbol(std::string_view symbol);
@@ -131,6 +222,12 @@ class Serializer final {
   SymbolId GetSymbolId(std::string_view symbol) const;
 
   vpiHandle MakeUhdmHandle(UHDM_OBJECT_TYPE type, const void* object);
+
+  template <typename T>
+  T* Clone(const T* source);
+
+  template <typename T>
+  std::vector<T*>* MakeVec();
 
   bool Erase(const BaseClass* p);
 
@@ -149,12 +246,38 @@ class Serializer final {
   bool m_enableGC = true;
   ErrorHandler m_errorHandler = DefaultErrorHandler;
 
-  VectorOfanyFactory anyVectMaker;
+  Factory anyMaker;
   SymbolFactory symbolMaker;
   uhdm_handleFactory uhdm_handleMaker;
 <FACTORY_DATA_MEMBERS>
 #endif
 };
-};  // namespace UHDM
+
+template <typename T>
+T* Serializer::Clone(const T* source) {
+  T* target = nullptr;
+  // clang-format off
+  switch (T::kUhdmType) {
+//<FACTORY_MAKE_CASE_STATEMENTS>
+    default: return nullptr;
+  }
+  // clang-format on
+  *target = *source;
+  target->SetSerializer(this);
+  target->UhdmId(++m_objId);
+  return target;
+}
+
+template <typename T>
+std::vector<T*>* Serializer::MakeVec() {
+  // clang-format off
+  switch (T::kUhdmType) {
+    case BaseClass::kUhdmType: return anyMaker.template MakeVec<T>();
+//<FACTORY_MAKEVEC_CASE_STATEMENTS>
+    default: return nullptr;
+  }
+  // clang-format on
+}
+}  // namespace UHDM
 
 #endif

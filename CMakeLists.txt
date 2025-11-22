@@ -130,7 +130,7 @@ set_source_files_properties(${model-GENERATED_UHDM} PROPERTIES GENERATED TRUE)
 file(GLOB py_SRC ${PROJECT_SOURCE_DIR}/scripts/*.py)
 if(NOT EXISTS ${model-GENERATED_UHDM})
 add_custom_command(
-  OUTPUT ${model-GENERATED_UHDM}
+  OUTPUT ${model-GENERATED_UHDM} ${uhdm-GENERATED_SRC}
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate.py --source-dirpath=${UHDM_SOURCE_DIR} -output-dirpath=${GENDIR}
   WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
   DEPENDS ${PROJECT_SOURCE_DIR}/model/models.lst
@@ -156,7 +156,7 @@ add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 set(uhdm-GENERATED_SRC
     ${GENDIR}/src/BaseClass.cpp
     ${GENDIR}/src/clone_tree.cpp
-    ${GENDIR}/src/ElaboratorListener.cpp
+    ${GENDIR}/src/Elaborator.cpp
     ${GENDIR}/src/ExprEval.cpp
     ${GENDIR}/src/NumUtils.cpp
     ${GENDIR}/src/Serializer.cpp
@@ -273,8 +273,8 @@ if (UHDM_BUILD_TESTS)
   enable_testing()
   include(GoogleTest)
   # All unit-tests are registered with this custom target as dependency, so
-  # just `make UnitTests` will build them all.
-  add_custom_target(UnitTests)
+  # just `make UhdmUnitTests` will build them all.
+  add_custom_target(UhdmUnitTests)
 
   function(register_tests)
     foreach(test_cc_file IN LISTS ARGN)
@@ -289,8 +289,8 @@ if (UHDM_BUILD_TESTS)
         NAME ${test_prefix}/${test_bin} COMMAND ${test_bin}
         WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
       gtest_discover_tests(${test_bin} TEST_PREFIX "${test_prefix}/")
-      # Now, add this binary to our UnitTests target that it builds this
-      add_dependencies(UnitTests ${test_bin})
+      # Now, add this binary to our UhdmUnitTests target that it builds this
+      add_dependencies(UhdmUnitTests ${test_bin})
     endforeach()
   endfunction()
   register_tests(

@@ -50,21 +50,16 @@ namespace UHDM {
 static constexpr std::string_view kUnknownRawSymbol = "<unknown>";
 
 template <typename T>
-inline T* Serializer::Make(FactoryT<T>* const factory) {
-  T* const obj = factory->Make();
+inline T* Serializer::Make(Factory* const factory) {
+  T* const obj = factory->Make<T>();
   obj->SetSerializer(this);
   obj->UhdmId(++m_objId);
   return obj;
 }
 
 template <typename T>
-void Serializer::Make(FactoryT<T>* const factory, uint32_t count) {
-  for (uint32_t i = 0; i < count; ++i) Make(factory);
-}
-
-template <typename T>
-inline std::vector<T*>* Serializer::Make(FactoryT<std::vector<T*>>* const factory) {
-  return factory->Make();
+void Serializer::Make(Factory* const factory, uint32_t count) {
+  for (uint32_t i = 0; i < count; ++i) Make<T>(factory);
 }
 
 BaseClass* Serializer::GetObject(uint32_t objectType, uint32_t index) const {
@@ -95,10 +90,10 @@ struct Serializer::RestoreAdapter {
 <CAPNP_RESTORE_ADAPTERS>
 
   template<typename T, typename U, typename = typename std::enable_if<std::is_base_of<BaseClass, T>::value>::type>
-  void operator()(typename ::capnp::List<U>::Reader reader, Serializer *serializer, typename FactoryT<T>::objects_t &objects) const {
+  void operator()(typename ::capnp::List<U>::Reader reader, Serializer *serializer, typename Factory::objects_t &objects) const {
     uint32_t index = 0;
     for (typename U::Reader obj : reader)
-      operator()(obj, serializer, objects[index++]);
+      operator()(obj, serializer, static_cast<T*>(objects[index++]));
   }
 };
 
@@ -130,7 +125,7 @@ const std::vector<vpiHandle> Serializer::Restore(const std::string& filepath) {
   RestoreAdapter adapter;
 <CAPNP_RESTORE_FACTORIES>
 
-   for (auto d : designMaker.objects_) {
+   for (auto d : designMaker.m_objects) {
     vpiHandle designH = uhdm_handleMaker.Make(UHDM_OBJECT_TYPE::uhdmdesign, d);
     designs.push_back(designH);
   }

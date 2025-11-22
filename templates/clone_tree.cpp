@@ -22,37 +22,18 @@
  *
  * Created on December 14, 2019, 10:03 PM
  */
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
 namespace UHDM {
-
-BaseClass* clone_tree(const BaseClass* root, CloneContext* context) {
-  return root ? root->DeepClone(nullptr, context) : nullptr;
-}
-
-tf_call* sys_func_call::DeepClone(BaseClass* parent,
-                                  CloneContext* context) const {
-  sys_func_call* const clone = context->m_serializer->MakeSys_func_call();
-  const uint32_t id = clone->UhdmId();
-  *clone = *this;
-  clone->UhdmId(id);
-  clone->VpiParent(parent);
-  if (auto obj = User_systf())
-    clone->User_systf(obj->DeepClone(clone, context));
-  if (auto obj = Scope()) clone->Scope(obj->DeepClone(clone, context));
-  if (auto vec = Tf_call_args()) {
-    auto clone_vec = context->m_serializer->MakeAnyVec();
-    clone->Tf_call_args(clone_vec);
-    for (auto obj : *vec) {
-      clone_vec->push_back(obj->DeepClone(clone, context));
-    }
-  }
-  if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
-
-  return clone;
+  #if 0
+void sys_func_call::copFrom(const sys_func_call* source, Cloner* cloner) {
+  user_systf_ = cloner->clone<>(source->user_systf_, this);
+  scope_ = cloner->clone<>(source->scope_, this);
+  tf_call_args_ = cloner->clone<>(source->tf_call_args_, this);
+  typespec_ = cloner->clone<>(source->typespec_, this);
 }
 
 tf_call* sys_task_call::DeepClone(BaseClass* parent,
@@ -2136,4 +2117,5 @@ hier_path* hier_path::DeepClone(BaseClass* parent,
   if (auto obj = Typespec()) clone->Typespec(obj->DeepClone(clone, context));
   return clone;
 }
+#endif
 }  // namespace UHDM

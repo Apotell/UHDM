@@ -72,11 +72,11 @@ struct Serializer::SaveAdapter {
 <CAPNP_SAVE_ADAPTERS>
 
   template<typename T, typename U, typename = typename std::enable_if<std::is_base_of<BaseClass, T>::value>::type>
-  void operator()(const FactoryT<T>& factory, Serializer* serializer, const Serializer::IdMap& idMap,
+  void operator()(const Factory& factory, Serializer* serializer, const Serializer::IdMap& idMap,
                   typename ::capnp::List<U>::Builder builder) const {
     uint32_t index = 0;
-    for (const T* obj : factory.objects_)
-      operator()(obj, serializer, idMap, builder[index++]);
+    for (const any* obj : factory.m_objects)
+      operator()(static_cast<const T*>(obj), serializer, idMap, builder[index++]);
   }
 };
 
@@ -96,9 +96,9 @@ void Serializer::Save(const std::string& filepath) {
   cap_root.setVersion(kVersion);
   cap_root.setObjectId(m_objId);
 
-  ::capnp::List<Design>::Builder designs = cap_root.initDesigns(designMaker.objects_.size());
+  ::capnp::List<Design>::Builder designs = cap_root.initDesigns(designMaker.m_objects.size());
   index = 0;
-  for (auto design : designMaker.objects_) {
+  for (auto design : designMaker.m_objects) {
     designs[index].setVpiName((RawSymbolId)design->GetSerializer()->symbolMaker.Make(design->VpiName()));
     index++;
   }

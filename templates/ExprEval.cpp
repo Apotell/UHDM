@@ -23,9 +23,10 @@
  */
 
 #include <string.h>
-#include <uhdm/ElaboratorListener.h>
+#include <uhdm/Elaborator.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
+#include <uhdm/VpiListener.h>
 #include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
@@ -312,7 +313,7 @@ any *ExprEval::getValue(std::string_view name, const any *inst,
       for (auto p : *parameters) {
         if (p->VpiName() == the_name) {
           if (p->UhdmType() == uhdmparameter) {
-            result = (any*) p;
+            result = (any *)p;
             break;
           }
         }
@@ -875,13 +876,11 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       index++;
     }
     index = 0;
-    ElaboratorContext elaboratorContext(&s, false, m_muteError);
+    Elaborator elaborator(&s, false, m_muteError);
     for (auto opi : tmp) {
       if (defaultOp && (opi == nullptr)) {
-        opi = clone_tree((any *)defaultOp, &elaboratorContext);
-        if (opi != nullptr) {
-          opi->VpiParent(const_cast<any *>(defaultOp->VpiParent()));
-        }
+        opi = elaborator.clone(defaultOp,
+                               const_cast<any *>(defaultOp->VpiParent()));
       }
       if (opi == nullptr) {
         if (!m_muteError) {
@@ -927,11 +926,10 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       ordered->push_back(opi);
       index++;
     }
-    operation *opres = (operation *)clone_tree((any *)op, &elaboratorContext);
-    opres->VpiParent(const_cast<any *>(op->VpiParent()));
-    ref_typespec* rtps = s.MakeRef_typespec();
+    operation *opres = elaborator.clone(op, const_cast<any *>(op->VpiParent()));
+    ref_typespec *rtps = s.MakeRef_typespec();
     opres->Typespec(rtps);
-    rtps->Actual_typespec((typespec*) tps);
+    rtps->Actual_typespec((typespec *)tps);
     opres->Operands(ordered);
     if (flatten) {
       opres->VpiFlattened(true);
@@ -1274,13 +1272,14 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
   VectorOfrange *ranges = nullptr;
   UHDM_OBJECT_TYPE ttps = ts->UhdmType();
   if (ttps == uhdmref_typespec) {
-    ref_typespec* rtps = (ref_typespec*) ts;
+    ref_typespec *rtps = (ref_typespec *)ts;
     ts = rtps->Actual_typespec();
     ttps = ts->UhdmType();
   }
   switch (ttps) {
     case UHDM_OBJECT_TYPE::uhdmhier_path: {
-      ts = decodeHierPath((hier_path *)ts, invalidValue, inst, nullptr, ReturnType::TYPESPEC);
+      ts = decodeHierPath((hier_path *)ts, invalidValue, inst, nullptr,
+                          ReturnType::TYPESPEC);
       if (ts)
         bits = size(ts, invalidValue, inst, pexpr, full);
       else
@@ -1371,7 +1370,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_net *lts = (logic_net *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -1384,7 +1384,8 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
       logic_var *lts = (logic_var *)ts;
       if (const ref_typespec *rt = lts->Typespec()) {
         bool tmpInvalidValue = false;
-        uint64_t tmpS = size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
+        uint64_t tmpS =
+            size(rt->Actual_typespec(), tmpInvalidValue, inst, pexpr, full);
         if (tmpInvalidValue == false) {
           bits = tmpS;
         }
@@ -1476,7 +1477,7 @@ uint64_t ExprEval::size(const any *ts, bool &invalidValue, const any *inst,
     }
     case UHDM_OBJECT_TYPE::uhdmref_obj: {
       ref_obj *ref = (ref_obj *)ts;
-      const any* act = ref->Actual_group();
+      const any *act = ref->Actual_group();
       if (act == nullptr) {
         std::string_view name = ref->VpiName();
         act = getObject(name, inst, pexpr, muteError);
@@ -1612,7 +1613,7 @@ static bool getStringVal(std::string &result, expr *val) {
 
 void resize(expr *resizedExp, int32_t size) {
   ExprEval eval;
-  constant* c = any_cast<constant*>(resizedExp);
+  constant *c = any_cast<constant *>(resizedExp);
   if (c && c->VpiDecompile() == "'1") {
     uint64_t mask = NumUtils::getMask(size);
     c->VpiValue("UINT:" + std::to_string(mask));
@@ -2238,13 +2239,11 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
     } else if (ref_obj *ref = any_cast<ref_obj *>(object)) {
       object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
     } else if (constant *cons = any_cast<constant *>(object)) {
-      ElaboratorContext elaboratorContext(&s);
-      object = clone_tree(cons, &elaboratorContext);
+      Elaborator elaborator(&s);
+      object = elaborator.clone(cons, nullptr);
       cons = any_cast<constant *>(object);
       if (cons->Typespec() == nullptr) {
-        ref_typespec *rt =
-            (ref_typespec *)clone_tree(path->Typespec(), &elaboratorContext);
-        rt->VpiParent(cons);
+        ref_typespec *rt = elaborator.clone(path->Typespec(), cons);
         cons->Typespec(rt);
       }
     } else if (operation *oper = any_cast<operation *>(object)) {
@@ -2269,12 +2268,12 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
       }
     }
 
-    expr* result = (expr *)hierarchicalSelector(the_path, 0, object, invalidValue, inst,
-                                        pexpr, returnType, muteError);
+    expr *result = (expr *)hierarchicalSelector(
+        the_path, 0, object, invalidValue, inst, pexpr, returnType, muteError);
     if (result == nullptr) {
       invalidValue = true;
-      result = (expr *)hierarchicalSelector(the_path, 0, object, invalidValue, inst,
-                                        pexpr, returnType, muteError);
+      result = (expr *)hierarchicalSelector(the_path, 0, object, invalidValue,
+                                            inst, pexpr, returnType, muteError);
     } else if (result->UhdmType() == uhdmhier_path) {
       invalidValue = true;
     }
@@ -2332,7 +2331,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
               } else if (returnType == ReturnType::MEMBER) {
                 return member;
               } else {
-                return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                return member->Actual_value() ? member->Actual_value()
+                                              : member->Default_value();
               }
             }
           }
@@ -2377,8 +2377,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             return res;
           } else {
             return hierarchicalSelector(select_path, level + 1, res,
-                                        invalidValue, inst, pexpr,
-                                        returnType, muteError);
+                                        invalidValue, inst, pexpr, returnType,
+                                        muteError);
           }
         }
       }
@@ -2394,12 +2394,13 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
               return res;
             } else {
               return hierarchicalSelector(select_path, level + 1, res,
-                                          invalidValue, inst, pexpr,
-                                          returnType, muteError);
+                                          invalidValue, inst, pexpr, returnType,
+                                          muteError);
             }
           }
         } else {
-          res = member->Actual_value() ? member->Actual_value() : member->Default_value();
+          res = member->Actual_value() ? member->Actual_value()
+                                       : member->Default_value();
         }
         if (lastElem) {
           return res;
@@ -2430,7 +2431,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                     }
                   }
                 } else {
-                  return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                  return member->Actual_value() ? member->Actual_value()
+                                                : member->Default_value();
                 }
               }
             }
@@ -2500,13 +2502,14 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             const std::string_view param_name = param->Lhs()->VpiName();
             if (param_name == elemName) {
               const std::string_view param_value_name = param->Rhs()->VpiName();
-              any *objectrhs = getObject(param_value_name, inst, pexpr, muteError);
+              any *objectrhs =
+                  getObject(param_value_name, inst, pexpr, muteError);
               if (objectrhs == nullptr) {
                 objectrhs = getValue(param_value_name, inst, pexpr, muteError);
               }
-              return hierarchicalSelector(select_path, level + 1, objectrhs ? objectrhs : param->Rhs(),
-                                                invalidValue, inst, pexpr,
-                                                returnType, muteError);
+              return hierarchicalSelector(
+                  select_path, level + 1, objectrhs ? objectrhs : param->Rhs(),
+                  invalidValue, inst, pexpr, returnType, muteError);
             }
           }
         }
@@ -2539,7 +2542,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   }
                 }
               } else {
-                return member->Actual_value() ? member->Actual_value() : member->Default_value();
+                return member->Actual_value() ? member->Actual_value()
+                                              : member->Default_value();
               }
             }
           }
@@ -2547,16 +2551,16 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       }
     }
   } else if (port *tport = any_cast<port *>(object)) {
-    any* low_conn = tport->Low_conn();
+    any *low_conn = tport->Low_conn();
     if (low_conn) {
       if (low_conn->UhdmType() == uhdmref_obj) {
-        ref_obj* ref = (ref_obj*) low_conn;
-        any* actual = ref->Actual_group();
+        ref_obj *ref = (ref_obj *)low_conn;
+        any *actual = ref->Actual_group();
         if (actual) {
           if (actual->UhdmType() == uhdmmodport) {
-            modport* mport = (modport*) actual;
+            modport *mport = (modport *)actual;
             if (mport->Io_decls()) {
-              for (io_decl* decl : *mport->Io_decls()) {
+              for (io_decl *decl : *mport->Io_decls()) {
                 if (elemName == decl->VpiName()) {
                   if (returnType == ReturnType::MEMBER) {
                     return decl;
@@ -2572,7 +2576,7 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
           }
         }
       }
-    }  
+    }
   } else if (constant *cons = any_cast<constant *>(object)) {
     if (ref_typespec *rt = cons->Typespec()) {
       if (const typespec *ts = rt->Actual_typespec()) {
@@ -2613,9 +2617,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
                   std::string_view bin =
                       val.substr(strlen("BIN:"), std::string::npos);
                   std::string_view res;
-                  if (bin == "0") 
+                  if (bin == "0")
                     res = bin;
-                  else 
+                  else
                     res = bin.substr(from, width);
                   cons->VpiValue("BIN:" + std::string(res));
                   cons->VpiSize(static_cast<int32_t>(width));
@@ -2648,8 +2652,8 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         for (auto operand : *operands) {
           if ((selectIndex >= 0) && (sInd == selectIndex)) {
             return hierarchicalSelector(select_path, level + 1, operand,
-                                        invalidValue, inst, pexpr,
-                                        returnType, muteError);
+                                        invalidValue, inst, pexpr, returnType,
+                                        muteError);
           }
           sInd++;
         }
@@ -2845,9 +2849,9 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
               any *ex = reduceExpr((expr *)patt, invalidValue, inst, pexpr,
                                    muteError);
               if (level < select_path.size()) {
-                ex = hierarchicalSelector(select_path, level + 1, ex,
-                                          invalidValue, inst, pexpr,
-                                          returnType);
+                ex =
+                    hierarchicalSelector(select_path, level + 1, ex,
+                                         invalidValue, inst, pexpr, returnType);
               }
               if (returnType == ReturnType::TYPESPEC) {
                 if (typespec *tp = any_cast<typespec>(ex)) {
@@ -2883,8 +2887,7 @@ any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
         } else if (operandType == UHDM_OBJECT_TYPE::uhdmconstant) {
           if ((bIndex >= 0) && (bIndex == sInd)) {
             return hierarchicalSelector(select_path, level + 1, (expr *)operand,
-                                        invalidValue, inst, pexpr,
-                                        returnType);
+                                        invalidValue, inst, pexpr, returnType);
           }
         }
         sInd++;
@@ -4374,7 +4377,8 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
     return (expr *)result;
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmhier_path) {
     hier_path *path = (hier_path *)result;
-    return (expr *)decodeHierPath(path, invalidValue, inst, pexpr, ReturnType::VALUE);
+    return (expr *)decodeHierPath(path, invalidValue, inst, pexpr,
+                                  ReturnType::VALUE);
   } else if (objtype == UHDM_OBJECT_TYPE::uhdmbit_select) {
     bit_select *sel = (bit_select *)result;
     const std::string_view name = sel->VpiName();
@@ -4430,12 +4434,10 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                           oprt->Actual_typespec<array_typespec>()) {
                     if (const ref_typespec *ert = atps->Elem_typespec()) {
                       if (const typespec *ertts = ert->Actual_typespec()) {
-                        ElaboratorContext elaboratorContext(&s, false,
-                                                            muteError);
+                        Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            (ref_typespec *)clone_tree(ert, &elaboratorContext);
+                            elaborator.clone(ert, const_cast<any *>(result));
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
-                        celrt->VpiParent((any *)result);
                         ((operation *)result)->Typespec(celrt);
                       }
                     }
@@ -4444,12 +4446,10 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                                      packed_array_typespec>()) {
                     if (const ref_typespec *ert = patps->Elem_typespec()) {
                       if (const typespec *ertts = ert->Actual_typespec()) {
-                        ElaboratorContext elaboratorContext(&s, false,
-                                                            muteError);
+                        Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            (ref_typespec *)clone_tree(ert, &elaboratorContext);
+                            elaborator.clone(ert, const_cast<any *>(result));
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
-                        celrt->VpiParent((any *)result);
                         ((operation *)result)->Typespec(celrt);
                       }
                     }
@@ -5460,8 +5460,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
   if (param_assigns) {
     modinst->Param_assigns(s.MakeParam_assignVec());
     for (auto p : *param_assigns) {
-      ElaboratorContext elaboratorContext(&s, false, muteError);
-      any *pp = clone_tree(p, &elaboratorContext);
+      Elaborator elaborator(&s, false, muteError);
+      any *pp = elaborator.clone(p, nullptr);
       modinst->Param_assigns()->push_back((param_assign *)pp);
       const typespec *tps = nullptr;
       if (const expr *lhs = any_cast<const expr *>(p->Lhs())) {
@@ -5496,8 +5496,7 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
             crt->VpiParent(exparg);
             exparg->Typespec(crt);
           }
-          if (exparg->Typespec())
-            exparg->Typespec()->Actual_typespec(tps);
+          if (exparg->Typespec()) exparg->Typespec()->Actual_typespec(tps);
           std::map<std::string, const typespec *> local_vars;
           invalidValue =
               setValueInInstance(ioname, io, exparg, invalidValue, s, modinst,
@@ -5612,14 +5611,15 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
         }
         if (p->Rhs() &&
             (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmref_obj)) {
-          ref_obj* ref = (ref_obj *)p->Rhs(); 
+          ref_obj *ref = (ref_obj *)p->Rhs();
           std::string_view refname = ref->VpiName();
-          std::map<std::string, const typespec *>::iterator vitr = vars.find(std::string(refname));
+          std::map<std::string, const typespec *>::iterator vitr =
+              vars.find(std::string(refname));
           if (vitr != vars.end()) {
-            UHDM::struct_var* structv = s.MakeStruct_var();
-            UHDM::ref_typespec* rtps = s.MakeRef_typespec();
+            UHDM::struct_var *structv = s.MakeStruct_var();
+            UHDM::ref_typespec *rtps = s.MakeRef_typespec();
             structv->Typespec(rtps);
-            rtps->Actual_typespec((typespec*) (*vitr).second);
+            rtps->Actual_typespec((typespec *)(*vitr).second);
             return structv;
           }
           for (auto p1 : *modinst->Param_assigns()) {
@@ -5640,8 +5640,8 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
           if (p->Rhs() &&
               (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
             constant *c = (constant *)p->Rhs();
-            ElaboratorContext elaboratorContext(&s, false, muteError);
-            c = (constant *)clone_tree(c, &elaboratorContext);
+            Elaborator elaborator(&s, false, muteError);
+            c = elaborator.clone(c, nullptr);
             if (c->VpiConstType() == vpiBinaryConst) {
               std::string_view val = c->VpiValue();
               val.remove_prefix(std::string_view("BIN:").length());

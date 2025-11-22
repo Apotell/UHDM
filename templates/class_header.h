@@ -41,6 +41,9 @@ namespace UHDM {
 class <CLASSNAME><FINAL_CLASS> : public <EXTENDS> {
   UHDM_IMPLEMENT_RTTI(<CLASSNAME>, <EXTENDS>)
 public:
+  static constexpr UHDM_OBJECT_TYPE kUhdmType =
+      UHDM_OBJECT_TYPE::uhdm<CLASSNAME>;
+
   // Implicit constructor used to initialize all members,
   // comment: <CLASSNAME>();
   <VIRTUAL>~<CLASSNAME>()<FINAL_DESTRUCTOR> = default;
@@ -49,19 +52,9 @@ public:
 
   <VIRTUAL> UHDM_OBJECT_TYPE UhdmType() const <OVERRIDE_OR_FINAL> { return UHDM_OBJECT_TYPE::uhdm<CLASSNAME>; }
 
-protected:
-  void DeepCopy(<CLASSNAME>* clone, BaseClass* parent, CloneContext* context) const;
-
 private:
 <MEMBERS>
 };
-
-<DISABLE_OBJECT_FACTORY>
-typedef FactoryT<<CLASSNAME>> <CLASSNAME>Factory;
-<END_DISABLE_OBJECT_FACTORY>
-
-typedef FactoryT<std::vector<<CLASSNAME> *>> VectorOf<CLASSNAME>Factory;
-
 }  // namespace UHDM
 
 #endif

@@ -93,6 +93,8 @@ class BaseClass : public RTTI {
   friend Serializer;
 
  public:
+  static constexpr UHDM_OBJECT_TYPE kUhdmType = static_cast<UHDM_OBJECT_TYPE>(0);
+
   // Use implicit constructor to initialize all members
   // BaseClass()
 
@@ -169,17 +171,10 @@ class BaseClass : public RTTI {
   typedef std::variant<int64_t, const char*> vpi_property_value_t;
   virtual vpi_property_value_t GetVpiPropertyValue(int32_t property) const;
 
-  // Create a deep copy of this object.
-  virtual BaseClass* DeepClone(BaseClass* parent,
-                               CloneContext* context) const = 0;
-
   virtual int32_t Compare(const BaseClass* other,
                           CompareContext* context) const;
 
  protected:
-  void DeepCopy(BaseClass* clone, BaseClass* parent,
-                CloneContext* context) const;
-
   std::string ComputeFullName() const;
 
   void SetSerializer(Serializer* serial) { serializer_ = serial; }
@@ -237,67 +232,6 @@ class BaseClass : public RTTI {
   uint16_t vpiColumnNo_ = 0;
   uint16_t vpiEndColumnNo_ = 0;
 };
-
-template <typename T>
-class FactoryT final {
-  friend Serializer;
-  // TODO: make this an arena: iinstead of pointers, store the
-  // objects directly with placement-new'ed object using emplace_back()
-  // One less indirection and a lot less overhead.
-  // (dqque guarantees pointer stability; however, we'd need to
-  // do something special in Erase() - can't re-arrange).
-  typedef std::deque<T*> objects_t;
-
- public:
-  T* Make() {
-    T* obj = new T;
-    objects_.push_back(obj);
-    return obj;
-  }
-
-  bool Erase(const T* obj) {
-    for (typename objects_t::const_iterator itr = objects_.begin();
-         itr != objects_.end(); ++itr) {
-      if ((*itr) == obj) {
-        delete obj;
-        objects_.erase(itr);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void EraseIfNotIn(const AnySet &container) {
-    objects_t keepers;
-    for (typename objects_t::reference obj : objects_) {
-      if (container.find(obj) == container.end()) {
-        delete obj;
-      } else {
-        keepers.emplace_back(obj);
-      }
-    }
-    keepers.swap(objects_);
-  }
-
-  void MapToIndex(std::map<const BaseClass*, uint32_t>& table, uint32_t index = 1) const {
-    for (typename objects_t::const_reference obj : objects_) {
-      table.emplace(obj, index++);
-    }
-  }
-
-  void Purge() {
-    for (typename objects_t::reference obj : objects_) {
-      delete obj;
-    }
-    objects_.clear();
-  }
-
- private:
-  objects_t objects_;
-};
-
-typedef FactoryT<std::vector<BaseClass*>> VectorOfBaseClassFactory;
-typedef FactoryT<std::vector<BaseClass*>> VectorOfanyFactory;
 }  // namespace UHDM
 
 UHDM_IMPLEMENT_RTTI_CAST_FUNCTIONS(clonecontext_cast, UHDM::CloneContext)

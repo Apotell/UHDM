@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 #include "test_util.h"
-#include "uhdm/ElaboratorListener.h"
+#include "uhdm/Elaborator.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
@@ -119,10 +119,10 @@ TEST(ClassesTest, DesignSaveRestoreRoundtrip) {
   EXPECT_EQ(before, restored);
 
   // Elaborate restored designs
-  ElaboratorContext* elaboratorContext =
-      new ElaboratorContext(&serializer, true);
-  elaboratorContext->m_elaborator.listenDesigns(restoredDesigns);
-  delete elaboratorContext;
+  Elaborator elaborator(&serializer);
+  for (vpiHandle handle : restoredDesigns) {
+    elaborator.listenAny(handle);
+  }
 
   const std::string elaborated = designs_to_string(restoredDesigns);
   EXPECT_NE(restored, elaborated);  // Elaboration should've done _something_

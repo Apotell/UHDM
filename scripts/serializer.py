@@ -15,6 +15,9 @@ def generate(models):
     factory_get_object = []
     factory_erase_object = []
 
+    make_case_statements = []
+    makevec_case_statements = []
+
     save_ids = []
     save_objects = []
     saves_adapters = []
@@ -37,27 +40,31 @@ def generate(models):
         Classname = Classname_.replace('_', '')
         Basename = basename[:1].upper() + basename[1:].replace('_', '')
 
+        factory_data_members.append(f'  Factory {classname}Maker;')
+
         if modeltype != 'class_def':
-            factory_data_members.append(f'  {classname}Factory {classname}Maker;')
             factory_function_declarations.append(f'  {classname}* Make{Classname_}();')
             factory_function_implementations.append(f'{classname}* Serializer::Make{Classname_}() {{ return Make<{classname}>(&{classname}Maker); }}')
-            factory_get_object.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname} /* = {type_map["uhdm" + classname]} */: return {classname}Maker.objects_[index];')
+            factory_get_object.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname} /* = {type_map["uhdm" + classname]} */: return {classname}Maker.m_objects[index];')
             factory_erase_object.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname} /* = {type_map["uhdm" + classname]} */: return {classname}Maker.Erase(static_cast<const {classname}*>(p));')
 
             save_ids.append(f'  {classname}Maker.MapToIndex(idMap);')
-            save_objects.append(f'  adapter.template operator()<{classname}, {Classname}>({classname}Maker, this, idMap, cap_root.initFactory{Classname}({classname}Maker.objects_.size()));')
+            save_objects.append(f'  adapter.template operator()<{classname}, {Classname}>({classname}Maker, this, idMap, cap_root.initFactory{Classname}({classname}Maker.m_objects.size()));')
 
-            restore_ids.append(f'  Make(&{classname}Maker, cap_root.getFactory{Classname}().size());')
-            restore_objects.append(f'  adapter.template operator()<{classname}, {Classname}>(cap_root.getFactory{Classname}(), this, {classname}Maker.objects_);')
+            restore_ids.append(f'  Make<{classname}>(&{classname}Maker, cap_root.getFactory{Classname}().size());')
+            restore_objects.append(f'  adapter.template operator()<{classname}, {Classname}>(cap_root.getFactory{Classname}(), this, {classname}Maker.m_objects);')
 
             factory_purge.append(f'  {classname}Maker.Purge();')
             if classname != 'package':
-                factory_gc.append(f'  {classname}Maker.EraseIfNotIn(visited);')
-            factory_stats.append(f'  stats.insert(std::make_pair("{classname}", {classname}Maker.objects_.size()));')
+                factory_gc.append(f'  {classname}Maker.EraseIfNotIn(visited, erased);')
+            factory_stats.append(f'  stats.insert(std::make_pair("{classname}", {classname}Maker.m_objects.size()));')
 
-        factory_data_members.append(f'  VectorOf{classname}Factory {classname}VectMaker;')
+            make_case_statements.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname}: target = {classname}Maker.template Make<T>(); break;')
+
+        makevec_case_statements.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname}: return {classname}Maker.template MakeVec<T>();')
+
         factory_function_declarations.append(f'  std::vector<{classname}*>* Make{Classname_}Vec();')
-        factory_function_implementations.append(f'std::vector<{classname}*>* Serializer::Make{Classname_}Vec() {{ return Make<{classname}>(&{classname}VectMaker); }}')
+        factory_function_implementations.append(f'std::vector<{classname}*>* Serializer::Make{Classname_}Vec() {{ return MakeVec<{classname}>(&{classname}Maker); }}')
 
         saves_adapters.append(f'  void operator()(const {classname} *const obj, Serializer *const serializer, const Serializer::IdMap &idMap, {Classname}::Builder builder) const {{')
         saves_adapters.append(f'    operator()(static_cast<const {basename}*>(obj), serializer, idMap, builder.getBase());')
@@ -117,7 +124,7 @@ def generate(models):
                         saves_adapters.append(f'    if (obj->{Name_}() != nullptr) builder.set{Name}(GetId(obj->{Name_}(), idMap));')
 
                         restore_adapters.append(f'    if (reader.get{Name}()) {{')
-                        restore_adapters.append(f'      obj->{Name_}(serializer->{type}Maker.objects_[reader.get{Name}() - 1]);')
+                        restore_adapters.append(f'      obj->{Name_}(({type}*)serializer->{type}Maker.m_objects[reader.get{Name}() - 1]);')
                         restore_adapters.append( '    }')
 
                 else:
@@ -128,7 +135,7 @@ def generate(models):
                     saves_adapters.append(f'      for (int32_t i = 0, n = obj->{Name_}()->size(); i < n; ++i) {{')
 
                     restore_adapters.append(f'    if (uint32_t n = reader.get{Name}().size()) {{')
-                    restore_adapters.append(f'      std::vector<{type}*>* vect = serializer->{type}VectMaker.Make();')
+                    restore_adapters.append(f'      std::vector<{type}*>* vect = serializer->{type}Maker.template MakeVec<{type}>();')
                     restore_adapters.append(f'      vect->reserve(n);')
                     restore_adapters.append(f'      for (uint32_t i = 0; i < n; ++i) {{')
 
@@ -141,7 +148,7 @@ def generate(models):
                     else:
                         saves_adapters.append(f'        {Name}s.set(i, GetId((*obj->{Name_}())[i], idMap));')
 
-                        restore_adapters.append(f'        vect->emplace_back(serializer->{type}Maker.objects_[reader.get{Name}()[i] - 1]);')
+                        restore_adapters.append(f'        vect->emplace_back(({type}*)serializer->{type}Maker.m_objects[reader.get{Name}()[i] - 1]);')
 
                     saves_adapters.append('      }')
                     saves_adapters.append('    }')
@@ -164,6 +171,8 @@ def generate(models):
 
     file_content = file_content.replace('<FACTORY_DATA_MEMBERS>', '\n'.join(factory_data_members))
     file_content = file_content.replace('<FACTORY_FUNCTION_DECLARATIONS>', '\n'.join(factory_function_declarations))
+    file_content = file_content.replace('//<FACTORY_MAKE_CASE_STATEMENTS>', '\n'.join(sorted(make_case_statements)))
+    file_content = file_content.replace('//<FACTORY_MAKEVEC_CASE_STATEMENTS>', '\n'.join(sorted(makevec_case_statements)))
     file_utils.set_content_if_changed(config.get_output_header_filepath('Serializer.h'), file_content)
 
     # Serializer.cpp

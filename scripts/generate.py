@@ -10,7 +10,7 @@ import capnp
 import class_hierarchy
 import classes
 import containers_h
-import ElaboratorListener_cpp
+import Elaborator
 import serializer
 import uhdm_forward_decl_h
 import uhdm_h
@@ -44,8 +44,8 @@ def _worker(params):
           file_utils.copy_file_if_changed(source, destination)
         return True
 
-    elif key == 'ElaboratorListener_cpp':
-        return ElaboratorListener_cpp.generate(*args)
+    elif key == 'Elaborator':
+        return Elaborator.generate(*args)
 
     elif key == 'serializer':
         return serializer.generate(*args)
@@ -113,13 +113,12 @@ def _main():
         ('class_hierarchy', [models]),
         ('classes', [models]),
         ('containers_h', [models]),
-        ('ElaboratorListener_cpp', [models]),
+        ('Elaborator', [models]),
         ('Copier', [{
             config.get_template_filepath('BaseClass.h'): config.get_output_header_filepath('BaseClass.h'),
             config.get_template_filepath('BaseClass.cpp'): config.get_output_source_filepath('BaseClass.cpp'),
             config.get_template_filepath('clone_tree.h'): config.get_output_header_filepath('clone_tree.h'),
             config.get_template_filepath('clone_tree.cpp'): config.get_output_source_filepath('clone_tree.cpp'),
-            config.get_template_filepath('ElaboratorListener.h'): config.get_output_header_filepath('ElaboratorListener.h'),
             config.get_template_filepath('ExprEval.h'): config.get_output_header_filepath('ExprEval.h'),
             config.get_template_filepath('ExprEval.cpp'): config.get_output_source_filepath('ExprEval.cpp'),
             config.get_template_filepath('NumUtils.h'): config.get_output_header_filepath('NumUtils.h'),

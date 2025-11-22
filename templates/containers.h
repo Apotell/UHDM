@@ -30,6 +30,9 @@
 #include <uhdm/uhdm_forward_decl.h>
 
 namespace UHDM {
+typedef std::vector<any*> VectorOfany;
+typedef std::vector<any*>::iterator VectorOfanyItr;
+
 <CONTAINERS>
 };
 
