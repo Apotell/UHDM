@@ -306,9 +306,10 @@ def _get_DeepClone_implementation(model, models):
             includes.add('ElaboratorListener')
             content.append( '  ElaboratorContext* const elaboratorContext = clonecontext_cast<ElaboratorContext*>(context);')
             content.append(f'  {classname}* clone = any_cast<{classname}*>(elaboratorContext->m_elaborator.bindParam(VpiName()));')
-            content.append( '  if (clone == nullptr) {')
-            content.append(f'    clone = context->m_serializer->Make{Classname}();')
+            content.append( '  if (clone != nullptr) {')
+            content.append(f'    return clone;')
             content.append( '  }')
+            content.append(f'  clone = context->m_serializer->Make{Classname}();')
 
         else:
             content.append(f'  {classname}* const clone = context->m_serializer->Make{Classname}();')
