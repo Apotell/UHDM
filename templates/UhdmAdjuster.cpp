@@ -46,7 +46,7 @@ const any* UhdmAdjuster::resize(const any* object, int32_t maxsize,
     constant* c = (constant*)result;
     if (c->VpiSize() < maxsize) {
       Elaborator elaborator(serializer_);
-      c = elaborator.clone(c, nullptr);
+      c = elaborator.clone<>(c, nullptr);
       int32_t constType = c->VpiConstType();
       bool is_signed = false;
       if (const ref_typespec* rt = c->Typespec()) {
@@ -232,7 +232,7 @@ void UhdmAdjuster::leaveConstant(const constant* object, vpiHandle handle) {
           i++;
         }
         if (size != object->VpiSize()) {
-          constant* newc = elaborator.clone(object, nullptr);
+          constant* newc = elaborator.clone<>(object, nullptr);
           std::string_view val = object->VpiDecompile();
           if (val == "'1") {
             newc->VpiSize(size);
@@ -295,7 +295,7 @@ void UhdmAdjuster::leaveConstant(const constant* object, vpiHandle handle) {
           }
         }
         if (size != object->VpiSize()) {
-          constant* newc = elaborator.clone(object, nullptr);
+          constant* newc = elaborator.clone<>(object, nullptr);
           std::string_view val = object->VpiDecompile();
           if (val == "'1") {
             newc->VpiSize(size);

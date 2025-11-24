@@ -27,9 +27,9 @@
 #include <uhdm/SynthSubset.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/Elaborator.h>
+#include <uhdm/Serializer.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
-#include <uhdm/Serializer.h>
 
 namespace UHDM {
 
@@ -604,7 +604,7 @@ void SynthSubset::leaveFor_stmt(const for_stmt* object, vpiHandle handle) {
             item->VpiExprs(exprs);
             items->push_back(item);
             Elaborator elaborator(serializer_);
-            for_stmt* clone = elaborator.clone(object, item);
+            for_stmt* clone = elaborator.clone<>(object, item);
             operation* cond_op = any_cast<operation*>(clone->VpiCondition());
             VectorOfany* operands = cond_op->Operands();
             for (uint32_t ot = 0; ot < operands->size(); ot++) {
@@ -985,7 +985,7 @@ void SynthSubset::leaveArray_var(const array_var* object, vpiHandle handle) {
     } else {
       if (ltps->Ranges() && ltps->Ranges()->size() == 1) {
         Elaborator elaborator(serializer_);
-        logic_typespec* clone = elaborator.clone(ltps, nullptr);
+        logic_typespec* clone = elaborator.clone<>(ltps, nullptr);
         clone->VpiName("");
         ((ref_typespec*)ref_tps)->Actual_typespec(clone);
         ((array_var*)object)->Typespec((ref_typespec*)ref_tps);

@@ -55,11 +55,14 @@ class Cloner : public RTTI {
   template <typename T>
   T *cloneT(const T *source, any *parent);
 
+ protected:
+  template <typename T>
+  std::vector<T *> *cloneT(const std::vector<T *> *source);
+
   template <typename T>
   std::vector<T *> *cloneT(const std::vector<T *> *source, any *parent);
 
- protected:
-  any *cloneAny(const any *source, any *parent);
+  virtual any *cloneAny(const any *source, any *parent);
 
   // clang-format off
   virtual void copy(const any* source, any* target);
@@ -81,6 +84,27 @@ class Cloner : public RTTI {
   callstack_t m_callstack;
 };
 
+template <typename T>
+inline std::vector<T *> *Cloner::cloneT(const std::vector<T *> *source) {
+  if ((source == nullptr) || source->empty()) return nullptr;
+  std::vector<T *> *const target = m_serializer->template MakeVec<T>();
+  target->insert(target->cend(), source->cbegin(), source->cend());
+  return target;
+}
+
+template <typename T>
+inline std::vector<T *> *Cloner::cloneT(const std::vector<T *> *source,
+                                        any *parent) {
+  if ((source == nullptr) || source->empty()) return nullptr;
+  std::vector<T *> *const target = m_serializer->template MakeVec<T>();
+  target->reserve(source->size());
+  for (T *obj : *source) {
+    target->emplace_back(
+        static_cast<T *>(cloneAny(static_cast<const any *>(obj), parent)));
+  }
+  return target;
+}
+
 class PassThroughCloner : public Cloner {
   UHDM_IMPLEMENT_RTTI(PassThroughCloner, Cloner)
 
@@ -95,12 +119,12 @@ class PassThroughCloner : public Cloner {
  protected:
   // clang-format off
   any *clone(const any *source, any *parent) override { return const_cast<any *>(source); }
-//<PASSTHROUGHCLONER_ANY_FUNCTIONS>
+//<PASSTHROUGHCLONER_ANY_DECLARATIONS>
   // clang-format on
 
   // clang-format off
   VectorOfany* clone(const VectorOfany* source, any* parent) override { return const_cast<VectorOfany *>(source); }
-//<PASSTHROUGHCLONER_MANY_FUNCTIONS>
+//<PASSTHROUGHCLONER_MANY_DECLARATIONS>
   // clang-format on
 
  private:

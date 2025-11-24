@@ -24,6 +24,7 @@
 
 #include <string.h>
 #include <uhdm/Elaborator.h>
+#include <uhdm/Serializer.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/NumUtils.h>
 #include <uhdm/VpiListener.h>
@@ -878,8 +879,8 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
     Elaborator elaborator(&s, false, m_muteError);
     for (auto opi : tmp) {
       if (defaultOp && (opi == nullptr)) {
-        opi = elaborator.clone(defaultOp,
-                               const_cast<any *>(defaultOp->VpiParent()));
+        opi = elaborator.clone<>(defaultOp,
+                                 const_cast<any *>(defaultOp->VpiParent()));
       }
       if (opi == nullptr) {
         if (!m_muteError) {
@@ -925,7 +926,7 @@ expr *ExprEval::flattenPatternAssignments(Serializer &s, const typespec *tps,
       ordered->push_back(opi);
       index++;
     }
-    operation *opres = elaborator.clone(op, const_cast<any *>(op->VpiParent()));
+    operation *opres = elaborator.clone<>(op, const_cast<any *>(op->VpiParent()));
     ref_typespec *rtps = s.MakeRef_typespec();
     opres->Typespec(rtps);
     rtps->Actual_typespec((typespec *)tps);
@@ -2239,10 +2240,10 @@ any *ExprEval::decodeHierPath(hier_path *path, bool &invalidValue,
       object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
     } else if (constant *cons = any_cast<constant *>(object)) {
       Elaborator elaborator(&s);
-      object = elaborator.clone(cons, nullptr);
+      object = elaborator.clone<>(cons, nullptr);
       cons = any_cast<constant *>(object);
       if (cons->Typespec() == nullptr) {
-        ref_typespec *rt = elaborator.clone(path->Typespec(), cons);
+        ref_typespec *rt = elaborator.clone<>(path->Typespec(), cons);
         cons->Typespec(rt);
       }
     } else if (operation *oper = any_cast<operation *>(object)) {
@@ -4435,7 +4436,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                       if (const typespec *ertts = ert->Actual_typespec()) {
                         Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            elaborator.clone(ert, const_cast<any *>(result));
+                            elaborator.clone<>(ert, const_cast<any *>(result));
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
                         ((operation *)result)->Typespec(celrt);
                       }
@@ -4447,7 +4448,7 @@ expr *ExprEval::reduceExpr(const any *result, bool &invalidValue,
                       if (const typespec *ertts = ert->Actual_typespec()) {
                         Elaborator elaborator(&s, false, muteError);
                         ref_typespec *celrt =
-                            elaborator.clone(ert, const_cast<any *>(result));
+                            elaborator.clone<>(ert, const_cast<any *>(result));
                         celrt->Actual_typespec(const_cast<typespec *>(ertts));
                         ((operation *)result)->Typespec(celrt);
                       }
@@ -5460,7 +5461,7 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
     modinst->Param_assigns(s.MakeParam_assignVec());
     for (auto p : *param_assigns) {
       Elaborator elaborator(&s, false, muteError);
-      any *pp = elaborator.clone(p, nullptr);
+      any *pp = elaborator.clone<>(p, nullptr);
       modinst->Param_assigns()->push_back((param_assign *)pp);
       const typespec *tps = nullptr;
       if (const expr *lhs = any_cast<const expr *>(p->Lhs())) {
@@ -5640,7 +5641,7 @@ expr *ExprEval::evalFunc(function *func, std::vector<any *> *args,
               (p->Rhs()->UhdmType() == UHDM_OBJECT_TYPE::uhdmconstant)) {
             constant *c = (constant *)p->Rhs();
             Elaborator elaborator(&s, false, muteError);
-            c = elaborator.clone(c, nullptr);
+            c = elaborator.clone<>(c, nullptr);
             if (c->VpiConstType() == vpiBinaryConst) {
               std::string_view val = c->VpiValue();
               val.remove_prefix(std::string_view("BIN:").length());

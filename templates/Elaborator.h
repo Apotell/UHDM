@@ -19,35 +19,28 @@
 
 /*
  * File:   Elaborator.h
- * Author: alaindargelas
+ * Author: hs
  *
- * Created on May 6, 2020, 10:03 PM
+ * Created on November 24, 2025, 10:03 PM
  */
 
 #ifndef UHDM_ELABORATOR_H
 #define UHDM_ELABORATOR_H
 
+#include <uhdm/Cloner.h>
 #include <uhdm/VpiListener.h>
 #include <uhdm/containers.h>
 
 #include <map>
-#include <unordered_set>
 #include <vector>
 
 namespace UHDM {
-
-class Elaborator;
 class Serializer;
 
-class Elaborator final : public VpiListener {
+class Elaborator final : public VpiListener, public Cloner {
  public:
   explicit Elaborator(Serializer* serializer, bool debug = false,
                       bool muteErrors = false);
-
-  template <typename T>
-  T* clone(const T* source, any* parent) {
-    return (T*)DeepCloneAny((const any *)source, parent);
-  }
 
   void uniquifyTypespec(bool uniquify) { m_uniquifyTypespec = uniquify; }
   bool uniquifyTypespec() const { return m_uniquifyTypespec; }
@@ -57,7 +50,9 @@ class Elaborator final : public VpiListener {
   bool muteErrors() const { return m_muteErrors; }
   bool isTaskCall(std::string_view name, const expr* prefix) const;
   void ignoreLastInstance(bool ignore) override { m_ignoreLastInstance = ignore; }
+  using Cloner::clone;
 
+ private:
   // Bind to a net in the current instance
   any* bindNet(std::string_view name) const;
 
@@ -81,7 +76,6 @@ class Elaborator final : public VpiListener {
   void leaveDesign(const design* object, vpiHandle handle) final;
 
   void enterModule_inst(const module_inst* object, vpiHandle handle) final;
-  void elabModule_inst(const module_inst* object, vpiHandle handle);
   void leaveModule_inst(const module_inst* object, vpiHandle handle) final;
 
   void enterInterface_inst(const interface_inst* object,
@@ -93,7 +87,6 @@ class Elaborator final : public VpiListener {
   void leavePackage(const package* object, vpiHandle handle) final;
 
   void enterClass_defn(const class_defn* object, vpiHandle handle) final;
-  void elabClass_defn(const class_defn* object, vpiHandle handle);
   void leaveClass_defn(const class_defn* object, vpiHandle handle) final;
 
   void enterGen_scope(const gen_scope* object, vpiHandle handle) final;
@@ -141,32 +134,53 @@ class Elaborator final : public VpiListener {
   any* bindClassTypespec(class_typespec* ctps, any* current,
                          std::string_view name, bool& found);
 
-  any* DeepCloneAny(const any* source, any* parent);
+  any* cloneAny(const any* source, any* parent) final;
 
-  template <typename T>
-  std::vector<T*>* Clone(const std::vector<T*>* source);
-  template<typename T>
-  std::vector<T*>* DeepClone(const std::vector<T*>* source, any* parent);
+  constant* clone(const constant* source, any* parent) final;
+  cont_assign* clone(const cont_assign* source, any* parent) final;
+  function* clone(const function* source, any* parent) final;
+  gen_scope_array* clone(const gen_scope_array* source, any* parent) final;
+  hier_path* clone(const hier_path* source, any* parent) final;
+  sys_func_call* clone(const sys_func_call* source, any* parent) final;
+  sys_task_call* clone(const sys_task_call* source, any* parent) final;
+  tagged_pattern* clone(const tagged_pattern* source, any* parent) final;
+  task* clone(const task* source, any* parent) final;
+  tf_call* clone(const func_call* source, any* parent) final;
+  tf_call* clone(const method_func_call* source, any* parent) final;
+  tf_call* clone(const method_task_call* source, any* parent) final;
+  tf_call* clone(const task_call* source, any* parent) final;
 
-  template<typename T>
-  T* DeepClone(const T* source, any* parent);
-  sys_func_call* DeepClone(const sys_func_call* source, any* parent);
-  sys_task_call* DeepClone(const sys_task_call* source, any* parent);
-  tf_call* DeepClone(const method_func_call* source, any* parent);
-  constant* DeepClone(const constant* source, any* parent);
-  tagged_pattern* DeepClone(const tagged_pattern* source, any* parent);
-  tf_call* DeepClone(const method_task_call* source, any* parent);
-  tf_call* DeepClone(const func_call* source, any* parent);
-  tf_call* DeepClone(const task_call* source, any* parent);
-  gen_scope_array* DeepClone(const gen_scope_array* source, any* parent);
-  function* DeepClone(const function* source, any* parent);
-  task* DeepClone(const task* source, any* parent);
-  cont_assign* DeepClone(const cont_assign* source, any* parent);
-  hier_path* DeepClone(const hier_path* source, any* parent);
+  typespec* clone(const array_typespec* source, any* parent) final;
+  typespec* clone(const bit_typespec* source, any* parent) final;
+  typespec* clone(const byte_typespec* source, any* parent) final;
+  typespec* clone(const chandle_typespec* source, any* parent) final;
+  typespec* clone(const class_typespec* source, any* parent) final;
+  typespec* clone(const enum_typespec* source, any* parent) final;
+  typespec* clone(const event_typespec* source, any* parent) final;
+  typespec* clone(const import_typespec* source, any* parent) final;
+  typespec* clone(const int_typespec* source, any* parent) final;
+  typespec* clone(const integer_typespec* source, any* parent) final;
+  typespec* clone(const interface_typespec* source, any* parent) final;
+  typespec* clone(const logic_typespec* source, any* parent) final;
+  typespec* clone(const long_int_typespec* source, any* parent) final;
+  typespec* clone(const module_typespec* source, any* parent) final;
+  typespec* clone(const packed_array_typespec* source, any* parent) final;
+  typespec* clone(const property_typespec* source, any* parent) final;
+  typespec* clone(const real_typespec* source, any* parent) final;
+  typespec* clone(const sequence_typespec* source, any* parent) final;
+  typespec* clone(const short_int_typespec* source, any* parent) final;
+  typespec* clone(const short_real_typespec* source, any* parent) final;
+  typespec* clone(const string_typespec* source, any* parent) final;
+  typespec* clone(const struct_typespec* source, any* parent) final;
+  typespec* clone(const time_typespec* source, any* parent) final;
+  typespec* clone(const type_parameter* source, any* parent) final;
+  typespec* clone(const union_typespec* source, any* parent) final;
+  typespec* clone(const unsupported_typespec* source, any* parent) final;
+  typespec* clone(const void_typespec* source, any* parent) final;
 
   // clang-format off
-  void DeepCopy(const any* source, any* target);
-//<COPY_ANY_DECLARATIONS>
+  using Cloner::copy;
+//<COPY_DECLARATIONS>
   // clang-format on
 
  private:
@@ -181,7 +195,6 @@ class Elaborator final : public VpiListener {
                                  ComponentMap, ComponentMap>>;
   using ScheduledTfCallBinding = std::vector<std::pair<tf_call*, const class_var*>>;
 
-  Serializer* const m_serializer = nullptr;
   bool m_debug = false;
   bool m_muteErrors = false;
   InstStack m_instStack;

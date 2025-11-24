@@ -35,18 +35,6 @@ inline T* Cloner::cloneT(const T* source, any* parent) {
   return target;
 }
 
-template <typename T>
-inline std::vector<T*>* Cloner::cloneT(const std::vector<T*>* source, any* parent) {
-  if ((source == nullptr) || source->empty()) return nullptr;
-  std::vector<T*>* const target = m_serializer->MakeVec<T>();
-  target->reserve(source->size());
-  for (T* obj : *source) {
-    target->emplace_back(
-        static_cast<T*>(cloneAny(static_cast<const any*>(obj), parent)));
-  }
-  return target;
-}
-
 // clang-format off
 void Cloner::copy(const any* source, any* target) {}
 
@@ -93,9 +81,7 @@ inline std::vector<T*>* PassThroughCloner::cloneT(const std::vector<T*>* source,
                                                   any* parent) {
   if (source == nullptr) return nullptr;
   std::vector<T*>* const target = const_cast<std::vector<T*>*>(source);
-  for (T* obj : *source) {
-    static_cast<T*>(cloneAny(static_cast<const any*>(obj), parent));
-  }
+  for (T* obj : *source) cloneAny(static_cast<const any*>(obj), parent);
   return target;
 }
 
