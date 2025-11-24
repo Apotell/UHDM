@@ -10,6 +10,7 @@ import capnp
 import class_hierarchy
 import classes
 import containers_h
+import Cloner
 import Elaborator
 import serializer
 import uhdm_forward_decl_h
@@ -38,6 +39,9 @@ def _worker(params):
 
     elif key == 'containers_h':
         return containers_h.generate(*args)
+
+    elif key == 'Cloner':
+        return Cloner.generate(*args)
 
     elif key == 'Copier':
         for source, destination in args[0].items():
@@ -113,12 +117,11 @@ def _main():
         ('class_hierarchy', [models]),
         ('classes', [models]),
         ('containers_h', [models]),
+        ('Cloner', [models]),
         ('Elaborator', [models]),
         ('Copier', [{
             config.get_template_filepath('BaseClass.h'): config.get_output_header_filepath('BaseClass.h'),
             config.get_template_filepath('BaseClass.cpp'): config.get_output_source_filepath('BaseClass.cpp'),
-            config.get_template_filepath('clone_tree.h'): config.get_output_header_filepath('clone_tree.h'),
-            config.get_template_filepath('clone_tree.cpp'): config.get_output_source_filepath('clone_tree.cpp'),
             config.get_template_filepath('ExprEval.h'): config.get_output_header_filepath('ExprEval.h'),
             config.get_template_filepath('ExprEval.cpp'): config.get_output_source_filepath('ExprEval.cpp'),
             config.get_template_filepath('NumUtils.h'): config.get_output_header_filepath('NumUtils.h'),

@@ -29,7 +29,6 @@
 #include <uhdm/NumUtils.h>
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmAdjuster.h>
-#include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 
 #include <stack>

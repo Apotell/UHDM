@@ -27,7 +27,6 @@
 #include <uhdm/SynthSubset.h>
 #include <uhdm/ExprEval.h>
 #include <uhdm/Elaborator.h>
-#include <uhdm/clone_tree.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
 #include <uhdm/Serializer.h>

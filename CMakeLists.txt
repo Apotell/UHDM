@@ -155,7 +155,7 @@ add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
 
 set(uhdm-GENERATED_SRC
     ${GENDIR}/src/BaseClass.cpp
-    ${GENDIR}/src/clone_tree.cpp
+    ${GENDIR}/src/Cloner.cpp
     ${GENDIR}/src/Elaborator.cpp
     ${GENDIR}/src/ExprEval.cpp
     ${GENDIR}/src/NumUtils.cpp
@@ -297,6 +297,7 @@ if (UHDM_BUILD_TESTS)
     # These are already gtest-ified, albeit some would need some finer
     # grained testing.
     tests/classes_test.cpp
+    tests/cloner_test.cpp
     tests/error-handler_test.cpp
     tests/expr_reduce_test.cpp
     tests/full_elab_test.cpp
