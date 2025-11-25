@@ -77,7 +77,7 @@ static design* buildModuleProg(Serializer* s) {
   return d;
 }
 
-TEST(ClonerTest, Equalitytest) {
+TEST(ClonerTest, Default) {
   Serializer serializer;
   design* const source = buildModuleProg(&serializer);
 
@@ -106,6 +106,23 @@ TEST(ClonerTest, PassThroughTest) {
   const size_t countAfterCloning = serializer.AllObjects().size();
 
   EXPECT_EQ(countBeforeClone, countAfterCloning);
+
+  // UhdmComparer comparer;
+  // EXPECT_EQ(comparer.compare(source, target), 0);
+}
+
+TEST(ClonerTest, Mirrored) {
+  Serializer serializer;
+  design* const source = buildModuleProg(&serializer);
+
+  const size_t countBeforeClone = serializer.AllObjects().size();
+
+  MirrorCloner cloner(&serializer);
+  design* const target = cloner.clone<>(source, nullptr);
+
+  const size_t countAfterCloning = serializer.AllObjects().size();
+
+  EXPECT_EQ(countAfterCloning, countBeforeClone * 2);
 
   // UhdmComparer comparer;
   // EXPECT_EQ(comparer.compare(source, target), 0);

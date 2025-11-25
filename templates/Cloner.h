@@ -32,6 +32,21 @@
 #include <uhdm/containers.h>
 
 namespace UHDM {
+// Three different variants of Cloning
+//
+// Cloner:
+//   * Default implementation where every node in the graph gets duplicated.
+//   * Nodes are cloned based on the number of times they are referenced.
+//   * Number of nodes in cloned graph are likely to be greater then
+//     the input graph.
+// PassThroughCloner:
+//   * This is opposite of the default cloner where none of the nodes
+//     are duplicated.
+//   * As such, this implementation is of no practical use but can be used
+//     as a base where only certain nodes need to be duplicated.
+// MirrorCloner:
+//   * This generates an exact clone of the input graph.
+
 class Cloner : public RTTI {
   UHDM_IMPLEMENT_RTTI(Cloner, RTTI)
 
@@ -98,9 +113,13 @@ inline std::vector<T *> *Cloner::cloneT(const std::vector<T *> *source,
   if ((source == nullptr) || source->empty()) return nullptr;
   std::vector<T *> *const target = m_serializer->template MakeVec<T>();
   target->reserve(source->size());
-  for (T *obj : *source) {
-    target->emplace_back(
-        static_cast<T *>(cloneAny(static_cast<const any *>(obj), parent)));
+  if (source == target) {
+    for (T *obj : *source) cloneAny(static_cast<const any *>(obj), parent);
+  } else {
+    for (T *obj : *source) {
+      target->emplace_back(
+          static_cast<T *>(cloneAny(static_cast<const any *>(obj), parent)));
+    }
   }
   return target;
 }
@@ -117,22 +136,31 @@ class PassThroughCloner : public Cloner {
   using Cloner::clone;
 
  protected:
-  // clang-format off
-  any *clone(const any *source, any *parent) override { return const_cast<any *>(source); }
-//<PASSTHROUGHCLONER_ANY_DECLARATIONS>
-  // clang-format on
+  any *cloneAny(const any *source, any *parent) override;
 
   // clang-format off
   VectorOfany* clone(const VectorOfany* source, any* parent) override { return const_cast<VectorOfany *>(source); }
 //<PASSTHROUGHCLONER_MANY_DECLARATIONS>
   // clang-format on
+};
+
+class MirrorCloner : public Cloner {
+  UHDM_IMPLEMENT_RTTI(MirrorCloner, Cloner)
+
+ public:
+  explicit MirrorCloner(Serializer *serializer) : Cloner(serializer) {}
+  ~MirrorCloner() override = default;
+  MirrorCloner(const MirrorCloner &rhs) = delete;
+  MirrorCloner &operator=(const MirrorCloner &rhs) = delete;
+
+  using Cloner::clone;
+
+ protected:
+  any *cloneAny(const any *source, any *parent) override;
 
  private:
-  template <typename T>
-  T *cloneT(const T *source, any *parent);
-
-  template <typename T>
-  std::vector<T *> *cloneT(const std::vector<T *> *source, any *parent);
+  using cloned_t = std::map<const any*, any*>;
+  cloned_t m_cloned;
 };
 }  // namespace UHDM
 

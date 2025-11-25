@@ -68,28 +68,22 @@ any* Cloner::cloneAny(const any* source, any* parent) {
   return target;
 }
 
-template <typename T>
-inline T* PassThroughCloner::cloneT(const T* source, any* parent) {
-  if (source == nullptr) return nullptr;
-  T* const target = const_cast<T*>(source);
-  copy(source, target);
-  return target;
+any* PassThroughCloner::cloneAny(const any* source, any* parent) {
+  return const_cast<any*>(source);
 }
-
-template <typename T>
-inline std::vector<T*>* PassThroughCloner::cloneT(const std::vector<T*>* source,
-                                                  any* parent) {
-  if (source == nullptr) return nullptr;
-  std::vector<T*>* const target = const_cast<std::vector<T*>*>(source);
-  for (T* obj : *source) cloneAny(static_cast<const any*>(obj), parent);
-  return target;
-}
-
-// clang-format off
-//<PASSTHROUGHCLONER_ANY_IMPLEMENTATIONS>
-// clang-format on
 
 // clang-format off
 //<PASSTHROUGHCLONER_MANY_IMPLEMENTATIONS>
 // clang-format on
+
+any* MirrorCloner::cloneAny(const any* source, any* parent) {
+  cloned_t::const_iterator it = m_cloned.find(source);
+  if (it != m_cloned.cend()) return it->second;
+
+  any* const target = Cloner::cloneAny(source, parent);
+  if (target == nullptr) return nullptr;
+
+  m_cloned.emplace(source, target);
+  return target;
+}
 }  // namespace UHDM

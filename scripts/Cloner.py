@@ -47,15 +47,14 @@ def generate(models):
 
   copy_declarations = []
   copy_implementations = []
+
   clone_any_declarations = []
   clone_any_implementations = []
   clone_many_declarations = []
   clone_many_implementations = []
   clone_any_case_statements = []
 
-  passthrough_any_declarations = []
   passthrough_many_declarations = []
-  passthrough_any_implementations = []
   passthrough_many_implementations = []
 
   for model in models.values():
@@ -74,8 +73,6 @@ def generate(models):
       clone_any_declarations.append(f'  virtual {return_type}* clone(const {classname}* source, any* parent);')
       clone_any_implementations.append(f'{return_type}* Cloner::clone(const {classname}* source, any* parent) {{ return cloneT<{classname}>(source, parent); }}')
       clone_any_case_statements.append(f'    case UHDM_OBJECT_TYPE::uhdm{classname}: target = clone(static_cast<const {classname} *>(source), parent); break;')
-      passthrough_any_declarations.append(f'  {return_type}* clone(const {classname}* source, any* parent) override;')
-      passthrough_any_implementations.append(f'{return_type}* PassThroughCloner::clone(const {classname}* source, any* parent) {{ return cloneT<{classname}>(source, parent); }}')
 
     if type != 'group_def':
       copy_declarations.append(f'  virtual void copy(const {classname}* source, {classname}* target);')
@@ -83,7 +80,7 @@ def generate(models):
       clone_many_declarations.append(f'  virtual VectorOf{classname}* clone(const VectorOf{classname}* source, any* parent);')
       clone_many_implementations.append(f'VectorOf{classname}* Cloner::clone(const VectorOf{classname}* source, any* parent) {{ return cloneT<{classname}>(source, parent); }}')
       passthrough_many_declarations.append(f'  VectorOf{classname}* clone(const VectorOf{classname}* source, any* parent) override;')
-      passthrough_many_implementations.append(f'VectorOf{classname}* PassThroughCloner::clone(const VectorOf{classname}* source, any* parent) {{ return cloneT<{classname}>(source, parent); }}')
+      passthrough_many_implementations.append(f'VectorOf{classname}* PassThroughCloner::clone(const VectorOf{classname}* source, any* parent) {{ return const_cast<VectorOf{classname}*>(source); }}')
 
   # Cloner.h
   with open(config.get_template_filepath('Cloner.h'), 'rt') as strm:
@@ -92,7 +89,6 @@ def generate(models):
   file_content = file_content.replace('//<COPY_DECLARATIONS>', '\n'.join(sorted(copy_declarations)))
   file_content = file_content.replace('//<CLONE_ANY_DECLARATIONS>', '\n'.join(sorted(clone_any_declarations)))
   file_content = file_content.replace('//<CLONE_MANY_DECLARATIONS>', '\n'.join(sorted(clone_many_declarations)))
-  file_content = file_content.replace('//<PASSTHROUGHCLONER_ANY_DECLARATIONS>', '\n'.join(sorted(passthrough_any_declarations)))
   file_content = file_content.replace('//<PASSTHROUGHCLONER_MANY_DECLARATIONS>', '\n'.join(sorted(passthrough_many_declarations)))
   file_utils.set_content_if_changed(config.get_output_header_filepath('Cloner.h'), file_content)
 
@@ -104,7 +100,6 @@ def generate(models):
   file_content = file_content.replace('//<CLONE_ANY_IMPLEMENTATIONS>', '\n'.join(sorted(clone_any_implementations)))
   file_content = file_content.replace('//<CLONE_MANY_IMPLEMENTATIONS>', '\n'.join(sorted(clone_many_implementations)))
   file_content = file_content.replace('//<CLONE_ANY_CASE_STATEMENTS>', '\n'.join(sorted(clone_any_case_statements)))
-  file_content = file_content.replace('//<PASSTHROUGHCLONER_ANY_IMPLEMENTATIONS>', '\n'.join(sorted(passthrough_any_implementations)))
   file_content = file_content.replace('//<PASSTHROUGHCLONER_MANY_IMPLEMENTATIONS>', '\n'.join(sorted(passthrough_many_implementations)))
   file_utils.set_content_if_changed(config.get_output_source_filepath('Cloner.cpp'), file_content)
 
