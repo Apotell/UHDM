@@ -1,0 +1,86 @@
+name: pyuhdm
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  # Build source distribution (sdist)
+  build_sdist:
+    name: Build Source Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: dist/*.tar.gz
+
+  # Build wheels for all platforms
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.16.5
+        env:
+          CIBW_BEFORE_BUILD: python -m pip install -U pip setuptools wheel orderedmultidict
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: wheelhouse/*.whl
+
+  # Fast native build & test (Linux only)
+  test_native:
+    name: Fast Native Test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Debug Python (sanity check)
+        run: |
+          which python
+          python -c "import sys; print(sys.executable)"
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Build and Install
+        run: |
+          python -m pip install . -v
+
+      - name: Run Tests
+        run: |
+          python -m pytest -v

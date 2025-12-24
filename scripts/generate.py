@@ -23,6 +23,11 @@ import vpi_user_cpp
 import vpi_visitor
 import VpiListener
 
+import py_classes
+import py_UhdmListener
+import py_UhdmVisitor
+import py_VpiListener
+
 
 def _worker(params):
     key, args = params
@@ -77,6 +82,18 @@ def _worker(params):
     elif key == 'VpiListener':
         return VpiListener.generate(*args)
 
+    elif key == 'py_classes':
+        return py_classes.generate(*args)
+
+    elif key == 'py_UhdmListener':
+        return py_UhdmListener.generate(*args)
+
+    elif key == 'py_UhdmVisitor':
+        return py_UhdmVisitor.generate(*args)
+
+    elif key == 'py_VpiListener':
+        return py_VpiListener.generate(*args)
+
     config.log('ERROR: Unknown key "{key}"')
     return False
 
@@ -128,6 +145,10 @@ def _main():
         ('vpi_user_cpp', [models]),
         ('vpi_visitor', [models]),
         ('VpiListener', [models]),
+        ('py_classes', [models]),
+        ('py_UhdmListener', [models]),
+        ('py_UhdmVisitor', [models]),
+        ('py_VpiListener', [models]),
     ]
 
     if args.parallel:

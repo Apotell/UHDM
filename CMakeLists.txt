@@ -20,10 +20,7 @@ option(
   "Building with clang++ and libc++(in Linux). To enable with: -DWITH_LIBCXX=On"
   OFF)
 option(UHDM_BUILD_TESTS "Enable testing." ON)
-option(UHDM_USE_HOST_GTEST "Use gtest from host system, not third_party/"
-                           OFF)
-option(UHDM_USE_HOST_CAPNP "Use capnproto from host system, not third_party/"
-                           OFF)
+option(UHDM_WITH_PYTHON "Build with python support." ON)
 option(UHDM_SYMBOLID_DEBUG_ENABLED "Enable SymbolId debugging" OFF)
 
 include(GNUInstallDirs)
@@ -35,9 +32,16 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if (UHDM_WITH_PYTHON)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+  add_subdirectory(third_party/pybind11)
+else()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+endif()
 message(STATUS "Python3_EXECUTABLE = ${Python3_EXECUTABLE}")
+message(STATUS "Python3_LIBRARY_DIRS = ${Python3_LIBRARY_DIRS}")
 
 execute_process(
   COMMAND ${Python3_EXECUTABLE} -c "import orderedmultidict"
@@ -54,27 +58,25 @@ if (WIN32)
   add_compile_definitions(KJ_MSVC_TRADITIONAL_CPP=1)
 endif()
 
-if(UHDM_USE_HOST_CAPNP)
-  find_package(CapnProto)
-else()
-  set(BUILD_TESTING OFF CACHE BOOL "Don't build capnproto tests")
-  set(WITH_FIBERS "OFF" CACHE STRING "Whether or not to build libkj-async with fibers")
-  add_subdirectory(third_party/capnproto EXCLUDE_FROM_ALL)
-  set(CAPNP_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/capnproto/c++/src/capnp CACHE PATH "Location of capnp installation" FORCE)
-  set(CAPNP_EXECUTABLE ${CAPNP_DIR}/capnp CACHE FILEPATH "Location of capnp executable" FORCE)
-  set(CAPNPC_CXX_EXECUTABLE ${CAPNP_DIR}/capnpc-c++ CACHE FILEPATH "Location of capnp-c++ executable" FORCE)
-endif()
+set(BUILD_TESTING OFF CACHE BOOL "Don't build capnproto tests")
+set(WITH_FIBERS "OFF" CACHE STRING "Whether or not to build libkj-async with fibers")
+add_subdirectory(third_party/capnproto EXCLUDE_FROM_ALL)
+set(CAPNP_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/capnproto/c++/src/capnp CACHE PATH "Location of capnp installation" FORCE)
+set(CAPNP_EXECUTABLE ${CAPNP_DIR}/capnp CACHE FILEPATH "Location of capnp executable" FORCE)
+set(CAPNPC_CXX_EXECUTABLE ${CAPNP_DIR}/capnpc-c++ CACHE FILEPATH "Location of capnp-c++ executable" FORCE)
 
 # NOTE: Set the global output directories after the subprojects have had their go at it
-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-  # Force all .lib and .dll into bin for windows
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
-else()
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+  if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    # Force all .lib and .dll into bin for windows
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+  else()
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+  endif()
 endif()
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
@@ -126,18 +128,44 @@ file(GLOB templates_SRC ${PROJECT_SOURCE_DIR}/templates/*.h
 set(model-GENERATED_UHDM ${GENDIR}/src/UHDM.capnp)
 set_source_files_properties(${model-GENERATED_UHDM} PROPERTIES GENERATED TRUE)
 
+# Apparently, compiling each file individually generates a huge
+# library file that is hard to work with. Use bulk-build as a workaround.
+#
+# file(STRINGS "${PROJECT_SOURCE_DIR}/model/models.lst" LIST_OF_MODELS)
+# foreach(MODEL_FILENAME ${LIST_OF_MODELS})
+#   get_filename_component(MODEL_NAME ${MODEL_FILENAME} NAME_WE)
+#   list(APPEND uhdm-GENERATED_SRC "${GENDIR}/src/${MODEL_NAME}.cpp")
+# endforeach()
+
+set(uhdm-GENERATED_SRC
+    ${GENDIR}/src/classes.cpp
+    ${GENDIR}/src/Cloner.cpp
+    ${GENDIR}/src/Elaborator.cpp
+    ${GENDIR}/src/Serializer.cpp
+    ${GENDIR}/src/Serializer_restore.cpp
+    ${GENDIR}/src/Serializer_save.cpp
+    ${GENDIR}/src/UhdmComparer.cpp
+    ${GENDIR}/src/UhdmListener.cpp
+    ${GENDIR}/src/UhdmVisitor.cpp
+    ${GENDIR}/src/vpi_user.cpp
+    ${GENDIR}/src/vpi_visitor.cpp
+    ${GENDIR}/src/VpiListener.cpp
+)
+
+foreach(src_file ${uhdm-GENERATED_SRC})
+  set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
+endforeach(src_file ${uhdm-GENERATED_SRC})
+
 file(GLOB py_SRC ${PROJECT_SOURCE_DIR}/scripts/*.py)
-if(NOT EXISTS ${model-GENERATED_UHDM} OR NOT UHDM_USE_HOST_CAPNP)
-  add_custom_command(
-    OUTPUT ${model-GENERATED_UHDM} ${uhdm-GENERATED_SRC}
-    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate.py --source-dirpath=${UHDM_SOURCE_DIR} -output-dirpath=${GENDIR}
-    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    DEPENDS ${PROJECT_SOURCE_DIR}/model/models.lst
-            ${PROJECT_SOURCE_DIR}/templates/UHDM.capnp
-            ${py_SRC}
-            ${yaml_SRC}
-            ${templates_SRC})
-endif()
+add_custom_command(
+  OUTPUT ${model-GENERATED_UHDM} ${uhdm-GENERATED_SRC}
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/generate.py --source-dirpath=${UHDM_SOURCE_DIR} -output-dirpath=${GENDIR}
+  WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  DEPENDS ${PROJECT_SOURCE_DIR}/model/models.lst
+          ${PROJECT_SOURCE_DIR}/templates/UHDM.capnp
+          ${py_SRC}
+          ${yaml_SRC}
+          ${templates_SRC})
 
 set(model-GENERATED_SRC ${GENDIR}/src/UHDM.capnp.h
                         ${GENDIR}/src/UHDM.capnp.c++)
@@ -150,35 +178,6 @@ add_custom_command(
   COMMAND ${CAPNP_EXECUTABLE} compile -o${CAPNPC_CXX_EXECUTABLE} --src-prefix=${GENDIR}/.. ${model-GENERATED_UHDM}
   DEPENDS ${model-GENERATED_UHDM})
 add_custom_target(GenerateCode DEPENDS ${model-GENERATED_SRC})
-
-set(uhdm-GENERATED_SRC
-    ${GENDIR}/src/Cloner.cpp
-    ${GENDIR}/src/Elaborator.cpp
-    ${GENDIR}/src/Serializer.cpp
-    ${GENDIR}/src/Serializer_restore.cpp
-    ${GENDIR}/src/Serializer_save.cpp
-    ${GENDIR}/src/UHDM.capnp.c++
-    ${GENDIR}/src/UhdmComparer.cpp
-    ${GENDIR}/src/UhdmListener.cpp
-    ${GENDIR}/src/UhdmVisitor.cpp
-    ${GENDIR}/src/VpiListener.cpp
-    ${GENDIR}/src/vpi_user.cpp
-    ${GENDIR}/src/vpi_visitor.cpp
-)
-
-# Apparently, compiling each file individually generates a huge
-# library file that is hard to work with. Use bulk-build as a workaround.
-#
-# file(STRINGS "${PROJECT_SOURCE_DIR}/model/models.lst" LIST_OF_MODELS)
-# foreach(MODEL_FILENAME ${LIST_OF_MODELS})
-#   get_filename_component(MODEL_NAME ${MODEL_FILENAME} NAME_WE)
-#   list(APPEND uhdm-GENERATED_SRC "${GENDIR}/src/${MODEL_NAME}.cpp")
-# endforeach()
-
-list(APPEND uhdm-GENERATED_SRC "${GENDIR}/src/classes.cpp")
-foreach(src_file ${uhdm-GENERATED_SRC})
-  set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
-endforeach(src_file ${uhdm-GENERATED_SRC})
 
 set(uhdm_SRC
     ${PROJECT_SOURCE_DIR}/src/BaseClass.cpp
@@ -212,7 +211,7 @@ set(UHDM_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 message("Building UHDM version v${UHDM_VERSION_MAJOR}.${UHDM_VERSION_MINOR} [${UHDM_VERSION_COMMIT_SHA}]")
 configure_file(${PROJECT_SOURCE_DIR}/templates/uhdm-version.h.in ${GENDIR}/uhdm/uhdm-version.h)
 
-add_library(uhdm ${uhdm_SRC})
+add_library(uhdm STATIC ${uhdm_SRC})
 set_target_properties(uhdm PROPERTIES
   PUBLIC_HEADER ${GENDIR}/uhdm/uhdm.h
   SOVERSION "${UHDM_VERSION_MAJOR}.${UHDM_VERSION_MINOR}"
@@ -221,8 +220,31 @@ configure_file(${PROJECT_SOURCE_DIR}/templates/config.h.in ${GENDIR}/uhdm/config
 target_compile_options(uhdm PUBLIC
   "SHELL:$<IF:$<CXX_COMPILER_ID:MSVC>,/FI uhdm/config.h,-include uhdm/config.h>")
 
-if(BUILD_SHARED_LIBS)
-  set_property(TARGET uhdm PROPERTY POSITION_INDEPENDENT_CODE 1)
+if (UHDM_WITH_PYTHON)
+  set(pyuhdm-GENERATED_SRC
+      ${GENDIR}/python/py_classes.cpp
+      ${GENDIR}/python/py_UhdmListener.cpp
+      ${GENDIR}/python/py_UhdmVisitor.cpp
+      ${GENDIR}/python/py_VpiListener.cpp
+  )
+
+  foreach(src_file ${pyuhdm-GENERATED_SRC})
+    set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
+  endforeach(src_file ${pyuhdm-GENERATED_SRC})
+
+  set(pyuhdm_SRC
+    ${PROJECT_SOURCE_DIR}/src/py_BaseClass.cpp
+    ${PROJECT_SOURCE_DIR}/src/py_Serializer.cpp
+    ${pyuhdm-GENERATED_SRC}
+  )
+
+  pybind11_add_module(pyuhdm SHARED ${pyuhdm_SRC})
+  target_link_libraries(pyuhdm PRIVATE uhdm pybind11::pybind11)
+  target_link_directories(pyuhdm PRIVATE ${Python3_LIBRARY_DIRS})
+  target_include_directories(pyuhdm
+    PRIVATE ${PROJECT_SOURCE_DIR}/src
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+  )
 endif()
 
 # Our uhdm headers come with angle brackets (indicating system headers),
@@ -236,15 +258,10 @@ target_include_directories(uhdm SYSTEM PUBLIC
   $<INSTALL_INTERFACE:include>)
 target_include_directories(uhdm PRIVATE ${GENDIR}/src)
 
-if (UHDM_USE_HOST_CAPNP)
-  target_include_directories(uhdm PUBLIC ${CAPNP_INCLUDE_DIRS})
-  target_link_libraries(uhdm PUBLIC CapnProto::capnp)
-else()
-  target_include_directories(uhdm PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/capnproto/c++/src>
-    $<INSTALL_INTERFACE:include>)
-  target_link_libraries(uhdm PUBLIC capnp)
-endif()
+target_include_directories(uhdm PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party/capnproto/c++/src>
+  $<INSTALL_INTERFACE:include>)
+target_link_libraries(uhdm PUBLIC capnp)
 
 target_compile_definitions(uhdm
   PUBLIC PLI_DLLISPEC=
@@ -266,19 +283,15 @@ elseif(UNIX)
 endif()
 
 add_dependencies(uhdm GenerateCode)
-
-if(NOT UHDM_USE_HOST_CAPNP)
-  add_dependencies(GenerateCode capnpc capnp_tool capnpc_cpp)
-endif()
+add_dependencies(GenerateCode capnpc capnp_tool capnpc_cpp)
 
 if (UHDM_BUILD_TESTS)
-  if (UHDM_USE_HOST_GTEST)
-    find_package(GTest REQUIRED)
-  else()
-    add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
-    set(GTEST_INCLUDE_DIRS third_party/googletest/googletest/include
-      third_party/googletest/googlemock/include)
-  endif()
+  add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
+  set(GTEST_INCLUDE_DIRS
+    third_party/googletest/googletest/include
+    third_party/googletest/googlemock/include
+  )
+
   enable_testing()
   include(GoogleTest)
   # All unit-tests are registered with this custom target as dependency, so
@@ -358,30 +371,19 @@ target_compile_definitions(test_inst
   PUBLIC PLI_DLLESPEC=)
 target_include_directories(test_inst SYSTEM PRIVATE
   ${CMAKE_INSTALL_PREFIX}/include)
-if(NOT UHDM_USE_HOST_CAPNP)
-  target_link_libraries(test_inst PRIVATE uhdm capnp kj
-    $<$<PLATFORM_ID:Darwin>:dl>
-    $<$<PLATFORM_ID:Darwin>:util>
-    $<$<AND:$<PLATFORM_ID:Darwin>,$<NOT:$<PLATFORM_ID:Apple>>>:m>
-    $<$<PLATFORM_ID:Darwin>:rt>
-    $<$<PLATFORM_ID:Darwin>:pthread>)
-else()
-  target_link_libraries(test_inst PRIVATE uhdm CapnProto::capnp
-    $<$<PLATFORM_ID:Darwin>:dl>
-    $<$<PLATFORM_ID:Darwin>:util>
-    $<$<AND:$<PLATFORM_ID:Darwin>,$<NOT:$<PLATFORM_ID:Apple>>>:m>
-    $<$<PLATFORM_ID:Darwin>:rt>
-    $<$<PLATFORM_ID:Darwin>:pthread>)
-endif()
+target_link_libraries(test_inst PRIVATE uhdm capnp kj
+  $<$<PLATFORM_ID:Darwin>:dl>
+  $<$<PLATFORM_ID:Darwin>:util>
+  $<$<AND:$<PLATFORM_ID:Darwin>,$<NOT:$<PLATFORM_ID:Apple>>>:m>
+  $<$<PLATFORM_ID:Darwin>:rt>
+  $<$<PLATFORM_ID:Darwin>:pthread>)
 
-if(NOT UHDM_USE_HOST_CAPNP)
-  install(
-    TARGETS capnp kj
-    EXPORT uhdmTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm)
-endif()
+install(
+  TARGETS capnp kj
+  EXPORT uhdmTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm)
 
 # Installation target
 install(
@@ -397,6 +399,38 @@ install(DIRECTORY ${GENDIR}/uhdm/
 install(FILES ${GENDIR}/src/UHDM.capnp
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/uhdm)
 
+if (WIN32 AND (CMAKE_CXX_COMPILER_ID MATCHES "MSVC"))
+  install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/uhdm.dir/uhdm.pdb
+    CONFIGURATIONS Debug RelWithDebInfo
+    DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(
+    FILES $<TARGET_PDB_FILE:uhdm-cmp>
+          $<TARGET_PDB_FILE:uhdm-dump>
+          $<TARGET_PDB_FILE:uhdm-equiv>
+          $<TARGET_PDB_FILE:uhdm-gc>
+          $<TARGET_PDB_FILE:uhdm-hier>
+          $<TARGET_PDB_FILE:uhdm-lint>
+    CONFIGURATIONS Debug RelWithDebInfo
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+if (UHDM_WITH_PYTHON)
+  install(
+    TARGETS pyuhdm
+    EXPORT uhdmTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+  if (WIN32 AND (CMAKE_CXX_COMPILER_ID MATCHES "MSVC"))
+    install(
+      FILES $<TARGET_PDB_FILE:pyuhdm>
+      CONFIGURATIONS Debug RelWithDebInfo
+      DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
+endif()
+
 # Generate cmake config files for reuse by downstream packages
 include(CMakePackageConfigHelpers)
 
@@ -411,14 +445,6 @@ write_basic_package_version_file(
   VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
   COMPATIBILITY SameMajorVersion
 )
-
-# Depending on if we compile capnp from here or got from the host, the
-# package config refers to different libraries.
-if(UHDM_USE_HOST_CAPNP)
-  set(PC_OPTIONAL_REQUIRE_HOST_CAPNP "Requires: capnp")
-else()
-  set(PC_OPTIONAL_LOCAL_CAPNP "-lcapnp -lkj")
-endif()
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/configs/UHDM.pc.in
@@ -440,7 +466,3 @@ install(
 install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/UHDM.pc
   DESTINATION lib/pkgconfig)
-
-if(UHDM_WITH_PYTHON)
-  add_subdirectory(python)
-endif()

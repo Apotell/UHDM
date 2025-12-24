@@ -23,6 +23,7 @@
 #pragma once
 
 #cmakedefine01 UHDM_SYMBOLID_DEBUG_ENABLED
+#cmakedefine01 UHDM_WITH_PYTHON
 
 #if defined(_MSC_VER)
   // Since windows is built with /w4, disable a few warnings
