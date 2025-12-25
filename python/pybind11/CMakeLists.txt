@@ -24,6 +24,3 @@ target_link_libraries(pyuhdm PRIVATE uhdm)
 target_include_directories(pyuhdm PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
