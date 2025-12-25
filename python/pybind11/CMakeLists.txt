@@ -1,19 +1,26 @@
 cmake_minimum_required(VERSION 3.20)
-project(uhdm_pybind_real)
+project(uhdm_pyuhdm)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 
-include(FetchContent)
-FetchContent_Declare(
-  pybind11
-  GIT_REPOSITORY https://github.com/pybind/pybind11.git
-  GIT_TAG        v2.11.1
-)
-FetchContent_MakeAvailable(pybind11)
+# Use pybind11 from third_party submodule (consistent with UHDM conventions)
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11
+                 ${CMAKE_CURRENT_BINARY_DIR}/pybind11)
 
-file(GLOB_RECURSE SOURCES 
-    "*.cpp"
+# Collect source files explicitly (preferred over GLOB_RECURSE for CMake)
+set(PYUHDM_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/module.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/uhdm_db.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_db.cpp
 )
 
-pybind11_add_module(pyuhdm ${SOURCES})
+# Create the pyuhdm module
+pybind11_add_module(pyuhdm ${PYUHDM_SOURCES})
+
+# Link against UHDM
 target_link_libraries(pyuhdm PRIVATE uhdm)
+
+# Add include directories for project-absolute includes
+target_include_directories(pyuhdm PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)

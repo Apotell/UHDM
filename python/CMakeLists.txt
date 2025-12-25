@@ -1,3 +1,9 @@
+# DEPRECATED: The SWIG-based Python bindings are deprecated.
+# Please use the pybind11 bindings in python/pybind11/ instead.
+message(WARNING "The SWIG-based Python bindings (py_uhdm target) are deprecated. "
+                "Use the pybind11-based pyuhdm module instead. "
+                "See python/pybind11/README.md for details.")
+
 # Set up swig
 find_package(SWIG REQUIRED)
 include(${SWIG_USE_FILE})
