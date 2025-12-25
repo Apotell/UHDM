@@ -3,13 +3,12 @@
 
 #include <memory>
 #include <string>
-#include <vector>
+#include <string>
 
 // Forward declarations for UHDM types
 namespace uhdm {
 class Serializer;
 }
-using vpiHandle = uint32_t*;
 
 namespace uhdm_py {
 
@@ -48,15 +47,9 @@ public:
      */
     void save(const std::string& path) const;
 
-    /**
-     * @brief Check if a design has been loaded.
-     * @return true if designs are loaded, false otherwise
-     */
-    bool isLoaded() const noexcept;
 
 private:
     std::unique_ptr<uhdm::Serializer> serializer_;
-    std::vector<vpiHandle> designs_;
 };
 
 }  // namespace uhdm_py

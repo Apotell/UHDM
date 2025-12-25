@@ -38,9 +38,5 @@ void bind_db(py::module& m) {
             "    path: Path where the UHDM file should be saved.\n\n"
             "Raises:\n"
             "    FileNotFoundError: If the parent directory does not exist.\n"
-            "    RuntimeError: If serialization fails.")
-        .def("is_loaded", &uhdm_py::UHDMDatabase::isLoaded,
-            "Check if a design has been loaded.\n\n"
-            "Returns:\n"
-            "    bool: True if designs are loaded, False otherwise.");
+            "    RuntimeError: If serialization fails.");
 }
