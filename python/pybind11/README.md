@@ -23,7 +23,7 @@ From the UHDM root directory:
 
 ```bash
 # Configure the build (includes pybind11 module)
-cmake -S . -B build_pybind11
+cmake -S . -B build_pybind11 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
 # Build the pyuhdm module
 cmake --build build_pybind11 --target pyuhdm
