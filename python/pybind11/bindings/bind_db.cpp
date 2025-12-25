@@ -18,10 +18,11 @@ void bind_db(py::module& m) {
         }
     });
 
-    // Bind UHDMDatabase class
-    py::class_<uhdm_py::UHDMDatabase>(m, "UHDMDatabase",
+    // Bind UHDMDatabase C++ class as "Database" in Python
+    // (pyuhdm.Database - the module name already indicates UHDM context)
+    py::class_<uhdm_py::UHDMDatabase>(m, "Database",
         "A wrapper class that owns UHDM serializer state and provides load/save functionality.")
-        .def(py::init<>(), "Create a new empty UHDMDatabase instance.")
+        .def(py::init<>(), "Create a new empty Database instance.")
         .def("load", &uhdm_py::UHDMDatabase::load,
             py::arg("path"),
             "Load a UHDM binary file from disk.\n\n"

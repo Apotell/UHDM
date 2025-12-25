@@ -3,7 +3,7 @@
 Milestone 1 Verification Script for pyuhdm
 
 This script performs a simple sanity check of the pyuhdm pybind11 module by:
-1. Creating a UHDMDatabase instance
+1. Creating a Database instance
 2. Loading an existing .uhdm file
 3. Saving it to a new output file
 4. Verifying the output file is created and non-empty
@@ -70,12 +70,12 @@ def main():
         print("  cmake --build build_pybind11 --target pyuhdm")
         sys.exit(1)
     
-    # Create UHDMDatabase instance
+    # Create Database instance
     try:
-        db = pyuhdm.UHDMDatabase()
-        print("[OK] Created UHDMDatabase instance")
+        db = pyuhdm.Database()
+        print("[OK] Created Database instance")
     except Exception as e:
-        print(f"[FAIL] Could not create UHDMDatabase: {e}")
+        print(f"[FAIL] Could not create Database: {e}")
         sys.exit(1)
     
     # Load the input file
@@ -145,7 +145,7 @@ def main():
     print("[SUCCESS] Milestone 1 verification completed!")
     print("=" * 50)
     print("\nThe pyuhdm module can successfully:")
-    print("  - Create a UHDMDatabase instance")
+    print("  - Create a Database instance")
     print("  - Load a .uhdm file")
     print("  - Save to a .uhdm file")
     

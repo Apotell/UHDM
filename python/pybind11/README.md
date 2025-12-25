@@ -4,7 +4,7 @@ This directory contains **pybind11-based Python bindings** for the UHDM (Univers
 
 ## Milestone 1: Load/Save Functionality
 
-The current implementation provides a `UHDMDatabase` class that can:
+The current implementation provides a `Database` class that can:
 - **Load** UHDM binary files from disk
 - **Save** UHDM data back to binary files
 
@@ -55,7 +55,7 @@ python python/pybind11/verify_milestone1.py input.uhdm output.uhdm
 
 The script will:
 1. Import the `pyuhdm` module
-2. Create a `UHDMDatabase` instance
+2. Create a `Database` instance
 3. Load the input file
 4. Save to the output file (or a temporary file)
 5. Verify the output file was created and is non-empty
@@ -70,7 +70,7 @@ sys.path.insert(0, 'build_pybind11/lib')
 import pyuhdm
 
 # Create a database instance
-db = pyuhdm.UHDMDatabase()
+db = pyuhdm.Database()
 
 # Load a UHDM binary file
 db.load("design.uhdm")
@@ -90,7 +90,7 @@ The module raises Python exceptions on errors:
 ```python
 import pyuhdm
 
-db = pyuhdm.UHDMDatabase()
+db = pyuhdm.Database()
 
 try:
     db.load("nonexistent.uhdm")
@@ -105,7 +105,7 @@ except RuntimeError as e:
 
 ## API Reference
 
-### `pyuhdm.UHDMDatabase`
+### `pyuhdm.Database`
 
 A wrapper class that owns UHDM serializer state and provides load/save functionality.
 
@@ -113,7 +113,7 @@ A wrapper class that owns UHDM serializer state and provides load/save functiona
 
 | Method | Description |
 |--------|-------------|
-| `__init__()` | Create a new empty UHDMDatabase instance |
+| `__init__()` | Create a new empty Database instance |
 | `load(path: str)` | Load a UHDM binary file from disk |
 | `save(path: str)` | Save the current UHDM state to a binary file |
 | `is_loaded() -> bool` | Check if a design has been loaded |
@@ -129,12 +129,12 @@ A wrapper class that owns UHDM serializer state and provides load/save functiona
 python/pybind11/
 ├── CMakeLists.txt        # Build configuration
 ├── module.cpp            # Main pybind11 module definition
-├── uhdm_db.hpp           # UHDMDatabase C++ wrapper header
-├── uhdm_db.cpp           # UHDMDatabase C++ wrapper implementation
+├── uhdm_db.hpp           # Database C++ wrapper header
+├── uhdm_db.cpp           # Database C++ wrapper implementation
 ├── verify_milestone1.py  # Verification script
 ├── README.md             # This file
 ├── bindings/
-│   └── bind_db.cpp       # Pybind11 bindings for UHDMDatabase
+│   └── bind_db.cpp       # Pybind11 bindings for Database
 └── utils/
     └── exceptions.hpp    # Custom exception types
 ```
