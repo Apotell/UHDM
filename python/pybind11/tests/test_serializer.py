@@ -20,29 +20,28 @@ except ImportError:
 class TestSerializer(unittest.TestCase):
 
     def test_module_import(self):
-        """Test 1: Module import verification."""
+        """Verify module import and class existence."""
         self.assertTrue(pyuhdm is not None)
         self.assertTrue(hasattr(pyuhdm, "Serializer"))
 
     def test_serializer_construction(self):
-        """Test 2: Serializer construction."""
+        """Verify Serializer construction."""
         s = pyuhdm.Serializer()
         self.assertIsNotNone(s)
 
     def test_restore_invalid_file(self):
-        """Test 3: Restore invalid file (expect exception)."""
+        """Verify restore raises generic RuntimeError for invalid files."""
         s = pyuhdm.Serializer()
-        # Expect RuntimeError or proper exception from bindings
+        # Expect RuntimeError as the generic exception type for binding errors
         with self.assertRaises(RuntimeError):
             s.restore("nonexistent_file_for_testing.uhdm")
 
     def test_restore_save_happy_path(self):
-        """Test 4: Restore + save happy path."""
+        """Verify restore and save logic when a test file is provided."""
         input_file = os.getenv("UHDM_TEST_FILE", "surelog.uhdm")
         
         if not os.path.exists(input_file):
-            print(f"Skipping happy path test: {input_file} not found.")
-            return
+            self.skipTest(f"Test file not found: {input_file}. Set UHDM_TEST_FILE env var.")
 
         with tempfile.NamedTemporaryFile(suffix=".uhdm", delete=False) as tmp:
             output_file = tmp.name
