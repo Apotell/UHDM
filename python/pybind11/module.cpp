@@ -2,12 +2,11 @@
 
 namespace py = pybind11;
 
-// Forward declaration of binding functions
-void bind_db(py::module& m);
+// Forward declarations
+void bind_serializer(py::module& m);
 
 PYBIND11_MODULE(pyuhdm, m) {
-    m.doc() = "UHDM pybind11 module - Python bindings for UHDM database operations";
-    
-    // Register bindings
-    bind_db(m);
+    m.doc() = "UHDM Python bindings";
+
+    bind_serializer(m);
 }

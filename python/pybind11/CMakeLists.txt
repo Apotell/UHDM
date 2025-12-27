@@ -10,8 +10,7 @@ add_subdirectory(../../third_party/pybind11
 # Collect source files explicitly (preferred over GLOB_RECURSE for CMake)
 set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/module.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/uhdm_db.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_db.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_serializer.cpp
 )
 
 # Create the pyuhdm module
