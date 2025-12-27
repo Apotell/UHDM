@@ -3,8 +3,8 @@
 Milestone 1 Verification Script for pyuhdm
 
 This script performs a simple sanity check of the pyuhdm pybind11 module by:
-1. Creating a Database instance
-2. Loading an existing .uhdm file
+1. Creating a Serializer instance
+2. Restoring an existing .uhdm file
 3. Saving it to a new output file
 4. Verifying the output file is created and non-empty
 
@@ -24,9 +24,8 @@ def find_module_path():
     # Try common build directories
     script_dir = os.path.dirname(os.path.abspath(__file__))
     possible_paths = [
-        os.path.join(script_dir, '..', '..', 'build_pybind11', 'lib'),
         os.path.join(script_dir, '..', '..', 'build', 'lib'),
-        os.path.join(script_dir, '..', '..', 'build_pybind11', 'python', 'pybind11'),
+        os.path.join(script_dir, '..', '..', 'build_pybind11', 'lib'),
     ]
     
     for path in possible_paths:
@@ -42,7 +41,7 @@ def find_module_path():
 def main():
     if len(sys.argv) < 2:
         print("Usage: python verify_milestone1.py <input.uhdm> [output.uhdm]")
-        print("\nThis script verifies the pyuhdm module's load/save functionality.")
+        print("\nThis script verifies the pyuhdm module's serializer restore/save functionality.")
         sys.exit(1)
     
     input_path = sys.argv[1]
@@ -66,40 +65,30 @@ def main():
         print(f"[FAIL] Could not import pyuhdm: {e}")
         print("\nMake sure the module is built. Run:")
         print("  cd <UHDM_ROOT>")
-        print("  cmake -S . -B build_pybind11")
-        print("  cmake --build build_pybind11 --target pyuhdm")
+        print("  cmake -S . -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON")
+        print("  cmake --build build -j$(nproc)")
         sys.exit(1)
     
-    # Create Database instance
+    # Create Serializer instance
     try:
-        db = pyuhdm.Database()
-        print("[OK] Created Database instance")
+        serializer = pyuhdm.Serializer()
+        print("[OK] Created Serializer instance")
     except Exception as e:
-        print(f"[FAIL] Could not create Database: {e}")
+        print(f"[FAIL] Could not create Serializer: {e}")
         sys.exit(1)
     
-    # Load the input file
+    # Restore the input file
     try:
-        db.load(input_path)
-        print(f"[OK] Loaded UHDM file: {input_path}")
-    except FileNotFoundError as e:
-        print(f"[FAIL] File not found error during load: {e}")
-        sys.exit(1)
+        # returns a list of root handles
+        data = serializer.restore(input_path)
+        print(f"[OK] Restored UHDM file: {input_path}")
+        print(f"[INFO] Restored {len(data)} root objects")
     except RuntimeError as e:
-        print(f"[FAIL] Runtime error during load: {e}")
+        print(f"[FAIL] Runtime error during restore: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"[FAIL] Unexpected error during load: {e}")
+        print(f"[FAIL] Unexpected error during restore: {e}")
         sys.exit(1)
-    
-    # Check if loaded
-    try:
-        if db.is_loaded():
-            print("[OK] Database reports design is loaded")
-        else:
-            print("[WARN] Database reports no design loaded (file may be empty)")
-    except Exception as e:
-        print(f"[WARN] Could not check is_loaded(): {e}")
     
     # Determine output path
     use_temp = output_path is None
@@ -110,11 +99,8 @@ def main():
     
     # Save to output file
     try:
-        db.save(output_path)
+        serializer.save(output_path)
         print(f"[OK] Saved UHDM file: {output_path}")
-    except FileNotFoundError as e:
-        print(f"[FAIL] File error during save: {e}")
-        sys.exit(1)
     except RuntimeError as e:
         print(f"[FAIL] Runtime error during save: {e}")
         sys.exit(1)
@@ -145,8 +131,8 @@ def main():
     print("[SUCCESS] Milestone 1 verification completed!")
     print("=" * 50)
     print("\nThe pyuhdm module can successfully:")
-    print("  - Create a Database instance")
-    print("  - Load a .uhdm file")
+    print("  - Create a Serializer instance")
+    print("  - Restore a .uhdm file")
     print("  - Save to a .uhdm file")
     
     return 0

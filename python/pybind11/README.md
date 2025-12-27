@@ -1,147 +1,103 @@
-# UHDM Python Bindings (pybind11)
+# UHDM Python Bindings (pyuhdm)
 
 This directory contains **pybind11-based Python bindings** for the UHDM (Universal Hardware Data Model) library.
 
-## Milestone 1: Load/Save Functionality
+## Milestone 1: Serializer Access
 
-The current implementation provides a `Database` class that can:
-- **Load** UHDM binary files from disk
-- **Save** UHDM data back to binary files
+The current implementation exposes the native `uhdm::Serializer` class, allowing:
+- **Restoring** UHDM binary files from disk
+- **Saving** UHDM data back to binary files
+
+This provides a **thin, direct mapping** to the native C++ API with no additional state or abstractions.
 
 ## Building the Module
 
-### Prerequisites
-
-- CMake 3.20+
-- Python 3.8+ with development headers
-- C++17 compatible compiler
-- UHDM library (built from the parent project)
+The bindings are built as part of the main UHDM project.
 
 ### Build Commands
 
 From the UHDM root directory:
 
 ```bash
-# Configure the build (includes pybind11 module)
-cmake -S . -B build_pybind11 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+# Configure the build (enabling PIC for shared module)
+cmake -S . -B build -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
-# Build the pyuhdm module
-cmake --build build_pybind11 --target pyuhdm
+# Build the project (including pyuhdm)
+cmake --build build -j$(nproc)
 
 # The module will be located at:
-# build_pybind11/lib/pyuhdm.cpython-<version>-<platform>.so
+# build/lib/pyuhdm.cpython-<version>-<platform>.so
 ```
-
-### Verifying the Build
-
-After building, you can verify the module loads correctly:
-
-```bash
-# From the UHDM root directory
-python -c "import sys; sys.path.insert(0, 'build_pybind11/lib'); import pyuhdm; print('pyuhdm loaded successfully')"
-```
-
-## Running the Verification Script
-
-A verification script is provided to test the load/save functionality:
-
-```bash
-# Run with a .uhdm file
-python python/pybind11/verify_milestone1.py <path_to_file.uhdm>
-
-# Or specify an output file
-python python/pybind11/verify_milestone1.py input.uhdm output.uhdm
-```
-
-The script will:
-1. Import the `pyuhdm` module
-2. Create a `Database` instance
-3. Load the input file
-4. Save to the output file (or a temporary file)
-5. Verify the output file was created and is non-empty
-6. Print a success/failure message
 
 ## Python Usage Example
 
 ```python
 import sys
-sys.path.insert(0, 'build_pybind11/lib')
+# Adjust path to point to build/lib
+sys.path.insert(0, 'build/lib')
 
 import pyuhdm
 
-# Create a database instance
-db = pyuhdm.Database()
+# Create a serializer instance
+s = pyuhdm.Serializer()
 
-# Load a UHDM binary file
-db.load("design.uhdm")
+# Restore a UHDM binary file
+# Returns a list of root handles (currently opaque capsules)
+data = s.restore("design.uhdm")
 
-# Check if data was loaded
-if db.is_loaded():
-    print("Design loaded successfully")
+print(f"Restored {len(data)} root objects.")
 
 # Save to a new file
-db.save("design_copy.uhdm")
+s.save("design_copy.uhdm")
 ```
 
 ### Exception Handling
 
-The module raises Python exceptions on errors:
+Native C++ exceptions are propagated to Python as `RuntimeError`.
 
 ```python
 import pyuhdm
 
-db = pyuhdm.Database()
+s = pyuhdm.Serializer()
 
 try:
-    db.load("nonexistent.uhdm")
-except FileNotFoundError as e:
-    print(f"File not found: {e}")
-
-try:
-    db.load("corrupted.uhdm")
+    s.restore("nonexistent.uhdm")
 except RuntimeError as e:
-    print(f"Serialization error: {e}")
+    print(f"UHDM Error: {e}")
 ```
 
 ## API Reference
 
-### `pyuhdm.Database`
+### `pyuhdm.Serializer`
 
-A wrapper class that owns UHDM serializer state and provides load/save functionality.
+Direct binding to the native `uhdm::Serializer` C++ class.
 
 #### Methods
 
 | Method | Description |
 |--------|-------------|
-| `__init__()` | Create a new empty Database instance |
-| `load(path: str)` | Load a UHDM binary file from disk |
-| `save(path: str)` | Save the current UHDM state to a binary file |
-| `is_loaded() -> bool` | Check if a design has been loaded |
+| `__init__()` | Create a new Serializer instance. |
+| `restore(path: str) -> list` | Restore UHDM state from a binary file. Returns a list of root handles. |
+| `save(path: str) -> None` | Save the current UHDM state to a binary file. |
 
-#### Exceptions
-
-- `FileNotFoundError`: Raised if a file cannot be found or opened
-- `RuntimeError`: Raised if serialization/deserialization fails
+**Note**: `restore()` returns a list of opaque handles. Inspection of these handles will be enabled in future milestones.
 
 ## Project Structure
 
 ```
 python/pybind11/
-├── CMakeLists.txt        # Build configuration
-├── module.cpp            # Main pybind11 module definition
-├── uhdm_db.hpp           # Database C++ wrapper header
-├── uhdm_db.cpp           # Database C++ wrapper implementation
-├── verify_milestone1.py  # Verification script
-├── README.md             # This file
+├── CMakeLists.txt              # Core binding build configuration
+├── module.cpp                  # Main pybind11 module definition
 ├── bindings/
-│   └── bind_db.cpp       # Pybind11 bindings for Database
-└── utils/
-    └── exceptions.hpp    # Custom exception types
+│   └── bind_serializer.cpp     # Direct bindings for uhdm::Serializer
+├── tests/
+│   └── test_serializer.py      # Verification tests
+└── README.md                   # This file
 ```
 
 ## Next Steps
 
 Future milestones will add:
-- Read-only access to VPI handles
+- Inspection of restored VPI handles
 - Query methods for design hierarchy
 - Expression tree traversal
