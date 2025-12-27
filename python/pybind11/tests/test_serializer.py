@@ -13,7 +13,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(__file__), '../../../build_clean/lib'))
     try:
         import pyuhdm
-    except ImportError:
+    except ImportError as e:
         print(f"Error: Could not import pyuhdm: {e}")
         sys.exit(1)
 
