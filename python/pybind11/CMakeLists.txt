@@ -14,6 +14,7 @@ set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_baseclass.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_enums.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_design.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_module_inst.cpp
 )
 
 # Create the pyuhdm module

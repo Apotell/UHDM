@@ -8,6 +8,7 @@ void bind_any(py::module& m);
 void bind_baseclass(py::module& m);
 void bind_enums(py::module& m);
 void bind_design(py::module& m);
+void bind_module_inst(py::module& m);
 
 PYBIND11_MODULE(pyuhdm, m) {
     m.doc() = "UHDM Python bindings";
@@ -17,4 +18,5 @@ PYBIND11_MODULE(pyuhdm, m) {
     bind_baseclass(m);
     bind_enums(m);
     bind_design(m);
+    bind_module_inst(m);
 }
