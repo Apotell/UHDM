@@ -441,9 +441,6 @@ install(
   FILES ${CMAKE_CURRENT_BINARY_DIR}/UHDM.pc
   DESTINATION lib/pkgconfig)
 
-if(UHDM_WITH_PYTHON)
-  add_subdirectory(python)
-endif()
 
 
 
