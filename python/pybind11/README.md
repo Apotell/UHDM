@@ -10,6 +10,22 @@ The current implementation exposes the native `uhdm::Serializer` class, allowing
 
 This provides a **thin, direct mapping** to the native C++ API with no additional state or abstractions.
 
+## Milestone 2: Read-only Model Inspection
+
+Milestone 2 extends the Python bindings with read-only inspection capabilities for UHDM model objects.
+
+At this stage:
+- UHDM objects can be inspected from Python without mutation.
+- The Python API strictly mirrors the native C++ UHDM API.
+- Ownership and lifetime of all objects remain in C++.
+- No Python-side abstractions, helpers, or factory APIs are introduced.
+
+Exposed model objects include:
+- `BaseClass` (root inspection API)
+- `Design` (top-level UHDM design object)
+- `module_inst` (example of a concrete child object)
+
+
 ## Building the Module
 
 The bindings are built as part of the main UHDM project.
@@ -95,9 +111,41 @@ python/pybind11/
 └── README.md                   # This file
 ```
 
+### `pyuhdm.BaseClass` & `pyuhdm.Design` & `pyuhdm.module_inst`
+
+Milestone 2 adds the following read-only classes:
+
+| Class | Base | Methods |
+|-------|------|---------|
+| `BaseClass` | - | `getUhdmId`, `getFile`, `getStartLine`, `getVpiType`, `getUhdmType` |
+| `Design` | `BaseClass` | `getName`, `getTopModules` |
+| `module_inst` | `BaseClass` | `getDefName`, `getPorts` |
+| `UhdmType` | (Enum) | `Design`, `Module` (scoped enum) |
+
+**Structure Update**:
+
+```
+python/pybind11/
+├── CMakeLists.txt
+├── module.cpp
+├── bindings/
+│   ├── bind_serializer.cpp
+│   ├── bind_baseclass.cpp      # [New] BaseClass bindings
+│   ├── bind_design.cpp         # [New] Design bindings
+│   ├── bind_module_inst.cpp    # [New] Module bindings
+│   └── bind_enums.cpp          # [New] Enum bindings
+├── tests/
+│   ├── test_serializer.py
+│   ├── test_baseclass.py       # [New]
+│   ├── test_design.py          # [New]
+│   └── test_module_inst.py     # [New]
+└── README.md
+```
+
 ## Next Steps
 
 Future milestones will add:
-- Inspection of restored VPI handles
-- Query methods for design hierarchy
-- Expression tree traversal
+- Write support (mutating methods)
+- Factory methods for creating objects
+- More comprehensive object bindings
+
