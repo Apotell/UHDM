@@ -10,6 +10,9 @@ add_subdirectory(../../third_party/pybind11
 set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_serializer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_any.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_baseclass.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_enums.cpp
 )
 
 # Create the pyuhdm module
