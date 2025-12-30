@@ -100,6 +100,11 @@ def generate_binding(data, yaml_path, out_file):
 
     out_file.write("}\n")
 
+def generate_from_parsed_model(parsed_items, yaml_path, out_path):
+    with open(out_path, 'w') as f:
+        generate_header(f)
+        generate_binding(parsed_items, yaml_path, f)
+
 def main():
     """
     Usage:
@@ -111,10 +116,7 @@ def main():
     args = parser.parse_args()
 
     data = parse_yaml(args.yaml)
-    
-    with open(args.out, 'w') as f:
-        generate_header(f)
-        generate_binding(data, args.yaml, f)
+    generate_from_parsed_model(data, args.yaml, args.out)
 
 if __name__ == "__main__":
     main()
