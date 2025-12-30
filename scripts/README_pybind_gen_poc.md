@@ -13,3 +13,11 @@
 ```bash
 python3 scripts/pybind_gen_poc.py --yaml model/design.yaml --out output_design.cpp
 ```
+### Parser Note
+
+This PoC intentionally reuses the native UHDM model loader
+(`loader._load_one_model`) instead of parsing YAML directly.
+Some model files contain duplicate keys which are not compatible
+with standard YAML parsers. The private loader is used temporarily
+and can be wrapped or exposed as a public API in a follow-up step.
+
