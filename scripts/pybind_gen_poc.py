@@ -12,44 +12,39 @@ def to_cpp_class_name(name):
     """Converts snake_case name to PascalCase for C++ class."""
     if not name:
         return ""
-    # Special handling or just capitalization?
-    # User example: 'Design' from 'design'.
-    # Standard snake to pascal: 'class_defn' -> 'ClassDefn'?
-    # Or just capitalize first letter?
-    # The user manual "UHDM/model/design.yaml" says "obj_def: design".
-    # Searching for class naming in C++...
-    # Assuming PascalCase.
     parts = name.split('_')
     return "".join(p.capitalize() for p in parts)
 
 def parse_yaml_manual(path):
     """Minimal manual parser if PyYAML is missing."""
-    data = {}
+    items = []
+    current_item = {}
     with open(path, 'r') as f:
         for line in f:
             line = line.strip()
-            if line.startswith("- obj_def:"):
-                data['obj_def'] = line.split(":", 1)[1].strip()
-            elif line.startswith("- extensions:"): # Note: standard calls it 'extends' in class_defn.yaml, but let's check.
-                # In class_defn.yaml line 18: "- extends: scope"
-                 pass
-            elif line.startswith("- extends:"):
-                data['extends'] = line.split(":", 1)[1].strip()
-            # We only need obj_def and extends for this PoC
-    return data
+            if line.startswith("-"):
+                if current_item:
+                    items.append(current_item)
+                current_item = {}
+                line = line[1:].strip() # remove leading dash
+            
+            if ":" in line:
+                key, value = line.split(":", 1)
+                current_item[key.strip()] = value.strip()
+                
+        if current_item:
+            items.append(current_item)
+    return items
 
 def parse_yaml(path):
     if HAS_YAML:
         with open(path, 'r') as f:
             content = yaml.safe_load(f)
-            data = {}
             if isinstance(content, list):
-                for item in content:
-                    if isinstance(item, dict):
-                        data.update(item)
+                return content
             elif isinstance(content, dict):
-                data = content
-            return data
+                return [content]
+            return []
     else:
         return parse_yaml_manual(path)
 
@@ -60,16 +55,23 @@ def generate_header(out_file):
     out_file.write("namespace py = pybind11;\n\n")
 
 def generate_binding(data, yaml_path, out_file):
-    obj_def = data.get('obj_def')
+    # Find obj_def and extends
+    obj_def = None
+    extends = None
+    
+    for item in data:
+        if 'obj_def' in item:
+            obj_def = item['obj_def']
+        if 'extends' in item:
+            extends = item['extends']
+            
     if not obj_def:
         print(f"Error: Could not determine class name from {yaml_path}")
         sys.exit(1)
 
     class_name = to_cpp_class_name(obj_def)
-    base_class_name = data.get('extends')
     
     # Best effort header include
-    # Assuming header is in uhdm/ directory and matches the yaml filename
     filename = os.path.basename(yaml_path)
     header_name = os.path.splitext(filename)[0] + ".h"
     out_file.write(f"#include <uhdm/{header_name}>\n\n")
@@ -78,12 +80,26 @@ def generate_binding(data, yaml_path, out_file):
     
     cpp_class = f"uhdm::{class_name}"
     
-    if base_class_name:
-        cpp_base_class = f"uhdm::{to_cpp_class_name(base_class_name)}"
-        out_file.write(f"  py::class_<{cpp_class}, {cpp_base_class}, std::unique_ptr<{cpp_class}, py::nodelete>>(m, \"{class_name}\");\n")
+    if extends:
+        cpp_base = f"uhdm::{to_cpp_class_name(extends)}"
+        out_file.write(f"  py::class_<{cpp_class}, {cpp_base}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{class_name}\");\n")
     else:
-        out_file.write(f"  py::class_<{cpp_class}, std::unique_ptr<{cpp_class}, py::nodelete>>(m, \"{class_name}\");\n")
+        out_file.write(f"  py::class_<{cpp_class}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{class_name}\");\n")
     
+    # Generate getters
+    for item in data:
+        if 'property' in item:
+            prop_name = item['property']
+            prop_type = item.get('type')
+            
+            # Filter for scalar types
+            if prop_type in ['string', 'int', 'bool', 'unsigned int']:
+                getter_name = "get" + to_cpp_class_name(prop_name)
+                # Handle special VPI casing or assume standard get + PascalCase
+                # The requirement says: get + PascalCase(field name)
+                
+                out_file.write(f"  cls.def(\"{getter_name}\", &{cpp_class}::{getter_name});\n")
+
     out_file.write("}\n")
 
 def main():
