@@ -5,6 +5,7 @@
 **Constraints (PoC)**:
 - Standalone script; not integrated into the build system.
 - Generates read-only bindings (getters).
+- Scalar fields exposed as pythonic properties (e.g., `obj.name` instead of `obj.getName()`).
 - Does not modify existing bindings or source files.
 - Not production-ready; no guarantee of full API coverage.
 

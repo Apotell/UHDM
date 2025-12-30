@@ -95,10 +95,8 @@ def generate_binding(data, yaml_path, out_file):
             # Filter for scalar types
             if prop_type in ['string', 'int', 'bool', 'unsigned int']:
                 getter_name = "get" + to_cpp_class_name(prop_name)
-                # Handle special VPI casing or assume standard get + PascalCase
-                # The requirement says: get + PascalCase(field name)
-                
-                out_file.write(f"  cls.def(\"{getter_name}\", &{cpp_class}::{getter_name});\n")
+                # Use pythonic read-only property: obj.prop_name
+                out_file.write(f"  cls.def_property_readonly(\"{prop_name}\", &{cpp_class}::{getter_name});\n")
 
     out_file.write("}\n")
 
