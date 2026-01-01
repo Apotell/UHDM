@@ -11,6 +11,7 @@ file(GLOB AUTOGEN_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/bindings/autogen/*.cpp")
 set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_serializer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_native_visitor.cpp
     ${AUTOGEN_SOURCES}
 )
 
