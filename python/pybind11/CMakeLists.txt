@@ -7,9 +7,11 @@ add_subdirectory(../../third_party/pybind11
                  ${CMAKE_CURRENT_BINARY_DIR}/pybind11)
 
 # Collect source files explicitly (preferred over GLOB_RECURSE for CMake)
+file(GLOB AUTOGEN_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/bindings/autogen/*.cpp")
 set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_serializer.cpp
+    ${AUTOGEN_SOURCES}
 )
 
 # Create the pyuhdm module
