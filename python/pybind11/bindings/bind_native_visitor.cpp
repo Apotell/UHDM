@@ -1,48 +1,59 @@
 #include <pybind11/pybind11.h>
-#include "native_visitor_poc.h"
+#include <pybind11/stl.h>
+
+#include "../native_visitor_poc.h"
 
 namespace py = pybind11;
 
-// ID: 38
-// Trampoline class for allowing Python overrides
-class PyUhdmVisitor : public UhdmVisitor {
+// Trampoline class for Python overrides
+class PyUhdmVisitor : public uhdm::UhdmVisitor {
 public:
-    using UhdmVisitor::UhdmVisitor; // Inherit constructors
+    using uhdm::UhdmVisitor::UhdmVisitor; // Inherit constructors
 
-    void visit_Design(const uhdm::Design* obj) override {
+    void visit(const uhdm::BaseClass* obj) override {
         PYBIND11_OVERRIDE(
-            void,           // Return type
-            UhdmVisitor,    // Parent class
-            visit_Design,   // Name of function in C++ (must match Python name if same, typically snake_case mapping)
-            obj             // Argument(s)
+            void,               // Return type
+            uhdm::UhdmVisitor,  // Parent class
+            visit,              // Name of function in C++ (must match Python method name)
+            obj                 // Argument(s)
         );
     }
 
-    void visit_Module(const uhdm::Module* obj) override {
+    void visit(const uhdm::Design* obj) override {
         PYBIND11_OVERRIDE(
             void,
-            UhdmVisitor,
-            visit_Module,
+            uhdm::UhdmVisitor,
+            visit,
             obj
         );
     }
 
-    void visit_Port(const uhdm::Port* obj) override {
+    void visit(const uhdm::Module* obj) override {
         PYBIND11_OVERRIDE(
             void,
-            UhdmVisitor,
-            visit_Port,
+            uhdm::UhdmVisitor,
+            visit,
+            obj
+        );
+    }
+
+    void visit(const uhdm::Port* obj) override {
+        PYBIND11_OVERRIDE(
+            void,
+            uhdm::UhdmVisitor,
+            visit,
             obj
         );
     }
 };
 
 void bind_native_visitor(py::module_& m) {
-    py::class_<UhdmVisitor, PyUhdmVisitor>(m, "UhdmVisitor")
+    py::class_<uhdm::UhdmVisitor, PyUhdmVisitor>(m, "UhdmVisitor")
         .def(py::init<>())
-        .def("visit_Design", &UhdmVisitor::visit_Design)
-        .def("visit_Module", &UhdmVisitor::visit_Module)
-        .def("visit_Port", &UhdmVisitor::visit_Port);
+        .def("visit", [](uhdm::UhdmVisitor& self, const uhdm::BaseClass* obj) { self.visit(obj); })
+        .def("visit", [](uhdm::UhdmVisitor& self, const uhdm::Design* obj) { self.visit(obj); })
+        .def("visit", [](uhdm::UhdmVisitor& self, const uhdm::Module* obj) { self.visit(obj); })
+        .def("visit", [](uhdm::UhdmVisitor& self, const uhdm::Port* obj) { self.visit(obj); });
 
-    m.def("traverse_design", &traverse_design, "Traverse design using a visitor");
+    m.def("traverse_design", &uhdm::traverse_design, "Minimal PoC traversal of Design");
 }

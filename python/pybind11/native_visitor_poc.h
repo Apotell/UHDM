@@ -1,33 +1,52 @@
 #pragma once
 
+#include <uhdm/uhdm.h>
 #include <uhdm/design.h>
 #include <uhdm/module.h>
 #include <uhdm/port.h>
 
-// PoC only: visitor API subject to change
+#include <iostream>
+#include <vector>
+
+namespace uhdm {
+
 class UhdmVisitor {
 public:
   virtual ~UhdmVisitor() = default;
 
-  virtual void visit_Design(const uhdm::Design* obj) {}
-  virtual void visit_Module(const uhdm::Module* obj) {}
-  virtual void visit_Port(const uhdm::Port* obj) {}
+  // Generic fallback
+  virtual void visit(const BaseClass* obj) {}
+
+  // Typed hooks (PoC subset only)
+  virtual void visit(const Design* obj) {
+      visit(static_cast<const BaseClass*>(obj));
+  }
+  
+  virtual void visit(const Module* obj) {
+      visit(static_cast<const BaseClass*>(obj));
+  }
+  
+  virtual void visit(const Port* obj) {
+      visit(static_cast<const BaseClass*>(obj));
+  }
 };
 
-inline void traverse_design(const uhdm::Design* design, UhdmVisitor& visitor) {
-    if (!design) return;
+inline void traverse_design(const Design* design, UhdmVisitor& visitor) {
+  if (!design) return;
 
-    visitor.visit_Design(design);
+  visitor.visit(design);
 
-    if (auto* modules = design->getTopModules()) {
-        for (auto* module : *modules) {
-            visitor.visit_Module(module);
-            
-            if (auto* ports = module->getPorts()) {
-                for (auto* port : *ports) {
-                    visitor.visit_Port(port);
-                }
-            }
+  if (auto* top_modules = design->getTopModules()) {
+    for (auto* module : *top_modules) {
+      visitor.visit(module);
+
+      if (auto* ports = module->getPorts()) {
+        for (auto* port : *ports) {
+          visitor.visit(port);
         }
+      }
     }
+  }
 }
+
+} // namespace uhdm
