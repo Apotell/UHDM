@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/expect_stmt.h>
+#include <uhdm/property_spec.h>
 
 void bind_ExpectStmt(py::module_& m) {
   py::class_<uhdm::ExpectStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::ExpectStmt, py::nodelete>> cls(m, "ExpectStmt");
+  cls.def_property_readonly("property_spec", [](uhdm::ExpectStmt* self) { return self->getPropertySpec(); }, py::return_value_policy::reference);
 }

@@ -5,7 +5,20 @@
 namespace py = pybind11;
 
 #include <uhdm/checker_port.h>
+#include <uhdm/attribute.h>
+#include <uhdm/property_decl.h>
+#include <uhdm/sequence_decl.h>
 
 void bind_CheckerPort(py::module_& m) {
   py::class_<uhdm::CheckerPort, uhdm::Ports, std::unique_ptr<uhdm::CheckerPort, py::nodelete>> cls(m, "CheckerPort");
+  cls.def_property_readonly("attribute", [](uhdm::CheckerPort* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("property_decl", [](uhdm::CheckerPort* self) { return self->getPropertyDecl(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("sequence_decl", [](uhdm::CheckerPort* self) { return self->getSequenceDecl(); }, py::return_value_policy::reference);
 }

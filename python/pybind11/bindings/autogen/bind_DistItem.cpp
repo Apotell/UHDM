@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/dist_item.h>
+#include <uhdm/expr.h>
 
 void bind_DistItem(py::module_& m) {
   py::class_<uhdm::DistItem, std::unique_ptr<uhdm::DistItem, py::nodelete>> cls(m, "DistItem");
+  cls.def_property_readonly("weight", [](uhdm::DistItem* self) { return self->getWeight(); }, py::return_value_policy::reference);
 }

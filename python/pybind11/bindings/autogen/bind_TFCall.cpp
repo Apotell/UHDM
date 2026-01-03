@@ -5,7 +5,13 @@
 namespace py = pybind11;
 
 #include <uhdm/tf_call.h>
+#include <uhdm/identifier.h>
+#include <uhdm/scope.h>
+#include <uhdm/task_func.h>
 
 void bind_TFCall(py::module_& m) {
   py::class_<uhdm::TFCall, uhdm::Expr, std::unique_ptr<uhdm::TFCall, py::nodelete>> cls(m, "TFCall");
+  cls.def_property_readonly("scope", [](uhdm::TFCall* self) { return self->getScope(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func", [](uhdm::TFCall* self) { return self->getTaskFunc(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("name", [](uhdm::TFCall* self) { return self->getName(); }, py::return_value_policy::reference);
 }

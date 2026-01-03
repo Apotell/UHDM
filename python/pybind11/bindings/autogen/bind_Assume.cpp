@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/assume.h>
+#include <uhdm/clocking_block.h>
 
 void bind_Assume(py::module_& m) {
   py::class_<uhdm::Assume, uhdm::ConcurrentAssertions, std::unique_ptr<uhdm::Assume, py::nodelete>> cls(m, "Assume");
+  cls.def_property_readonly("clocking_block", [](uhdm::Assume* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

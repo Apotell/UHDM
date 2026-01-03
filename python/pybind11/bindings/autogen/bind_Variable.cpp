@@ -5,6 +5,15 @@
 namespace py = pybind11;
 
 #include <uhdm/variable.h>
+#include <uhdm/cont_assign.h>
+#include <uhdm/expr.h>
+#include <uhdm/instance.h>
+#include <uhdm/module.h>
+#include <uhdm/path_term.h>
+#include <uhdm/ports.h>
+#include <uhdm/prim_term.h>
+#include <uhdm/scope.h>
+#include <uhdm/tchk_term.h>
 
 void bind_Variable(py::module_& m) {
   py::class_<uhdm::Variable, uhdm::SimpleExpr, std::unique_ptr<uhdm::Variable, py::nodelete>> cls(m, "Variable");
@@ -17,4 +26,42 @@ void bind_Variable(py::module_& m) {
   cls.def_property_readonly("struct_union_member", &uhdm::Variable::getStructUnionMember);
   cls.def_property_readonly("scalar", &uhdm::Variable::getScalar);
   cls.def_property_readonly("vector", &uhdm::Variable::getVector);
+  cls.def_property_readonly("port_inst", [](uhdm::Variable* self) {
+    std::vector<uhdm::Ports*> res;
+    if (auto* vec = self->getPortInsts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("prim_term", [](uhdm::Variable* self) {
+    std::vector<uhdm::PrimTerm*> res;
+    if (auto* vec = self->getPrimTerms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("cont_assign", [](uhdm::Variable* self) {
+    std::vector<uhdm::ContAssign*> res;
+    if (auto* vec = self->getContAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("path_term", [](uhdm::Variable* self) { return self->getPathTerm(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("tchk_term", [](uhdm::Variable* self) { return self->getTchkTerm(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("module", [](uhdm::Variable* self) { return self->getModule(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::Variable* self) { return self->getInstance(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("scope", [](uhdm::Variable* self) { return self->getScope(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("expr", [](uhdm::Variable* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("indexes", [](uhdm::Variable* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getIndexes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

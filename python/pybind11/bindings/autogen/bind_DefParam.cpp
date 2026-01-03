@@ -5,7 +5,11 @@
 namespace py = pybind11;
 
 #include <uhdm/def_param.h>
+#include <uhdm/expr.h>
+#include <uhdm/parameter.h>
 
 void bind_DefParam(py::module_& m) {
   py::class_<uhdm::DefParam, std::unique_ptr<uhdm::DefParam, py::nodelete>> cls(m, "DefParam");
+  cls.def_property_readonly("rhs", [](uhdm::DefParam* self) { return self->getRhs(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("lhs", [](uhdm::DefParam* self) { return self->getLhs(); }, py::return_value_policy::reference);
 }

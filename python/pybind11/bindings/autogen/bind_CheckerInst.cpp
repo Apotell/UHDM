@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/checker_inst.h>
+#include <uhdm/checker_inst_port.h>
 
 void bind_CheckerInst(py::module_& m) {
   py::class_<uhdm::CheckerInst, uhdm::Instance, std::unique_ptr<uhdm::CheckerInst, py::nodelete>> cls(m, "CheckerInst");
+  cls.def_property_readonly("port", [](uhdm::CheckerInst* self) {
+    std::vector<uhdm::CheckerInstPort*> res;
+    if (auto* vec = self->getPorts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

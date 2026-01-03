@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/release.h>
+#include <uhdm/expr.h>
 
 void bind_Release(py::module_& m) {
   py::class_<uhdm::Release, uhdm::AtomicStmt, std::unique_ptr<uhdm::Release, py::nodelete>> cls(m, "Release");
+  cls.def_property_readonly("lhs", [](uhdm::Release* self) { return self->getLhs(); }, py::return_value_policy::reference);
 }

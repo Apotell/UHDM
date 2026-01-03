@@ -5,7 +5,27 @@
 namespace py = pybind11;
 
 #include <uhdm/clocking_block.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/clocking_io_decl.h>
+#include <uhdm/delay_control.h>
+#include <uhdm/event_control.h>
+#include <uhdm/instance.h>
+#include <uhdm/variable.h>
 
 void bind_ClockingBlock(py::module_& m) {
   py::class_<uhdm::ClockingBlock, uhdm::Scope, std::unique_ptr<uhdm::ClockingBlock, py::nodelete>> cls(m, "ClockingBlock");
+  cls.def_property_readonly("input_skew", [](uhdm::ClockingBlock* self) { return self->getInputSkew(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("output_skew", [](uhdm::ClockingBlock* self) { return self->getOutputSkew(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("clocking_event", [](uhdm::ClockingBlock* self) { return self->getClockingEvent(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::ClockingBlock* self) { return self->getInstance(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("clocking_io_decl", [](uhdm::ClockingBlock* self) {
+    std::vector<uhdm::ClockingIODecl*> res;
+    if (auto* vec = self->getClockingIODecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("prefix", [](uhdm::ClockingBlock* self) { return self->getPrefix(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("actual", [](uhdm::ClockingBlock* self) { return self->getActual(); }, py::return_value_policy::reference);
 }

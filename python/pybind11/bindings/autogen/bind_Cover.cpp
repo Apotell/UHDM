@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/cover.h>
+#include <uhdm/clocking_block.h>
 
 void bind_Cover(py::module_& m) {
   py::class_<uhdm::Cover, uhdm::ConcurrentAssertions, std::unique_ptr<uhdm::Cover, py::nodelete>> cls(m, "Cover");
   cls.def_property_readonly("is_cover_sequence", &uhdm::Cover::getIsCoverSequence);
+  cls.def_property_readonly("clocking_block", [](uhdm::Cover* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

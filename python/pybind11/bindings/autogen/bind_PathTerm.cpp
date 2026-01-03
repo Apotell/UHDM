@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/path_term.h>
+#include <uhdm/attribute.h>
 
 void bind_PathTerm(py::module_& m) {
   py::class_<uhdm::PathTerm, std::unique_ptr<uhdm::PathTerm, py::nodelete>> cls(m, "PathTerm");
+  cls.def_property_readonly("attribute", [](uhdm::PathTerm* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

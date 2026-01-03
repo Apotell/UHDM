@@ -5,8 +5,17 @@
 namespace py = pybind11;
 
 #include <uhdm/gen_stmt.h>
+#include <uhdm/attribute.h>
 
 void bind_GenStmt(py::module_& m) {
   py::class_<uhdm::GenStmt, std::unique_ptr<uhdm::GenStmt, py::nodelete>> cls(m, "GenStmt");
   cls.def_property_readonly("label", &uhdm::GenStmt::getLabel);
+  cls.def_property_readonly("attribute", [](uhdm::GenStmt* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

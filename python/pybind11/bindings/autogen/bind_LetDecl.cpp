@@ -5,8 +5,26 @@
 namespace py = pybind11;
 
 #include <uhdm/let_decl.h>
+#include <uhdm/expr.h>
+#include <uhdm/seq_formal_decl.h>
 
 void bind_LetDecl(py::module_& m) {
   py::class_<uhdm::LetDecl, std::unique_ptr<uhdm::LetDecl, py::nodelete>> cls(m, "LetDecl");
+  cls.def_property_readonly("expr", [](uhdm::LetDecl* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("seq_formal_decl", [](uhdm::LetDecl* self) {
+    std::vector<uhdm::SeqFormalDecl*> res;
+    if (auto* vec = self->getSeqFormalDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
   cls.def_property_readonly("name", &uhdm::LetDecl::getName);
 }

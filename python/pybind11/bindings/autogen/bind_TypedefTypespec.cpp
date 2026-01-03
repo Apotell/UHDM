@@ -5,7 +5,11 @@
 namespace py = pybind11;
 
 #include <uhdm/typedef_typespec.h>
+#include <uhdm/identifier.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_TypedefTypespec(py::module_& m) {
   py::class_<uhdm::TypedefTypespec, uhdm::Typespec, std::unique_ptr<uhdm::TypedefTypespec, py::nodelete>> cls(m, "TypedefTypespec");
+  cls.def_property_readonly("name", [](uhdm::TypedefTypespec* self) { return self->getName(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("typedef_alias", [](uhdm::TypedefTypespec* self) { return self->getTypedefAlias(); }, py::return_value_policy::reference);
 }

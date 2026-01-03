@@ -5,9 +5,17 @@
 namespace py = pybind11;
 
 #include <uhdm/task_func_decl.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/expr.h>
+#include <uhdm/identifier.h>
+#include <uhdm/instance.h>
+#include <uhdm/io_decl.h>
+#include <uhdm/ref_typespec.h>
+#include <uhdm/task_func.h>
 
 void bind_TaskFuncDecl(py::module_& m) {
   py::class_<uhdm::TaskFuncDecl, std::unique_ptr<uhdm::TaskFuncDecl, py::nodelete>> cls(m, "TaskFuncDecl");
+  cls.def_property_readonly("name", [](uhdm::TaskFuncDecl* self) { return self->getName(); }, py::return_value_policy::reference);
   cls.def_property_readonly("full_name", &uhdm::TaskFuncDecl::getFullName);
   cls.def_property_readonly("method", &uhdm::TaskFuncDecl::getMethod);
   cls.def_property_readonly("virtual", &uhdm::TaskFuncDecl::getVirtual);
@@ -15,4 +23,18 @@ void bind_TaskFuncDecl(py::module_& m) {
   cls.def_property_readonly("dpi_pure", &uhdm::TaskFuncDecl::getDPIPure);
   cls.def_property_readonly("dpi_context", &uhdm::TaskFuncDecl::getDPIContext);
   cls.def_property_readonly("dpi_c_identifier", &uhdm::TaskFuncDecl::getDPICIdentifier);
+  cls.def_property_readonly("left_expr", [](uhdm::TaskFuncDecl* self) { return self->getLeftExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("right_expr", [](uhdm::TaskFuncDecl* self) { return self->getRightExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("return", [](uhdm::TaskFuncDecl* self) { return self->getReturn(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("class_defn", [](uhdm::TaskFuncDecl* self) { return self->getClassDefn(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func", [](uhdm::TaskFuncDecl* self) { return self->getTaskFunc(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("io_decl", [](uhdm::TaskFuncDecl* self) {
+    std::vector<uhdm::IODecl*> res;
+    if (auto* vec = self->getIODecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::TaskFuncDecl* self) { return self->getInstance(); }, py::return_value_policy::reference);
 }

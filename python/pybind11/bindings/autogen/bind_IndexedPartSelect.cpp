@@ -5,8 +5,11 @@
 namespace py = pybind11;
 
 #include <uhdm/indexed_part_select.h>
+#include <uhdm/expr.h>
 
 void bind_IndexedPartSelect(py::module_& m) {
   py::class_<uhdm::IndexedPartSelect, uhdm::RefObj, std::unique_ptr<uhdm::IndexedPartSelect, py::nodelete>> cls(m, "IndexedPartSelect");
   cls.def_property_readonly("constant_select", &uhdm::IndexedPartSelect::getConstantSelect);
+  cls.def_property_readonly("base_expr", [](uhdm::IndexedPartSelect* self) { return self->getBaseExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("width_expr", [](uhdm::IndexedPartSelect* self) { return self->getWidthExpr(); }, py::return_value_policy::reference);
 }

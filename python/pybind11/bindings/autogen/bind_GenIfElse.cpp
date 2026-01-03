@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/gen_if_else.h>
+#include <uhdm/expr.h>
 
 void bind_GenIfElse(py::module_& m) {
   py::class_<uhdm::GenIfElse, uhdm::GenStmt, std::unique_ptr<uhdm::GenIfElse, py::nodelete>> cls(m, "GenIfElse");
+  cls.def_property_readonly("condition", [](uhdm::GenIfElse* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

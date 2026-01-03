@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/sys_func_call.h>
+#include <uhdm/user_systf.h>
 
 void bind_SysFuncCall(py::module_& m) {
   py::class_<uhdm::SysFuncCall, uhdm::TFCall, std::unique_ptr<uhdm::SysFuncCall, py::nodelete>> cls(m, "SysFuncCall");
   cls.def_property_readonly("user_defn", &uhdm::SysFuncCall::getUserDefn);
+  cls.def_property_readonly("user_systf", [](uhdm::SysFuncCall* self) { return self->getUserSystf(); }, py::return_value_policy::reference);
 }

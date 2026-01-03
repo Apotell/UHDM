@@ -5,7 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/clocking_io_decl.h>
+#include <uhdm/delay_control.h>
+#include <uhdm/identifier.h>
 
 void bind_ClockingIODecl(py::module_& m) {
   py::class_<uhdm::ClockingIODecl, std::unique_ptr<uhdm::ClockingIODecl, py::nodelete>> cls(m, "ClockingIODecl");
+  cls.def_property_readonly("name", [](uhdm::ClockingIODecl* self) { return self->getName(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("input_skew", [](uhdm::ClockingIODecl* self) { return self->getInputSkew(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("output_skew", [](uhdm::ClockingIODecl* self) { return self->getOutputSkew(); }, py::return_value_policy::reference);
 }

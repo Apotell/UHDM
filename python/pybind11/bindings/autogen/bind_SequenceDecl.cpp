@@ -5,9 +5,36 @@
 namespace py = pybind11;
 
 #include <uhdm/sequence_decl.h>
+#include <uhdm/attribute.h>
+#include <uhdm/seq_formal_decl.h>
+#include <uhdm/variable.h>
 
 void bind_SequenceDecl(py::module_& m) {
   py::class_<uhdm::SequenceDecl, std::unique_ptr<uhdm::SequenceDecl, py::nodelete>> cls(m, "SequenceDecl");
   cls.def_property_readonly("name", &uhdm::SequenceDecl::getName);
   cls.def_property_readonly("full_name", &uhdm::SequenceDecl::getFullName);
+  cls.def_property_readonly("attribute", [](uhdm::SequenceDecl* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("variable", [](uhdm::SequenceDecl* self) {
+    std::vector<uhdm::Variable*> res;
+    if (auto* vec = self->getVariables()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("seq_formal_decl", [](uhdm::SequenceDecl* self) {
+    std::vector<uhdm::SeqFormalDecl*> res;
+    if (auto* vec = self->getSeqFormalDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

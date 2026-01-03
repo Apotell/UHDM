@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/for_stmt.h>
+#include <uhdm/expr.h>
 
 void bind_ForStmt(py::module_& m) {
   py::class_<uhdm::ForStmt, uhdm::Scope, std::unique_ptr<uhdm::ForStmt, py::nodelete>> cls(m, "ForStmt");
+  cls.def_property_readonly("condition", [](uhdm::ForStmt* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

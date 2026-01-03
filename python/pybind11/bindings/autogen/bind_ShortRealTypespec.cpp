@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/short_real_typespec.h>
+#include <uhdm/function.h>
 
 void bind_ShortRealTypespec(py::module_& m) {
   py::class_<uhdm::ShortRealTypespec, uhdm::Typespec, std::unique_ptr<uhdm::ShortRealTypespec, py::nodelete>> cls(m, "ShortRealTypespec");
+  cls.def_property_readonly("resolution_func", [](uhdm::ShortRealTypespec* self) { return self->getResolutionFunc(); }, py::return_value_policy::reference);
 }

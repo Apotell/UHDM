@@ -5,8 +5,19 @@
 namespace py = pybind11;
 
 #include <uhdm/seq_formal_decl.h>
+#include <uhdm/attribute.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_SeqFormalDecl(py::module_& m) {
   py::class_<uhdm::SeqFormalDecl, std::unique_ptr<uhdm::SeqFormalDecl, py::nodelete>> cls(m, "SeqFormalDecl");
   cls.def_property_readonly("name", &uhdm::SeqFormalDecl::getName);
+  cls.def_property_readonly("attribute", [](uhdm::SeqFormalDecl* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("typespec", [](uhdm::SeqFormalDecl* self) { return self->getTypespec(); }, py::return_value_policy::reference);
 }

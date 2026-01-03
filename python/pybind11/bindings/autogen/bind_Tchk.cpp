@@ -5,7 +5,25 @@
 namespace py = pybind11;
 
 #include <uhdm/tchk.h>
+#include <uhdm/attribute.h>
+#include <uhdm/expr.h>
+#include <uhdm/module.h>
+#include <uhdm/reg.h>
+#include <uhdm/tchk_term.h>
 
 void bind_Tchk(py::module_& m) {
   py::class_<uhdm::Tchk, std::unique_ptr<uhdm::Tchk, py::nodelete>> cls(m, "Tchk");
+  cls.def_property_readonly("module", [](uhdm::Tchk* self) { return self->getModule(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("delay", [](uhdm::Tchk* self) { return self->getDelay(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("tchk_ref_term", [](uhdm::Tchk* self) { return self->getTchkRefTerm(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("tchk_data_term", [](uhdm::Tchk* self) { return self->getTchkDataTerm(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("tchk_notifier", [](uhdm::Tchk* self) { return self->getTchkNotifier(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("attribute", [](uhdm::Tchk* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

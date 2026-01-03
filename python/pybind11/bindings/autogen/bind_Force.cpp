@@ -5,7 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/force.h>
+#include <uhdm/expr.h>
 
 void bind_Force(py::module_& m) {
   py::class_<uhdm::Force, uhdm::AtomicStmt, std::unique_ptr<uhdm::Force, py::nodelete>> cls(m, "Force");
+  cls.def_property_readonly("rhs", [](uhdm::Force* self) { return self->getRhs(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("lhs", [](uhdm::Force* self) { return self->getLhs(); }, py::return_value_policy::reference);
 }

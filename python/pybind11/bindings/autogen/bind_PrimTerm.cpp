@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/prim_term.h>
+#include <uhdm/attribute.h>
+#include <uhdm/expr.h>
 
 void bind_PrimTerm(py::module_& m) {
   py::class_<uhdm::PrimTerm, std::unique_ptr<uhdm::PrimTerm, py::nodelete>> cls(m, "PrimTerm");
+  cls.def_property_readonly("attribute", [](uhdm::PrimTerm* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("expr", [](uhdm::PrimTerm* self) { return self->getExpr(); }, py::return_value_policy::reference);
 }

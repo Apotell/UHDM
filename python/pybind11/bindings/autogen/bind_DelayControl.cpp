@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/delay_control.h>
+#include <uhdm/expr.h>
 
 void bind_DelayControl(py::module_& m) {
   py::class_<uhdm::DelayControl, uhdm::AtomicStmt, std::unique_ptr<uhdm::DelayControl, py::nodelete>> cls(m, "DelayControl");
+  cls.def_property_readonly("delay", [](uhdm::DelayControl* self) { return self->getDelay(); }, py::return_value_policy::reference);
 }

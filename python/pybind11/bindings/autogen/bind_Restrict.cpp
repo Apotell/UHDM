@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/restrict.h>
+#include <uhdm/clocking_block.h>
 
 void bind_Restrict(py::module_& m) {
   py::class_<uhdm::Restrict, uhdm::ConcurrentAssertions, std::unique_ptr<uhdm::Restrict, py::nodelete>> cls(m, "Restrict");
+  cls.def_property_readonly("clocking_block", [](uhdm::Restrict* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

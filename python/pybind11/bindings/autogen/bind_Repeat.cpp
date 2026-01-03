@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/repeat.h>
+#include <uhdm/expr.h>
 
 void bind_Repeat(py::module_& m) {
   py::class_<uhdm::Repeat, uhdm::AtomicStmt, std::unique_ptr<uhdm::Repeat, py::nodelete>> cls(m, "Repeat");
+  cls.def_property_readonly("condition", [](uhdm::Repeat* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

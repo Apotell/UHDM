@@ -5,6 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/ports.h>
+#include <uhdm/instance.h>
+#include <uhdm/module.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_Ports(py::module_& m) {
   py::class_<uhdm::Ports, std::unique_ptr<uhdm::Ports, py::nodelete>> cls(m, "Ports");
@@ -13,4 +16,7 @@ void bind_Ports(py::module_& m) {
   cls.def_property_readonly("vector", &uhdm::Ports::getVector);
   cls.def_property_readonly("conn_by_name", &uhdm::Ports::getConnByName);
   cls.def_property_readonly("explicit_name", &uhdm::Ports::getExplicitName);
+  cls.def_property_readonly("typespec", [](uhdm::Ports* self) { return self->getTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::Ports* self) { return self->getInstance(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("module", [](uhdm::Ports* self) { return self->getModule(); }, py::return_value_policy::reference);
 }

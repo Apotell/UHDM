@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/sys_task_call.h>
+#include <uhdm/user_systf.h>
 
 void bind_SysTaskCall(py::module_& m) {
   py::class_<uhdm::SysTaskCall, uhdm::TFCall, std::unique_ptr<uhdm::SysTaskCall, py::nodelete>> cls(m, "SysTaskCall");
   cls.def_property_readonly("user_defn", &uhdm::SysTaskCall::getUserDefn);
+  cls.def_property_readonly("user_systf", [](uhdm::SysTaskCall* self) { return self->getUserSystf(); }, py::return_value_policy::reference);
 }

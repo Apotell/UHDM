@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/interface_array.h>
+#include <uhdm/param_assign.h>
 
 void bind_InterfaceArray(py::module_& m) {
   py::class_<uhdm::InterfaceArray, uhdm::InstanceArray, std::unique_ptr<uhdm::InterfaceArray, py::nodelete>> cls(m, "InterfaceArray");
+  cls.def_property_readonly("param_assign", [](uhdm::InterfaceArray* self) {
+    std::vector<uhdm::ParamAssign*> res;
+    if (auto* vec = self->getParamAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

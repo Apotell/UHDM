@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/prop_formal_decl.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_PropFormalDecl(py::module_& m) {
   py::class_<uhdm::PropFormalDecl, std::unique_ptr<uhdm::PropFormalDecl, py::nodelete>> cls(m, "PropFormalDecl");
   cls.def_property_readonly("name", &uhdm::PropFormalDecl::getName);
+  cls.def_property_readonly("typespec", [](uhdm::PropFormalDecl* self) { return self->getTypespec(); }, py::return_value_policy::reference);
 }

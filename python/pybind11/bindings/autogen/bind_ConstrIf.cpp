@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/constr_if.h>
+#include <uhdm/constraint_expr.h>
+#include <uhdm/expr.h>
 
 void bind_ConstrIf(py::module_& m) {
   py::class_<uhdm::ConstrIf, uhdm::ConstraintExpr, std::unique_ptr<uhdm::ConstrIf, py::nodelete>> cls(m, "ConstrIf");
+  cls.def_property_readonly("condition", [](uhdm::ConstrIf* self) { return self->getCondition(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("constraint_expr", [](uhdm::ConstrIf* self) {
+    std::vector<uhdm::ConstraintExpr*> res;
+    if (auto* vec = self->getConstraintExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

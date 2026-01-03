@@ -5,10 +5,21 @@
 namespace py = pybind11;
 
 #include <uhdm/io_decl.h>
+#include <uhdm/range.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_IODecl(py::module_& m) {
   py::class_<uhdm::IODecl, std::unique_ptr<uhdm::IODecl, py::nodelete>> cls(m, "IODecl");
   cls.def_property_readonly("name", &uhdm::IODecl::getName);
   cls.def_property_readonly("scalar", &uhdm::IODecl::getScalar);
   cls.def_property_readonly("vector", &uhdm::IODecl::getVector);
+  cls.def_property_readonly("range", [](uhdm::IODecl* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("typespec", [](uhdm::IODecl* self) { return self->getTypespec(); }, py::return_value_policy::reference);
 }

@@ -5,8 +5,109 @@
 namespace py = pybind11;
 
 #include <uhdm/scope.h>
+#include <uhdm/attribute.h>
+#include <uhdm/concurrent_assertions.h>
+#include <uhdm/identifier.h>
+#include <uhdm/let_decl.h>
+#include <uhdm/named_event.h>
+#include <uhdm/named_event_array.h>
+#include <uhdm/param_assign.h>
+#include <uhdm/property_decl.h>
+#include <uhdm/scope.h>
+#include <uhdm/sequence_decl.h>
+#include <uhdm/typespec.h>
+#include <uhdm/variable.h>
 
 void bind_Scope(py::module_& m) {
   py::class_<uhdm::Scope, std::unique_ptr<uhdm::Scope, py::nodelete>> cls(m, "Scope");
+  cls.def_property_readonly("name", [](uhdm::Scope* self) { return self->getName(); }, py::return_value_policy::reference);
   cls.def_property_readonly("full_name", &uhdm::Scope::getFullName);
+  cls.def_property_readonly("property_decl", [](uhdm::Scope* self) {
+    std::vector<uhdm::PropertyDecl*> res;
+    if (auto* vec = self->getPropertyDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("sequence_decl", [](uhdm::Scope* self) {
+    std::vector<uhdm::SequenceDecl*> res;
+    if (auto* vec = self->getSequenceDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("concurrent_assertions", [](uhdm::Scope* self) {
+    std::vector<uhdm::ConcurrentAssertions*> res;
+    if (auto* vec = self->getConcurrentAssertions()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("named_event", [](uhdm::Scope* self) {
+    std::vector<uhdm::NamedEvent*> res;
+    if (auto* vec = self->getNamedEvents()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("named_event_array", [](uhdm::Scope* self) {
+    std::vector<uhdm::NamedEventArray*> res;
+    if (auto* vec = self->getNamedEventArrays()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("variable", [](uhdm::Scope* self) {
+    std::vector<uhdm::Variable*> res;
+    if (auto* vec = self->getVariables()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("param_assign", [](uhdm::Scope* self) {
+    std::vector<uhdm::ParamAssign*> res;
+    if (auto* vec = self->getParamAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("internal_scope", [](uhdm::Scope* self) {
+    std::vector<uhdm::Scope*> res;
+    if (auto* vec = self->getInternalScopes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("typespecs", [](uhdm::Scope* self) {
+    std::vector<uhdm::Typespec*> res;
+    if (auto* vec = self->getTypespecs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("let_decl", [](uhdm::Scope* self) {
+    std::vector<uhdm::LetDecl*> res;
+    if (auto* vec = self->getLetDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("attribute", [](uhdm::Scope* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

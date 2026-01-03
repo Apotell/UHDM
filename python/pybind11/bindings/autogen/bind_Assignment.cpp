@@ -5,8 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/assignment.h>
+#include <uhdm/delay_control.h>
+#include <uhdm/event_control.h>
+#include <uhdm/expr.h>
+#include <uhdm/repeat_control.h>
 
 void bind_Assignment(py::module_& m) {
   py::class_<uhdm::Assignment, uhdm::AtomicStmt, std::unique_ptr<uhdm::Assignment, py::nodelete>> cls(m, "Assignment");
   cls.def_property_readonly("blocking", &uhdm::Assignment::getBlocking);
+  cls.def_property_readonly("lhs", [](uhdm::Assignment* self) { return self->getLhs(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("delay_control", [](uhdm::Assignment* self) { return self->getDelayControl(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("event_control", [](uhdm::Assignment* self) { return self->getEventControl(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("repeat_control", [](uhdm::Assignment* self) { return self->getRepeatControl(); }, py::return_value_policy::reference);
 }

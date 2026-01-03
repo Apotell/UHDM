@@ -5,7 +5,11 @@
 namespace py = pybind11;
 
 #include <uhdm/immediate_assume.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/expr.h>
 
 void bind_ImmediateAssume(py::module_& m) {
   py::class_<uhdm::ImmediateAssume, uhdm::AtomicStmt, std::unique_ptr<uhdm::ImmediateAssume, py::nodelete>> cls(m, "ImmediateAssume");
+  cls.def_property_readonly("expr", [](uhdm::ImmediateAssume* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("clocking_block", [](uhdm::ImmediateAssume* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

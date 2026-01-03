@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/do_while.h>
+#include <uhdm/expr.h>
 
 void bind_DoWhile(py::module_& m) {
   py::class_<uhdm::DoWhile, uhdm::AtomicStmt, std::unique_ptr<uhdm::DoWhile, py::nodelete>> cls(m, "DoWhile");
+  cls.def_property_readonly("condition", [](uhdm::DoWhile* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

@@ -5,8 +5,17 @@
 namespace py = pybind11;
 
 #include <uhdm/byte_typespec.h>
+#include <uhdm/range.h>
 
 void bind_ByteTypespec(py::module_& m) {
   py::class_<uhdm::ByteTypespec, uhdm::Typespec, std::unique_ptr<uhdm::ByteTypespec, py::nodelete>> cls(m, "ByteTypespec");
+  cls.def_property_readonly("range", [](uhdm::ByteTypespec* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
   cls.def_property_readonly("signed", &uhdm::ByteTypespec::getSigned);
 }

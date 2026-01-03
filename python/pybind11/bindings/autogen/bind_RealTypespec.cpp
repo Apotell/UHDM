@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/real_typespec.h>
+#include <uhdm/function.h>
 
 void bind_RealTypespec(py::module_& m) {
   py::class_<uhdm::RealTypespec, uhdm::Typespec, std::unique_ptr<uhdm::RealTypespec, py::nodelete>> cls(m, "RealTypespec");
+  cls.def_property_readonly("resolution_func", [](uhdm::RealTypespec* self) { return self->getResolutionFunc(); }, py::return_value_policy::reference);
 }

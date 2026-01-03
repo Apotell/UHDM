@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/primitive_array.h>
+#include <uhdm/expr.h>
+#include <uhdm/primitive.h>
 
 void bind_PrimitiveArray(py::module_& m) {
   py::class_<uhdm::PrimitiveArray, uhdm::InstanceArray, std::unique_ptr<uhdm::PrimitiveArray, py::nodelete>> cls(m, "PrimitiveArray");
+  cls.def_property_readonly("delay", [](uhdm::PrimitiveArray* self) { return self->getDelay(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("primitive", [](uhdm::PrimitiveArray* self) {
+    std::vector<uhdm::Primitive*> res;
+    if (auto* vec = self->getPrimitives()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

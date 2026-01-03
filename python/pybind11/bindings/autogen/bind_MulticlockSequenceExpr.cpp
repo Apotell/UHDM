@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/multiclock_sequence_expr.h>
+#include <uhdm/clocked_seq.h>
 
 void bind_MulticlockSequenceExpr(py::module_& m) {
   py::class_<uhdm::MulticlockSequenceExpr, std::unique_ptr<uhdm::MulticlockSequenceExpr, py::nodelete>> cls(m, "MulticlockSequenceExpr");
+  cls.def_property_readonly("clocked_seq", [](uhdm::MulticlockSequenceExpr* self) {
+    std::vector<uhdm::ClockedSeq*> res;
+    if (auto* vec = self->getClockedSeqs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

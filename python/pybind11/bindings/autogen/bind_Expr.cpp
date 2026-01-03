@@ -5,8 +5,19 @@
 namespace py = pybind11;
 
 #include <uhdm/expr.h>
+#include <uhdm/attribute.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_Expr(py::module_& m) {
   py::class_<uhdm::Expr, std::unique_ptr<uhdm::Expr, py::nodelete>> cls(m, "Expr");
   cls.def_property_readonly("decompile", &uhdm::Expr::getDecompile);
+  cls.def_property_readonly("typespec", [](uhdm::Expr* self) { return self->getTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("attribute", [](uhdm::Expr* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

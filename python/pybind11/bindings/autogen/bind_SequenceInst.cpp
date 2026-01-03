@@ -5,8 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/sequence_inst.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/sequence_decl.h>
 
 void bind_SequenceInst(py::module_& m) {
   py::class_<uhdm::SequenceInst, std::unique_ptr<uhdm::SequenceInst, py::nodelete>> cls(m, "SequenceInst");
+  cls.def_property_readonly("sequence_decl", [](uhdm::SequenceInst* self) { return self->getSequenceDecl(); }, py::return_value_policy::reference);
   cls.def_property_readonly("name", &uhdm::SequenceInst::getName);
+  cls.def_property_readonly("clocking_block", [](uhdm::SequenceInst* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

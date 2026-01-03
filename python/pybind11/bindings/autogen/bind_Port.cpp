@@ -5,7 +5,25 @@
 namespace py = pybind11;
 
 #include <uhdm/port.h>
+#include <uhdm/attribute.h>
+#include <uhdm/port_bit.h>
 
 void bind_Port(py::module_& m) {
   py::class_<uhdm::Port, uhdm::Ports, std::unique_ptr<uhdm::Port, py::nodelete>> cls(m, "Port");
+  cls.def_property_readonly("bit", [](uhdm::Port* self) {
+    std::vector<uhdm::PortBit*> res;
+    if (auto* vec = self->getBits()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("attribute", [](uhdm::Port* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

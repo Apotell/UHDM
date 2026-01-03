@@ -5,8 +5,27 @@
 namespace py = pybind11;
 
 #include <uhdm/preproc_macro_instance.h>
+#include <uhdm/preproc_macro_definition.h>
+#include <uhdm/preproc_macro_instance.h>
 
 void bind_PreprocMacroInstance(py::module_& m) {
   py::class_<uhdm::PreprocMacroInstance, std::unique_ptr<uhdm::PreprocMacroInstance, py::nodelete>> cls(m, "PreprocMacroInstance");
   cls.def_property_readonly("name", &uhdm::PreprocMacroInstance::getName);
+  cls.def_property_readonly("preproc_macro_definition", [](uhdm::PreprocMacroInstance* self) { return self->getPreprocMacroDefinition(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("preproc_macro_instance", [](uhdm::PreprocMacroInstance* self) {
+    std::vector<uhdm::PreprocMacroInstance*> res;
+    if (auto* vec = self->getPreprocMacroInstances()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("object", [](uhdm::PreprocMacroInstance* self) {
+    std::vector<uhdm::Any*> res;
+    if (auto* vec = self->getObjects()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

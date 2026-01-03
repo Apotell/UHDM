@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/program_typespec.h>
+#include <uhdm/program.h>
 
 void bind_ProgramTypespec(py::module_& m) {
   py::class_<uhdm::ProgramTypespec, uhdm::Typespec, std::unique_ptr<uhdm::ProgramTypespec, py::nodelete>> cls(m, "ProgramTypespec");
   cls.def_property_readonly("name", &uhdm::ProgramTypespec::getName);
+  cls.def_property_readonly("program", [](uhdm::ProgramTypespec* self) { return self->getProgram(); }, py::return_value_policy::reference);
 }

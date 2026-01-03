@@ -5,8 +5,19 @@
 namespace py = pybind11;
 
 #include <uhdm/int_typespec.h>
+#include <uhdm/expr.h>
+#include <uhdm/range.h>
 
 void bind_IntTypespec(py::module_& m) {
   py::class_<uhdm::IntTypespec, uhdm::Typespec, std::unique_ptr<uhdm::IntTypespec, py::nodelete>> cls(m, "IntTypespec");
+  cls.def_property_readonly("expr", [](uhdm::IntTypespec* self) { return self->getExpr(); }, py::return_value_policy::reference);
   cls.def_property_readonly("signed", &uhdm::IntTypespec::getSigned);
+  cls.def_property_readonly("range", [](uhdm::IntTypespec* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/soft_disable.h>
+#include <uhdm/expr.h>
 
 void bind_SoftDisable(py::module_& m) {
   py::class_<uhdm::SoftDisable, uhdm::ConstraintExpr, std::unique_ptr<uhdm::SoftDisable, py::nodelete>> cls(m, "SoftDisable");
+  cls.def_property_readonly("expr", [](uhdm::SoftDisable* self) { return self->getExpr(); }, py::return_value_policy::reference);
 }

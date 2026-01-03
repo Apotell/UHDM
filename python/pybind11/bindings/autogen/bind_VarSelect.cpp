@@ -5,8 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/var_select.h>
+#include <uhdm/expr.h>
 
 void bind_VarSelect(py::module_& m) {
   py::class_<uhdm::VarSelect, uhdm::RefObj, std::unique_ptr<uhdm::VarSelect, py::nodelete>> cls(m, "VarSelect");
   cls.def_property_readonly("constant_select", &uhdm::VarSelect::getConstantSelect);
+  cls.def_property_readonly("index", [](uhdm::VarSelect* self) { return self->getIndex(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("indexes", [](uhdm::VarSelect* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getIndexes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

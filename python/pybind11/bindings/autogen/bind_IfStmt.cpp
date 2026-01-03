@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/if_stmt.h>
+#include <uhdm/expr.h>
 
 void bind_IfStmt(py::module_& m) {
   py::class_<uhdm::IfStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::IfStmt, py::nodelete>> cls(m, "IfStmt");
+  cls.def_property_readonly("condition", [](uhdm::IfStmt* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

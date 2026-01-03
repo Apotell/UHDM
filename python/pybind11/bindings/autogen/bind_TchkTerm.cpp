@@ -5,7 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/tchk_term.h>
+#include <uhdm/expr.h>
 
 void bind_TchkTerm(py::module_& m) {
   py::class_<uhdm::TchkTerm, std::unique_ptr<uhdm::TchkTerm, py::nodelete>> cls(m, "TchkTerm");
+  cls.def_property_readonly("expr", [](uhdm::TchkTerm* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("condition", [](uhdm::TchkTerm* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

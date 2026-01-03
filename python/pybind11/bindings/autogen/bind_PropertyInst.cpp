@@ -5,8 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/property_inst.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/property_decl.h>
 
 void bind_PropertyInst(py::module_& m) {
   py::class_<uhdm::PropertyInst, std::unique_ptr<uhdm::PropertyInst, py::nodelete>> cls(m, "PropertyInst");
+  cls.def_property_readonly("property_decl", [](uhdm::PropertyInst* self) { return self->getPropertyDecl(); }, py::return_value_policy::reference);
   cls.def_property_readonly("name", &uhdm::PropertyInst::getName);
+  cls.def_property_readonly("clocking_block", [](uhdm::PropertyInst* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

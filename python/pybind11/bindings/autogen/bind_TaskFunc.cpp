@@ -5,6 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/task_func.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/expr.h>
+#include <uhdm/instance.h>
+#include <uhdm/io_decl.h>
+#include <uhdm/ref_typespec.h>
+#include <uhdm/task_func_decl.h>
 
 void bind_TaskFunc(py::module_& m) {
   py::class_<uhdm::TaskFunc, uhdm::Scope, std::unique_ptr<uhdm::TaskFunc, py::nodelete>> cls(m, "TaskFunc");
@@ -14,4 +20,25 @@ void bind_TaskFunc(py::module_& m) {
   cls.def_property_readonly("dpi_pure", &uhdm::TaskFunc::getDPIPure);
   cls.def_property_readonly("dpi_context", &uhdm::TaskFunc::getDPIContext);
   cls.def_property_readonly("dpi_c_identifier", &uhdm::TaskFunc::getDPICIdentifier);
+  cls.def_property_readonly("left_expr", [](uhdm::TaskFunc* self) { return self->getLeftExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("right_expr", [](uhdm::TaskFunc* self) { return self->getRightExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("return", [](uhdm::TaskFunc* self) { return self->getReturn(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("class_defn", [](uhdm::TaskFunc* self) { return self->getClassDefn(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func_decl", [](uhdm::TaskFunc* self) {
+    std::vector<uhdm::TaskFuncDecl*> res;
+    if (auto* vec = self->getTaskFuncDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("io_decl", [](uhdm::TaskFunc* self) {
+    std::vector<uhdm::IODecl*> res;
+    if (auto* vec = self->getIODecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::TaskFunc* self) { return self->getInstance(); }, py::return_value_policy::reference);
 }

@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/tagged_pattern.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_TaggedPattern(py::module_& m) {
   py::class_<uhdm::TaggedPattern, std::unique_ptr<uhdm::TaggedPattern, py::nodelete>> cls(m, "TaggedPattern");
   cls.def_property_readonly("name", &uhdm::TaggedPattern::getName);
+  cls.def_property_readonly("typespec", [](uhdm::TaggedPattern* self) { return self->getTypespec(); }, py::return_value_policy::reference);
 }

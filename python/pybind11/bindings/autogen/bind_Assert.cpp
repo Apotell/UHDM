@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/assert_stmt.h>
+#include <uhdm/clocking_block.h>
 
 void bind_Assert(py::module_& m) {
   py::class_<uhdm::Assert, uhdm::ConcurrentAssertions, std::unique_ptr<uhdm::Assert, py::nodelete>> cls(m, "Assert");
+  cls.def_property_readonly("clocking_block", [](uhdm::Assert* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }

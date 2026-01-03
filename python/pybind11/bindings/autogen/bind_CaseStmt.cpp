@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/case_stmt.h>
+#include <uhdm/case_item.h>
+#include <uhdm/expr.h>
 
 void bind_CaseStmt(py::module_& m) {
   py::class_<uhdm::CaseStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::CaseStmt, py::nodelete>> cls(m, "CaseStmt");
+  cls.def_property_readonly("condition", [](uhdm::CaseStmt* self) { return self->getCondition(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("case_item", [](uhdm::CaseStmt* self) {
+    std::vector<uhdm::CaseItem*> res;
+    if (auto* vec = self->getCaseItems()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

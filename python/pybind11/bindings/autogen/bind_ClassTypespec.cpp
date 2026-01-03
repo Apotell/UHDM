@@ -5,9 +5,84 @@
 namespace py = pybind11;
 
 #include <uhdm/class_typespec.h>
+#include <uhdm/class_defn.h>
+#include <uhdm/constraint.h>
+#include <uhdm/named_event.h>
+#include <uhdm/named_event_array.h>
+#include <uhdm/param_assign.h>
+#include <uhdm/ref_typespec.h>
+#include <uhdm/scope.h>
+#include <uhdm/task_func.h>
+#include <uhdm/variable.h>
 
 void bind_ClassTypespec(py::module_& m) {
   py::class_<uhdm::ClassTypespec, uhdm::Typespec, std::unique_ptr<uhdm::ClassTypespec, py::nodelete>> cls(m, "ClassTypespec");
   cls.def_property_readonly("name", &uhdm::ClassTypespec::getName);
   cls.def_property_readonly("automatic", &uhdm::ClassTypespec::getAutomatic);
+  cls.def_property_readonly("extends", [](uhdm::ClassTypespec* self) { return self->getExtends(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("variable", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::Variable*> res;
+    if (auto* vec = self->getVariables()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("method", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::TaskFunc*> res;
+    if (auto* vec = self->getMethods()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("constraint", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::Constraint*> res;
+    if (auto* vec = self->getConstraints()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("param_assign", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::ParamAssign*> res;
+    if (auto* vec = self->getParamAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("virtual_interface_var", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::Variable*> res;
+    if (auto* vec = self->getVirtualInterfaceVars()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("named_event", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::NamedEvent*> res;
+    if (auto* vec = self->getNamedEvents()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("named_event_array", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::NamedEventArray*> res;
+    if (auto* vec = self->getNamedEventArrays()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("internal_scope", [](uhdm::ClassTypespec* self) {
+    std::vector<uhdm::Scope*> res;
+    if (auto* vec = self->getInternalScopes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("class_defn", [](uhdm::ClassTypespec* self) { return self->getClassDefn(); }, py::return_value_policy::reference);
 }

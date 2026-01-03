@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/case_property_item.h>
+#include <uhdm/expr.h>
 
 void bind_CasePropertyItem(py::module_& m) {
   py::class_<uhdm::CasePropertyItem, std::unique_ptr<uhdm::CasePropertyItem, py::nodelete>> cls(m, "CasePropertyItem");
+  cls.def_property_readonly("expr", [](uhdm::CasePropertyItem* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

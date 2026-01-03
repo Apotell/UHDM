@@ -5,9 +5,133 @@
 namespace py = pybind11;
 
 #include <uhdm/design.h>
+#include <uhdm/class_defn.h>
+#include <uhdm/interface.h>
+#include <uhdm/let_decl.h>
+#include <uhdm/module.h>
+#include <uhdm/package.h>
+#include <uhdm/param_assign.h>
+#include <uhdm/program.h>
+#include <uhdm/source_file.h>
+#include <uhdm/task_func.h>
+#include <uhdm/typespec.h>
+#include <uhdm/udp_defn.h>
+#include <uhdm/variable.h>
 
 void bind_Design(py::module_& m) {
   py::class_<uhdm::Design, std::unique_ptr<uhdm::Design, py::nodelete>> cls(m, "Design");
   cls.def_property_readonly("elaborated", &uhdm::Design::getElaborated);
   cls.def_property_readonly("name", &uhdm::Design::getName);
+  cls.def_property_readonly("source_files", [](uhdm::Design* self) {
+    std::vector<uhdm::SourceFile*> res;
+    if (auto* vec = self->getSourceFiles()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_packages", [](uhdm::Design* self) {
+    std::vector<uhdm::Package*> res;
+    if (auto* vec = self->getAllPackages()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("top_packages", [](uhdm::Design* self) {
+    std::vector<uhdm::Package*> res;
+    if (auto* vec = self->getTopPackages()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_classes", [](uhdm::Design* self) {
+    std::vector<uhdm::ClassDefn*> res;
+    if (auto* vec = self->getAllClasses()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_interfaces", [](uhdm::Design* self) {
+    std::vector<uhdm::Interface*> res;
+    if (auto* vec = self->getAllInterfaces()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_udps", [](uhdm::Design* self) {
+    std::vector<uhdm::UdpDefn*> res;
+    if (auto* vec = self->getAllUdps()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_programs", [](uhdm::Design* self) {
+    std::vector<uhdm::Program*> res;
+    if (auto* vec = self->getAllPrograms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("all_modules", [](uhdm::Design* self) {
+    std::vector<uhdm::Module*> res;
+    if (auto* vec = self->getAllModules()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("typespecs", [](uhdm::Design* self) {
+    std::vector<uhdm::Typespec*> res;
+    if (auto* vec = self->getTypespecs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("let_decl", [](uhdm::Design* self) {
+    std::vector<uhdm::LetDecl*> res;
+    if (auto* vec = self->getLetDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func", [](uhdm::Design* self) {
+    std::vector<uhdm::TaskFunc*> res;
+    if (auto* vec = self->getTaskFuncs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("param_assign", [](uhdm::Design* self) {
+    std::vector<uhdm::ParamAssign*> res;
+    if (auto* vec = self->getParamAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("variable", [](uhdm::Design* self) {
+    std::vector<uhdm::Variable*> res;
+    if (auto* vec = self->getVariables()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("top_modules", [](uhdm::Design* self) {
+    std::vector<uhdm::Module*> res;
+    if (auto* vec = self->getTopModules()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

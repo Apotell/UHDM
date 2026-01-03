@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/bit_select.h>
+#include <uhdm/expr.h>
 
 void bind_BitSelect(py::module_& m) {
   py::class_<uhdm::BitSelect, uhdm::RefObj, std::unique_ptr<uhdm::BitSelect, py::nodelete>> cls(m, "BitSelect");
   cls.def_property_readonly("constant_select", &uhdm::BitSelect::getConstantSelect);
+  cls.def_property_readonly("index", [](uhdm::BitSelect* self) { return self->getIndex(); }, py::return_value_policy::reference);
 }

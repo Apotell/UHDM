@@ -5,10 +5,21 @@
 namespace py = pybind11;
 
 #include <uhdm/concurrent_assertions.h>
+#include <uhdm/attribute.h>
+#include <uhdm/expr.h>
 
 void bind_ConcurrentAssertions(py::module_& m) {
   py::class_<uhdm::ConcurrentAssertions, std::unique_ptr<uhdm::ConcurrentAssertions, py::nodelete>> cls(m, "ConcurrentAssertions");
   cls.def_property_readonly("name", &uhdm::ConcurrentAssertions::getName);
   cls.def_property_readonly("full_name", &uhdm::ConcurrentAssertions::getFullName);
   cls.def_property_readonly("is_clock_inferred", &uhdm::ConcurrentAssertions::getIsClockInferred);
+  cls.def_property_readonly("clocking_event", [](uhdm::ConcurrentAssertions* self) { return self->getClockingEvent(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("attribute", [](uhdm::ConcurrentAssertions* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

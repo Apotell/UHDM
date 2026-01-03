@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/module_typespec.h>
+#include <uhdm/module.h>
 
 void bind_ModuleTypespec(py::module_& m) {
   py::class_<uhdm::ModuleTypespec, uhdm::Typespec, std::unique_ptr<uhdm::ModuleTypespec, py::nodelete>> cls(m, "ModuleTypespec");
   cls.def_property_readonly("name", &uhdm::ModuleTypespec::getName);
+  cls.def_property_readonly("module", [](uhdm::ModuleTypespec* self) { return self->getModule(); }, py::return_value_policy::reference);
 }

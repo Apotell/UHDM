@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/gen_for.h>
+#include <uhdm/expr.h>
 
 void bind_GenFor(py::module_& m) {
   py::class_<uhdm::GenFor, uhdm::GenScope, std::unique_ptr<uhdm::GenFor, py::nodelete>> cls(m, "GenFor");
+  cls.def_property_readonly("condition", [](uhdm::GenFor* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

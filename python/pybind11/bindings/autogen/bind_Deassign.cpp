@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/deassign.h>
+#include <uhdm/expr.h>
 
 void bind_Deassign(py::module_& m) {
   py::class_<uhdm::Deassign, uhdm::AtomicStmt, std::unique_ptr<uhdm::Deassign, py::nodelete>> cls(m, "Deassign");
+  cls.def_property_readonly("lhs", [](uhdm::Deassign* self) { return self->getLhs(); }, py::return_value_policy::reference);
 }

@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/while_stmt.h>
+#include <uhdm/expr.h>
 
 void bind_WhileStmt(py::module_& m) {
   py::class_<uhdm::WhileStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::WhileStmt, py::nodelete>> cls(m, "WhileStmt");
+  cls.def_property_readonly("condition", [](uhdm::WhileStmt* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

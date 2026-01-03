@@ -5,7 +5,25 @@
 namespace py = pybind11;
 
 #include <uhdm/net.h>
+#include <uhdm/expr.h>
+#include <uhdm/net.h>
 
 void bind_Net(py::module_& m) {
   py::class_<uhdm::Net, uhdm::Nets, std::unique_ptr<uhdm::Net, py::nodelete>> cls(m, "Net");
+  cls.def_property_readonly("bit", [](uhdm::Net* self) {
+    std::vector<uhdm::Net*> res;
+    if (auto* vec = self->getBits()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("indexes", [](uhdm::Net* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getIndexes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/udp_defn_typespec.h>
+#include <uhdm/udp_defn.h>
 
 void bind_UdpDefnTypespec(py::module_& m) {
   py::class_<uhdm::UdpDefnTypespec, uhdm::Typespec, std::unique_ptr<uhdm::UdpDefnTypespec, py::nodelete>> cls(m, "UdpDefnTypespec");
   cls.def_property_readonly("name", &uhdm::UdpDefnTypespec::getName);
+  cls.def_property_readonly("udp_defn", [](uhdm::UdpDefnTypespec* self) { return self->getUdpDefn(); }, py::return_value_policy::reference);
 }

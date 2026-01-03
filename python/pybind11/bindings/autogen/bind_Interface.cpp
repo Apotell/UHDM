@@ -5,8 +5,111 @@
 namespace py = pybind11;
 
 #include <uhdm/interface.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/cont_assign.h>
+#include <uhdm/gen_scope_array.h>
+#include <uhdm/instance_array.h>
+#include <uhdm/interface.h>
+#include <uhdm/interface_array.h>
+#include <uhdm/interface_tf_decl.h>
+#include <uhdm/mod_path.h>
+#include <uhdm/modport.h>
+#include <uhdm/port.h>
+#include <uhdm/process_stmt.h>
+#include <uhdm/tf_call.h>
 
 void bind_Interface(py::module_& m) {
   py::class_<uhdm::Interface, uhdm::Instance, std::unique_ptr<uhdm::Interface, py::nodelete>> cls(m, "Interface");
+  cls.def_property_readonly("interface_tf_decl", [](uhdm::Interface* self) {
+    std::vector<uhdm::InterfaceTFDecl*> res;
+    if (auto* vec = self->getInterfaceTFDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("modport", [](uhdm::Interface* self) {
+    std::vector<uhdm::Modport*> res;
+    if (auto* vec = self->getModports()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("global_clocking", [](uhdm::Interface* self) { return self->getGlobalClocking(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("default_clocking", [](uhdm::Interface* self) { return self->getDefaultClocking(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance_array", [](uhdm::Interface* self) { return self->getInstanceArray(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("mod_path", [](uhdm::Interface* self) {
+    std::vector<uhdm::ModPath*> res;
+    if (auto* vec = self->getModPaths()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("cont_assign", [](uhdm::Interface* self) {
+    std::vector<uhdm::ContAssign*> res;
+    if (auto* vec = self->getContAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("clocking_block", [](uhdm::Interface* self) {
+    std::vector<uhdm::ClockingBlock*> res;
+    if (auto* vec = self->getClockingBlocks()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("interface", [](uhdm::Interface* self) {
+    std::vector<uhdm::Interface*> res;
+    if (auto* vec = self->getInterfaces()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("interface_array", [](uhdm::Interface* self) {
+    std::vector<uhdm::InterfaceArray*> res;
+    if (auto* vec = self->getInterfaceArrays()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("processes", [](uhdm::Interface* self) {
+    std::vector<uhdm::Process*> res;
+    if (auto* vec = self->getProcesses()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("port", [](uhdm::Interface* self) {
+    std::vector<uhdm::Port*> res;
+    if (auto* vec = self->getPorts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("gen_scope_array", [](uhdm::Interface* self) {
+    std::vector<uhdm::GenScopeArray*> res;
+    if (auto* vec = self->getGenScopeArrays()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("sys_task_call", [](uhdm::Interface* self) {
+    std::vector<uhdm::TFCall*> res;
+    if (auto* vec = self->getSysTaskCalls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
   cls.def_property_readonly("end_label", &uhdm::Interface::getEndLabel);
 }

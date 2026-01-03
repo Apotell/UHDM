@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/udp.h>
+#include <uhdm/udp_defn.h>
 
 void bind_Udp(py::module_& m) {
   py::class_<uhdm::Udp, uhdm::Primitive, std::unique_ptr<uhdm::Udp, py::nodelete>> cls(m, "Udp");
+  cls.def_property_readonly("udp_defn", [](uhdm::Udp* self) { return self->getUdpDefn(); }, py::return_value_policy::reference);
 }

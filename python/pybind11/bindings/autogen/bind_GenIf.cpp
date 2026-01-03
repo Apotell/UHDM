@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/gen_if.h>
+#include <uhdm/expr.h>
 
 void bind_GenIf(py::module_& m) {
   py::class_<uhdm::GenIf, uhdm::GenStmt, std::unique_ptr<uhdm::GenIf, py::nodelete>> cls(m, "GenIf");
+  cls.def_property_readonly("condition", [](uhdm::GenIf* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

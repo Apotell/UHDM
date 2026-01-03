@@ -5,6 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/named_event.h>
+#include <uhdm/attribute.h>
+#include <uhdm/ref_typespec.h>
+#include <uhdm/thread_obj.h>
 
 void bind_NamedEvent(py::module_& m) {
   py::class_<uhdm::NamedEvent, std::unique_ptr<uhdm::NamedEvent, py::nodelete>> cls(m, "NamedEvent");
@@ -12,5 +15,22 @@ void bind_NamedEvent(py::module_& m) {
   cls.def_property_readonly("name", &uhdm::NamedEvent::getName);
   cls.def_property_readonly("full_name", &uhdm::NamedEvent::getFullName);
   cls.def_property_readonly("automatic", &uhdm::NamedEvent::getAutomatic);
+  cls.def_property_readonly("attribute", [](uhdm::NamedEvent* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("typespec", [](uhdm::NamedEvent* self) { return self->getTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("waiting_processes", [](uhdm::NamedEvent* self) {
+    std::vector<uhdm::Thread*> res;
+    if (auto* vec = self->getWaitingProcesses()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
   cls.def_property_readonly("end_label", &uhdm::NamedEvent::getEndLabel);
 }

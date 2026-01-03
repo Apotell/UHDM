@@ -5,9 +5,49 @@
 namespace py = pybind11;
 
 #include <uhdm/instance_array.h>
+#include <uhdm/expr.h>
+#include <uhdm/instance.h>
+#include <uhdm/module.h>
+#include <uhdm/port.h>
+#include <uhdm/range.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_InstanceArray(py::module_& m) {
   py::class_<uhdm::InstanceArray, std::unique_ptr<uhdm::InstanceArray, py::nodelete>> cls(m, "InstanceArray");
   cls.def_property_readonly("name", &uhdm::InstanceArray::getName);
   cls.def_property_readonly("full_name", &uhdm::InstanceArray::getFullName);
+  cls.def_property_readonly("expr", [](uhdm::InstanceArray* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("range", [](uhdm::InstanceArray* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::InstanceArray* self) {
+    std::vector<uhdm::Instance*> res;
+    if (auto* vec = self->getInstances()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("module", [](uhdm::InstanceArray* self) {
+    std::vector<uhdm::Module*> res;
+    if (auto* vec = self->getModules()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("elem_typespec", [](uhdm::InstanceArray* self) { return self->getElemTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("port", [](uhdm::InstanceArray* self) {
+    std::vector<uhdm::Port*> res;
+    if (auto* vec = self->getPorts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

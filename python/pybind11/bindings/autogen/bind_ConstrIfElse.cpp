@@ -5,7 +5,26 @@
 namespace py = pybind11;
 
 #include <uhdm/constr_if_else.h>
+#include <uhdm/constraint_expr.h>
+#include <uhdm/expr.h>
 
 void bind_ConstrIfElse(py::module_& m) {
   py::class_<uhdm::ConstrIfElse, uhdm::ConstraintExpr, std::unique_ptr<uhdm::ConstrIfElse, py::nodelete>> cls(m, "ConstrIfElse");
+  cls.def_property_readonly("condition", [](uhdm::ConstrIfElse* self) { return self->getCondition(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("if_constraint_expr", [](uhdm::ConstrIfElse* self) {
+    std::vector<uhdm::ConstraintExpr*> res;
+    if (auto* vec = self->getIfConstraintExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("else_constraint_expr", [](uhdm::ConstrIfElse* self) {
+    std::vector<uhdm::ConstraintExpr*> res;
+    if (auto* vec = self->getElseConstraintExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

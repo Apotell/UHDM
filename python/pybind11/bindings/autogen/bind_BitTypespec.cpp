@@ -5,8 +5,22 @@
 namespace py = pybind11;
 
 #include <uhdm/bit_typespec.h>
+#include <uhdm/function.h>
+#include <uhdm/range.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_BitTypespec(py::module_& m) {
   py::class_<uhdm::BitTypespec, uhdm::Typespec, std::unique_ptr<uhdm::BitTypespec, py::nodelete>> cls(m, "BitTypespec");
+  cls.def_property_readonly("elem_typespec", [](uhdm::BitTypespec* self) { return self->getElemTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("range", [](uhdm::BitTypespec* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("index_typespec", [](uhdm::BitTypespec* self) { return self->getIndexTypespec(); }, py::return_value_policy::reference);
   cls.def_property_readonly("signed", &uhdm::BitTypespec::getSigned);
+  cls.def_property_readonly("resolution_func", [](uhdm::BitTypespec* self) { return self->getResolutionFunc(); }, py::return_value_policy::reference);
 }

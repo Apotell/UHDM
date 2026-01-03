@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/enum_typespec.h>
+#include <uhdm/enum_const.h>
+#include <uhdm/ref_typespec.h>
 
 void bind_EnumTypespec(py::module_& m) {
   py::class_<uhdm::EnumTypespec, uhdm::Typespec, std::unique_ptr<uhdm::EnumTypespec, py::nodelete>> cls(m, "EnumTypespec");
+  cls.def_property_readonly("base_typespec", [](uhdm::EnumTypespec* self) { return self->getBaseTypespec(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("enum_const", [](uhdm::EnumTypespec* self) {
+    std::vector<uhdm::EnumConst*> res;
+    if (auto* vec = self->getEnumConsts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

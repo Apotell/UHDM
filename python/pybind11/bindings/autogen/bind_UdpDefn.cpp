@@ -5,9 +5,29 @@
 namespace py = pybind11;
 
 #include <uhdm/udp_defn.h>
+#include <uhdm/initial.h>
+#include <uhdm/io_decl.h>
+#include <uhdm/table_entry.h>
 
 void bind_UdpDefn(py::module_& m) {
   py::class_<uhdm::UdpDefn, uhdm::Scope, std::unique_ptr<uhdm::UdpDefn, py::nodelete>> cls(m, "UdpDefn");
   cls.def_property_readonly("def_name", &uhdm::UdpDefn::getDefName);
   cls.def_property_readonly("protected", &uhdm::UdpDefn::getProtected);
+  cls.def_property_readonly("io_decl", [](uhdm::UdpDefn* self) {
+    std::vector<uhdm::IODecl*> res;
+    if (auto* vec = self->getIODecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("table_entry", [](uhdm::UdpDefn* self) {
+    std::vector<uhdm::TableEntry*> res;
+    if (auto* vec = self->getTableEntries()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("initial", [](uhdm::UdpDefn* self) { return self->getInitial(); }, py::return_value_policy::reference);
 }

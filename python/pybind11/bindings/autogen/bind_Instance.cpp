@@ -5,6 +5,15 @@
 namespace py = pybind11;
 
 #include <uhdm/instance.h>
+#include <uhdm/class_defn.h>
+#include <uhdm/instance.h>
+#include <uhdm/module.h>
+#include <uhdm/net.h>
+#include <uhdm/program.h>
+#include <uhdm/program_array.h>
+#include <uhdm/spec_param.h>
+#include <uhdm/task_func.h>
+#include <uhdm/task_func_decl.h>
 
 void bind_Instance(py::module_& m) {
   py::class_<uhdm::Instance, uhdm::Scope, std::unique_ptr<uhdm::Instance, py::nodelete>> cls(m, "Instance");
@@ -18,4 +27,62 @@ void bind_Instance(py::module_& m) {
   cls.def_property_readonly("config", &uhdm::Instance::getConfig);
   cls.def_property_readonly("automatic", &uhdm::Instance::getAutomatic);
   cls.def_property_readonly("top", &uhdm::Instance::getTop);
+  cls.def_property_readonly("program", [](uhdm::Instance* self) {
+    std::vector<uhdm::Program*> res;
+    if (auto* vec = self->getPrograms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("program_array", [](uhdm::Instance* self) {
+    std::vector<uhdm::ProgramArray*> res;
+    if (auto* vec = self->getProgramArrays()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("class_defn", [](uhdm::Instance* self) {
+    std::vector<uhdm::ClassDefn*> res;
+    if (auto* vec = self->getClassDefns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func", [](uhdm::Instance* self) {
+    std::vector<uhdm::TaskFunc*> res;
+    if (auto* vec = self->getTaskFuncs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("task_func_decl", [](uhdm::Instance* self) {
+    std::vector<uhdm::TaskFuncDecl*> res;
+    if (auto* vec = self->getTaskFuncDecls()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("net", [](uhdm::Instance* self) {
+    std::vector<uhdm::Net*> res;
+    if (auto* vec = self->getNets()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("spec_param", [](uhdm::Instance* self) {
+    std::vector<uhdm::SpecParam*> res;
+    if (auto* vec = self->getSpecParams()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("module", [](uhdm::Instance* self) { return self->getModule(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("instance", [](uhdm::Instance* self) { return self->getInstance(); }, py::return_value_policy::reference);
 }

@@ -5,8 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/cont_assign_bit.h>
+#include <uhdm/expr.h>
 
 void bind_ContAssignBit(py::module_& m) {
   py::class_<uhdm::ContAssignBit, std::unique_ptr<uhdm::ContAssignBit, py::nodelete>> cls(m, "ContAssignBit");
   cls.def_property_readonly("net_decl_assign", &uhdm::ContAssignBit::getNetDeclAssign);
+  cls.def_property_readonly("delay", [](uhdm::ContAssignBit* self) { return self->getDelay(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("rhs", [](uhdm::ContAssignBit* self) { return self->getRhs(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("lhs", [](uhdm::ContAssignBit* self) { return self->getLhs(); }, py::return_value_policy::reference);
 }

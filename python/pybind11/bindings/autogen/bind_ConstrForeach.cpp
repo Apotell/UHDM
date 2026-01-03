@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/constr_foreach.h>
+#include <uhdm/constraint_expr.h>
+#include <uhdm/variable.h>
 
 void bind_ConstrForeach(py::module_& m) {
   py::class_<uhdm::ConstrForeach, uhdm::ConstraintExpr, std::unique_ptr<uhdm::ConstrForeach, py::nodelete>> cls(m, "ConstrForeach");
+  cls.def_property_readonly("variable", [](uhdm::ConstrForeach* self) { return self->getVariable(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("constraint_expr", [](uhdm::ConstrForeach* self) {
+    std::vector<uhdm::ConstraintExpr*> res;
+    if (auto* vec = self->getConstraintExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

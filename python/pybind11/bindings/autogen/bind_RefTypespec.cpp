@@ -5,10 +5,12 @@
 namespace py = pybind11;
 
 #include <uhdm/ref_typespec.h>
+#include <uhdm/typespec.h>
 
 void bind_RefTypespec(py::module_& m) {
   py::class_<uhdm::RefTypespec, uhdm::SimpleExpr, std::unique_ptr<uhdm::RefTypespec, py::nodelete>> cls(m, "RefTypespec");
   cls.def_property_readonly("name", &uhdm::RefTypespec::getName);
   cls.def_property_readonly("full_name", &uhdm::RefTypespec::getFullName);
   cls.def_property_readonly("def_name", &uhdm::RefTypespec::getDefName);
+  cls.def_property_readonly("actual", [](uhdm::RefTypespec* self) { return self->getActual(); }, py::return_value_policy::reference);
 }

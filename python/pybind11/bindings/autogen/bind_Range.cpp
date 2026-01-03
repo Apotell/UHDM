@@ -5,7 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/range.h>
+#include <uhdm/expr.h>
 
 void bind_Range(py::module_& m) {
   py::class_<uhdm::Range, std::unique_ptr<uhdm::Range, py::nodelete>> cls(m, "Range");
+  cls.def_property_readonly("left_expr", [](uhdm::Range* self) { return self->getLeftExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("right_expr", [](uhdm::Range* self) { return self->getRightExpr(); }, py::return_value_policy::reference);
 }

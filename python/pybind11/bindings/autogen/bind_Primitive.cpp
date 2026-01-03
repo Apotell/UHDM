@@ -5,6 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/primitive.h>
+#include <uhdm/attribute.h>
+#include <uhdm/expr.h>
+#include <uhdm/prim_term.h>
 
 void bind_Primitive(py::module_& m) {
   py::class_<uhdm::Primitive, std::unique_ptr<uhdm::Primitive, py::nodelete>> cls(m, "Primitive");
@@ -12,4 +15,22 @@ void bind_Primitive(py::module_& m) {
   cls.def_property_readonly("def_name", &uhdm::Primitive::getDefName);
   cls.def_property_readonly("name", &uhdm::Primitive::getName);
   cls.def_property_readonly("full_name", &uhdm::Primitive::getFullName);
+  cls.def_property_readonly("attribute", [](uhdm::Primitive* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("delay", [](uhdm::Primitive* self) { return self->getDelay(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("index", [](uhdm::Primitive* self) { return self->getIndex(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("prim_term", [](uhdm::Primitive* self) {
+    std::vector<uhdm::PrimTerm*> res;
+    if (auto* vec = self->getPrimTerms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

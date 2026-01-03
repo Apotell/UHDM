@@ -5,7 +5,25 @@
 namespace py = pybind11;
 
 #include <uhdm/interface_tf_decl.h>
+#include <uhdm/function.h>
+#include <uhdm/task.h>
 
 void bind_InterfaceTFDecl(py::module_& m) {
   py::class_<uhdm::InterfaceTFDecl, std::unique_ptr<uhdm::InterfaceTFDecl, py::nodelete>> cls(m, "InterfaceTFDecl");
+  cls.def_property_readonly("task", [](uhdm::InterfaceTFDecl* self) {
+    std::vector<uhdm::Task*> res;
+    if (auto* vec = self->getTasks()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("function", [](uhdm::InterfaceTFDecl* self) {
+    std::vector<uhdm::Function*> res;
+    if (auto* vec = self->getFunctions()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

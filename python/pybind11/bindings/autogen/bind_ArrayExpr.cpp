@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/array_expr.h>
+#include <uhdm/expr.h>
 
 void bind_ArrayExpr(py::module_& m) {
   py::class_<uhdm::ArrayExpr, uhdm::Expr, std::unique_ptr<uhdm::ArrayExpr, py::nodelete>> cls(m, "ArrayExpr");
+  cls.def_property_readonly("expr", [](uhdm::ArrayExpr* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getExprs()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

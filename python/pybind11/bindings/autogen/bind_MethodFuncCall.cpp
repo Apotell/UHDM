@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/method_func_call.h>
+#include <uhdm/expr.h>
 
 void bind_MethodFuncCall(py::module_& m) {
   py::class_<uhdm::MethodFuncCall, uhdm::TFCall, std::unique_ptr<uhdm::MethodFuncCall, py::nodelete>> cls(m, "MethodFuncCall");
   cls.def_property_readonly("user_defn", &uhdm::MethodFuncCall::getUserDefn);
+  cls.def_property_readonly("prefix", [](uhdm::MethodFuncCall* self) { return self->getPrefix(); }, py::return_value_policy::reference);
 }

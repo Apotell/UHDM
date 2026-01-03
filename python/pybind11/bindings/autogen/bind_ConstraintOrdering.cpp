@@ -5,7 +5,24 @@
 namespace py = pybind11;
 
 #include <uhdm/constraint_ordering.h>
+#include <uhdm/expr.h>
 
 void bind_ConstraintOrdering(py::module_& m) {
   py::class_<uhdm::ConstraintOrdering, std::unique_ptr<uhdm::ConstraintOrdering, py::nodelete>> cls(m, "ConstraintOrdering");
+  cls.def_property_readonly("solve_before", [](uhdm::ConstraintOrdering* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getSolveBefores()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("solve_after", [](uhdm::ConstraintOrdering* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getSolveAfters()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

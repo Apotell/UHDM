@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/if_else.h>
+#include <uhdm/expr.h>
 
 void bind_IfElse(py::module_& m) {
   py::class_<uhdm::IfElse, uhdm::AtomicStmt, std::unique_ptr<uhdm::IfElse, py::nodelete>> cls(m, "IfElse");
+  cls.def_property_readonly("condition", [](uhdm::IfElse* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

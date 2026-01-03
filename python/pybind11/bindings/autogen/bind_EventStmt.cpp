@@ -5,8 +5,10 @@
 namespace py = pybind11;
 
 #include <uhdm/event_stmt.h>
+#include <uhdm/named_event.h>
 
 void bind_EventStmt(py::module_& m) {
   py::class_<uhdm::EventStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::EventStmt, py::nodelete>> cls(m, "EventStmt");
   cls.def_property_readonly("blocking", &uhdm::EventStmt::getBlocking);
+  cls.def_property_readonly("named_event", [](uhdm::EventStmt* self) { return self->getNamedEvent(); }, py::return_value_policy::reference);
 }

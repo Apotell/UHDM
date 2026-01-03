@@ -5,6 +5,15 @@
 namespace py = pybind11;
 
 #include <uhdm/nets.h>
+#include <uhdm/cont_assign.h>
+#include <uhdm/module.h>
+#include <uhdm/net_drivers.h>
+#include <uhdm/net_loads.h>
+#include <uhdm/nets.h>
+#include <uhdm/path_term.h>
+#include <uhdm/ports.h>
+#include <uhdm/prim_term.h>
+#include <uhdm/tchk_term.h>
 
 void bind_Nets(py::module_& m) {
   py::class_<uhdm::Nets, uhdm::SimpleExpr, std::unique_ptr<uhdm::Nets, py::nodelete>> cls(m, "Nets");
@@ -20,4 +29,78 @@ void bind_Nets(py::module_& m) {
   cls.def_property_readonly("vector", &uhdm::Nets::getVector);
   cls.def_property_readonly("explicit_vectored", &uhdm::Nets::getExplicitVectored);
   cls.def_property_readonly("struct_union_member", &uhdm::Nets::getStructUnionMember);
+  cls.def_property_readonly("port_inst", [](uhdm::Nets* self) {
+    std::vector<uhdm::Ports*> res;
+    if (auto* vec = self->getPortInsts()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("driver", [](uhdm::Nets* self) {
+    std::vector<uhdm::NetDrivers*> res;
+    if (auto* vec = self->getDrivers()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("load", [](uhdm::Nets* self) {
+    std::vector<uhdm::NetLoads*> res;
+    if (auto* vec = self->getLoads()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("local_driver", [](uhdm::Nets* self) {
+    std::vector<uhdm::NetDrivers*> res;
+    if (auto* vec = self->getLocalDrivers()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("local_load", [](uhdm::Nets* self) {
+    std::vector<uhdm::NetLoads*> res;
+    if (auto* vec = self->getLocalLoads()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("prim_term", [](uhdm::Nets* self) {
+    std::vector<uhdm::PrimTerm*> res;
+    if (auto* vec = self->getPrimTerms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("cont_assign", [](uhdm::Nets* self) {
+    std::vector<uhdm::ContAssign*> res;
+    if (auto* vec = self->getContAssigns()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("path_term", [](uhdm::Nets* self) {
+    std::vector<uhdm::PathTerm*> res;
+    if (auto* vec = self->getPathTerms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("tchk_term", [](uhdm::Nets* self) {
+    std::vector<uhdm::TchkTerm*> res;
+    if (auto* vec = self->getTchkTerms()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("sim_net", [](uhdm::Nets* self) { return self->getSimNet(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("module", [](uhdm::Nets* self) { return self->getModule(); }, py::return_value_policy::reference);
 }

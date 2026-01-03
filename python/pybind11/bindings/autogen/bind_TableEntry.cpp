@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/table_entry.h>
+#include <uhdm/attribute.h>
 
 void bind_TableEntry(py::module_& m) {
   py::class_<uhdm::TableEntry, std::unique_ptr<uhdm::TableEntry, py::nodelete>> cls(m, "TableEntry");
+  cls.def_property_readonly("attribute", [](uhdm::TableEntry* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

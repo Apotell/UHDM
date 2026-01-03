@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/return_stmt.h>
+#include <uhdm/expr.h>
 
 void bind_ReturnStmt(py::module_& m) {
   py::class_<uhdm::ReturnStmt, uhdm::AtomicStmt, std::unique_ptr<uhdm::ReturnStmt, py::nodelete>> cls(m, "ReturnStmt");
+  cls.def_property_readonly("condition", [](uhdm::ReturnStmt* self) { return self->getCondition(); }, py::return_value_policy::reference);
 }

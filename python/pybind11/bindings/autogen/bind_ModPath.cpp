@@ -5,7 +5,16 @@
 namespace py = pybind11;
 
 #include <uhdm/mod_path.h>
+#include <uhdm/attribute.h>
 
 void bind_ModPath(py::module_& m) {
   py::class_<uhdm::ModPath, std::unique_ptr<uhdm::ModPath, py::nodelete>> cls(m, "ModPath");
+  cls.def_property_readonly("attribute", [](uhdm::ModPath* self) {
+    std::vector<uhdm::Attribute*> res;
+    if (auto* vec = self->getAttributes()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
 }

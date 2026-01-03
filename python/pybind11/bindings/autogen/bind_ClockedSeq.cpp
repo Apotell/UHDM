@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/clocked_seq.h>
+#include <uhdm/expr.h>
 
 void bind_ClockedSeq(py::module_& m) {
   py::class_<uhdm::ClockedSeq, std::unique_ptr<uhdm::ClockedSeq, py::nodelete>> cls(m, "ClockedSeq");
+  cls.def_property_readonly("clocking_event", [](uhdm::ClockedSeq* self) { return self->getClockingEvent(); }, py::return_value_policy::reference);
 }

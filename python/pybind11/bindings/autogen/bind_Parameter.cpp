@@ -5,9 +5,20 @@
 namespace py = pybind11;
 
 #include <uhdm/parameter.h>
+#include <uhdm/expr.h>
+#include <uhdm/range.h>
 
 void bind_Parameter(py::module_& m) {
   py::class_<uhdm::Parameter, uhdm::SimpleExpr, std::unique_ptr<uhdm::Parameter, py::nodelete>> cls(m, "Parameter");
+  cls.def_property_readonly("expr", [](uhdm::Parameter* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("range", [](uhdm::Parameter* self) {
+    std::vector<uhdm::Range*> res;
+    if (auto* vec = self->getRanges()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
   cls.def_property_readonly("local_param", &uhdm::Parameter::getLocalParam);
   cls.def_property_readonly("name", &uhdm::Parameter::getName);
   cls.def_property_readonly("full_name", &uhdm::Parameter::getFullName);

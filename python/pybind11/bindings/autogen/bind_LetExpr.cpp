@@ -5,7 +5,18 @@
 namespace py = pybind11;
 
 #include <uhdm/let_expr.h>
+#include <uhdm/expr.h>
+#include <uhdm/let_decl.h>
 
 void bind_LetExpr(py::module_& m) {
   py::class_<uhdm::LetExpr, uhdm::Expr, std::unique_ptr<uhdm::LetExpr, py::nodelete>> cls(m, "LetExpr");
+  cls.def_property_readonly("argument", [](uhdm::LetExpr* self) {
+    std::vector<uhdm::Expr*> res;
+    if (auto* vec = self->getArguments()) {
+      res.reserve(vec->size());
+      res.insert(res.end(), vec->begin(), vec->end());
+    }
+    return res;
+  }, py::return_value_policy::reference);
+  cls.def_property_readonly("let_decl", [](uhdm::LetExpr* self) { return self->getLetDecl(); }, py::return_value_policy::reference);
 }

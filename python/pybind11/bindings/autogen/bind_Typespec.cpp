@@ -5,7 +5,9 @@
 namespace py = pybind11;
 
 #include <uhdm/typespec.h>
+#include <uhdm/instance.h>
 
 void bind_Typespec(py::module_& m) {
   py::class_<uhdm::Typespec, std::unique_ptr<uhdm::Typespec, py::nodelete>> cls(m, "Typespec");
+  cls.def_property_readonly("instance", [](uhdm::Typespec* self) { return self->getInstance(); }, py::return_value_policy::reference);
 }

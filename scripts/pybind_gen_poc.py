@@ -19,8 +19,21 @@ def generate_binding(model_name, model_def, out_file):
     # Best effort header include: use the snake_case model name directly
     # Example: model "design" -> #include <uhdm/design.h>
     header_name = f"{model_name}.h"
-    out_file.write(f"#include <uhdm/{header_name}>\n\n")
+    out_file.write(f"#include <uhdm/{header_name}>\n")
 
+    # Include headers for referenced types to avoid incomplete type errors in vectors
+    includes = set()
+    iter_items = model_def.allitems() if hasattr(model_def, 'allitems') else model_def.items()
+    for key, value in iter_items:
+        if key in ['class_ref', 'obj_ref']:
+             type_name = value.get('type')
+             if type_name and type_name != 'any':
+                 includes.add(f"#include <uhdm/{type_name}.h>")
+    
+    for inc in sorted(includes):
+        out_file.write(f"{inc}\n")
+
+    out_file.write("\n")
     out_file.write(f"void bind_{class_name}(py::module_& m) {{\n")
     
     cpp_class = f"uhdm::{class_name}"
@@ -53,32 +66,41 @@ def generate_binding(model_name, model_def, out_file):
                 python_name = prop_name
                 
                 out_file.write(f"  cls.def_property_readonly(\"{python_name}\", &{cpp_class}::{func_name});\n")
-            
-            # Handle Class/Object References (pointers) and Sequences (vectors)
-            # type: 'class_ref' or 'obj_ref'
-            # card: '1' or 'any'
-            # We need to verify if the return type is supported.
-            # For now, strict filter: 
-            # - type in ['class_ref', 'obj_ref', 'group_ref']
-            # - card == 'any' (vector) OR card == '1' (pointer)
-            
-            elif prop_type in ['class_ref', 'obj_ref']:
-                # Determine Accessor
-                suffix = config.make_func_name(prop_name, card)
-                func_name = f"get{suffix}" # e.g. getTopModules
-                python_name = prop_name
-                
-                # Check naming override for specific properties? 
-                # (handled by make_func_name)
 
+        elif key in ['class_ref', 'obj_ref']:
+            prop_name = value.get('name')
+            prop_type = value.get('type')
+            card = value.get('card')
+
+            # Determine Accessor
+            suffix = config.make_func_name(prop_name, card)
+            func_name = f"get{suffix}" # e.g. getTopModules
+            python_name = prop_name
+            
+            if card == '1':
                 # Return Policy
-                # For pointers and vectors of pointers in UHDM, we typically need reference_internal 
-                # to keep the parent alive, or just reference.
-                # Since we are read-only and don't own the data, `reference` is safe if we trust lifespan.
-                # `reference_internal` is safer if the property depends on the object.
+                # For pointers, reference is usually safe as we don't transfer ownership
                 policy = "py::return_value_policy::reference"
+                # Use lambda to resolve overload ambiguity (const vs non-const)
+                out_file.write(f"  cls.def_property_readonly(\"{python_name}\", []({cpp_class}* self) {{ return self->{func_name}(); }}, {policy});\n")
+            
+            elif card == 'any':
+                # For vectors, we need a lambda to handle nullptr -> empty list
+                # And we return by value (copying the vector of pointers), 
+                # relying on pybind11 to convert std::vector<T*> to [T*] with reference policy for elements.
                 
-                out_file.write(f"  cls.def_property_readonly(\"{python_name}\", &{cpp_class}::{func_name}, {policy});\n")
+                # Element type class name
+                elem_type = config.make_class_name(value.get('type'))
+                elem_cpp_type = f"uhdm::{elem_type}"
+                
+                out_file.write(f"  cls.def_property_readonly(\"{python_name}\", []({cpp_class}* self) {{\n")
+                out_file.write(f"    std::vector<{elem_cpp_type}*> res;\n")
+                out_file.write(f"    if (auto* vec = self->{func_name}()) {{\n")
+                out_file.write(f"      res.reserve(vec->size());\n")
+                out_file.write(f"      res.insert(res.end(), vec->begin(), vec->end());\n")
+                out_file.write(f"    }}\n")
+                out_file.write(f"    return res;\n")
+                out_file.write(f"  }}, py::return_value_policy::reference);\n")
 
     out_file.write("}\n")
 

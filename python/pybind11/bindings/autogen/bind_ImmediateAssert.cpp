@@ -5,7 +5,11 @@
 namespace py = pybind11;
 
 #include <uhdm/immediate_assert.h>
+#include <uhdm/clocking_block.h>
+#include <uhdm/expr.h>
 
 void bind_ImmediateAssert(py::module_& m) {
   py::class_<uhdm::ImmediateAssert, uhdm::AtomicStmt, std::unique_ptr<uhdm::ImmediateAssert, py::nodelete>> cls(m, "ImmediateAssert");
+  cls.def_property_readonly("expr", [](uhdm::ImmediateAssert* self) { return self->getExpr(); }, py::return_value_policy::reference);
+  cls.def_property_readonly("clocking_block", [](uhdm::ImmediateAssert* self) { return self->getClockingBlock(); }, py::return_value_policy::reference);
 }
