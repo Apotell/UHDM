@@ -13,6 +13,7 @@ set(PYUHDM_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_serializer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_native_visitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_native_listener.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bind_native_vpi_listener.cpp
     ${AUTOGEN_SOURCES}
 )
 
