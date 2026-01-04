@@ -1,0 +1,27 @@
+name: pyuhdm
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build python3-pip
+    - name: Install Python deps
+      run: |
+        pip3 install --upgrade pip
+        pip3 install pytest
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        cmake --build .
+    - name: Install Python Package
+      run: pip3 install .
+    - name: Run Tests
+      run: pytest -v
