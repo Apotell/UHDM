@@ -10,3 +10,7 @@ build
 out
 CMakeBuilds
 CMakeSettings.json
+
+# Python packaging
+dist/
+*.egg-info/
