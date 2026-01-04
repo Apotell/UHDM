@@ -39,11 +39,19 @@ def generate_binding(model_name, model_def, out_file):
     cpp_class = f"uhdm::{class_name}"
     
     extends = model_def.get('extends')
+    cpp_parent = ""
     if extends:
-        cpp_base = f"uhdm::{config.make_class_name(extends)}"
-        out_file.write(f"  py::class_<{cpp_class}, {cpp_base}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{class_name}\");\n")
+        cpp_parent = f"uhdm::{config.make_class_name(extends)}"
+    elif class_name != "BaseClass":
+        # Default inheritance from BaseClass for all classes except BaseClass itself
+        cpp_parent = "uhdm::BaseClass"
+
+    py_class_name = class_name # The python-facing class name
+
+    if cpp_parent:
+        out_file.write(f"  py::class_<{cpp_class}, {cpp_parent}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{py_class_name}\");\n")
     else:
-        out_file.write(f"  py::class_<{cpp_class}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{class_name}\");\n")
+        out_file.write(f"  py::class_<{cpp_class}, std::unique_ptr<{cpp_class}, py::nodelete>> cls(m, \"{py_class_name}\");\n")
     
     # Generate getters
     # Handle robust iteration
@@ -62,8 +70,10 @@ def generate_binding(model_name, model_def, out_file):
                 suffix = config.make_func_name(prop_name, card)
                 func_name = f"get{suffix}"
                 
-                # Python attribute name: snake_case (prop_name is typically snake_case)
-                python_name = prop_name
+                # Python attribute name:
+                # If 'vpi' key is present, use it (camelCase usually).
+                # Otherwise fallback to 'name' (snake_case).
+                python_name = value.get('vpi', prop_name)
                 
                 out_file.write(f"  cls.def_property_readonly(\"{python_name}\", &{cpp_class}::{func_name});\n")
 
@@ -107,16 +117,38 @@ def generate_binding(model_name, model_def, out_file):
 def main():
     parser = argparse.ArgumentParser(description="Generate Pybind11 bindings for all UHDM models.")
     parser.add_argument("--out_dir", default="python/pybind11/bindings/autogen", help="Output directory for generated bindings")
+    parser.add_argument("--print-files", action="store_true", help="Print list of files to be generated and exit")
     args = parser.parse_args()
 
-    print("Loading models...")
+    # Suppress output if we are just printing files for CMake
+    if not args.print_files:
+        print("Loading models...")
     models = loader.load_models()
     
+
+    if args.print_files:
+        # Just print filenames relative to out_dir (or just filenames)
+        # CMake expects a list. We'll output absolute paths or paths compatible with how we construct them in CMake.
+        # Actually just filenames is best, CMake can prepend dir.
+        files = []
+        for model_name, model_def in models.items():
+            if model_def.get('type') in ['obj_def', 'class_def']:
+                class_name = config.make_class_name(model_name)
+                files.append(f"bind_{class_name}.cpp")
+        
+        # Also include the aggregator file
+        files.append("bind_all_autogen.cpp")
+        
+        print(";".join(sorted(files)))
+        return
+
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
         
     print(f"Generating bindings for {len(models)} models into {args.out_dir}...")
     
+    generated_bind_funcs = []
+
     for model_name, model_def in models.items():
         # Valid type filter: only obj_def and class_def
         def_type = model_def.get('type')
@@ -127,9 +159,83 @@ def main():
         out_filename = f"bind_{class_name}.cpp"
         out_path = os.path.join(args.out_dir, out_filename)
         
+        # Store for aggregator
+        generated_bind_funcs.append(f"bind_{class_name}")
+
         with open(out_path, 'w') as f:
             generate_header(f)
             generate_binding(model_name, model_def, f)
+
+    # Generate aggregator: bind_all_autogen.cpp
+    aggregator_path = os.path.join(args.out_dir, "bind_all_autogen.cpp")
+    
+    # Topological sort for correct binding order
+    # Graph: class_name -> set(dep_class_names)
+    # Actually we just need: class -> extends (0 or 1)
+    
+    # Map class_name -> model_def
+    class_map = {}
+    for model_name, model_def in models.items():
+        if model_def.get('type') in ['obj_def', 'class_def']:
+             name = config.make_class_name(model_name)
+             class_map[name] = model_def
+
+    visited = set()
+    sorted_classes = []
+    
+    def visit(name):
+        if name in visited:
+            return
+        visited.add(name)
+        
+        # Find dependencies (base class)
+        # We need to find the model definition for 'name'
+        # The 'models' keys are snake_case, 'name' is PascalCase.
+        # We used class_map above.
+        
+        if name not in class_map:
+             # External dependency or not in our generaed set (e.g. Serializer if not generated)
+             # If it's not generated, we assume it's already bound manually hopefully.
+             return
+             
+        model_def = class_map[name]
+        extends = model_def.get('extends')
+        if extends:
+            base_class = config.make_class_name(extends)
+            visit(base_class)
+            
+        sorted_classes.append(name)
+
+    # Visit all generated classes
+    for model_name, model_def in models.items():
+        if model_def.get('type') in ['obj_def', 'class_def']:
+            class_name = config.make_class_name(model_name)
+            visit(class_name)
+
+    with open(aggregator_path, 'w') as f:
+        f.write("// AUTOGENERATED POC - DO NOT EDIT\n")
+        f.write("#include <pybind11/pybind11.h>\n")
+        f.write("\n")
+        f.write("namespace py = pybind11;\n\n")
+        
+        # Forward declarations
+        f.write("// Forward declarations\n")
+        for func in sorted(generated_bind_funcs):
+            f.write(f"void {func}(py::module_& m);\n")
+            
+        f.write("\n")
+        f.write("void bind_all_autogen(py::module_& m) {\n")
+        
+        # Call in topological order
+        # We need to map sorted class names back to bind functions, or just reconstruct strings
+        for cls in sorted_classes:
+            func_name = f"bind_{cls}"
+            # Verify we actually generated this function (should be yes if in class_map)
+            # Just to be safe, check if it is in generated_bind_funcs list
+            if func_name in generated_bind_funcs:
+                f.write(f"  {func_name}(m);\n")
+                
+        f.write("}\n")
             
     print("Done.")
 

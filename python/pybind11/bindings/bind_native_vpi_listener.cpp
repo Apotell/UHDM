@@ -1,6 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <uhdm/uhdm.h>
+#include <uhdm/vpi_uhdm.h>
+
 #include "../native_vpi_listener_poc.h"
 
 namespace py = pybind11;
@@ -45,5 +48,9 @@ void bind_native_vpi_listener(py::module_& m) {
         .def("on_design", &uhdm::VpiListener::on_design)
         .def("on_module", &uhdm::VpiListener::on_module);
 
-    m.def("walk_vpi", &uhdm::walk_vpi, "Traverse VPI hierarchy (PoC)");
+    m.def("walk_vpi", [](uhdm::BaseClass* design_obj, uhdm::VpiListener* listener) {
+        if (!design_obj) return;
+        vpiHandle h = NewVpiHandle(design_obj);
+        uhdm::walk_vpi(h, *listener);
+    }, "Traverse VPI hierarchy (PoC)");
 }
