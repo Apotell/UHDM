@@ -28,9 +28,17 @@
 #include <uhdm/Serializer.h>
 #include <uhdm/uhdm.h>
 
+#include <sstream>
 #include <type_traits>
 
 namespace uhdm {
+template <typename... Ts>
+[[nodiscard]] std::string StrCat(Ts&&... args) {
+  std::ostringstream out;
+  (out << ... << std::forward<Ts>(args));
+  return out.str();
+}
+
 // Remove whitespace at the beginning of the string.
 [[nodiscard]] constexpr std::string_view ltrim(std::string_view str) {
   while (!str.empty() && std::isspace(str.front())) str.remove_prefix(1);

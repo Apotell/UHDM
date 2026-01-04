@@ -123,17 +123,18 @@ class Factory final {
     return false;
   }
 
-  void eraseIfNotIn(const AnySet& container, AnySet& erased) {
+  uint32_t eraseIfNotIn(const AnySet& container) {
     objects_t keepers;
     for (objects_t::reference any : m_objects) {
       if (container.find(any) == container.cend()) {
-        erased.emplace(any);
         delete any;
       } else {
         keepers.emplace_back(any);
       }
     }
+    const uint32_t count = m_objects.size() - keepers.size();
     keepers.swap(m_objects);
+    return count;
   }
 
   void mapToIndex(std::map<const Any*, uint32_t>& table,

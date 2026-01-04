@@ -42,8 +42,11 @@ TEST(VpiValue, ToString) {
 }
 
 static std::string ParseAndRegenerateString(const std::string &str) {
-  std::unique_ptr<s_vpi_value> val(String2VpiValue(str));
-  return VpiValue2String(val.get());
+  s_vpi_value val;
+  String2VpiValue(str, &val);
+  const std::string result = VpiValue2String(&val);
+  VpiDestroyValue(val);
+  return result;
 }
 
 static bool ParseConvertBackRoundtrip(const std::string &str) { return ParseAndRegenerateString(str) == str; }

@@ -1157,20 +1157,19 @@ uint64_t ExprEval::size(const vpiHandle Typespec, bool &invalidValue, const vpiH
 }
 
 static bool getStringVal(std::string &result, Expr *val) {
+  bool succeeded = false;
   if (const Constant *hs0 = any_cast<Constant>(val)) {
-    if (s_vpi_value *sval = String2VpiValue(hs0->getValue())) {
-      if ((sval->format == vpiStringVal) || (sval->format == vpiBinStrVal) || (sval->format == vpiHexStrVal) ||
-          (sval->format == vpiOctStrVal) || (sval->format == vpiDecStrVal)) {
-        result = sval->value.str;
-        if (sval->value.str) delete[] sval->value.str;
-        delete sval;
-        return true;
-      } else {
-        delete sval;
-      }
+    s_vpi_value sval;
+    String2VpiValue(hs0->getValue(), &sval);
+    if ((sval.format == vpiStringVal) || (sval.format == vpiBinStrVal) ||
+        (sval.format == vpiHexStrVal) || (sval.format == vpiOctStrVal) ||
+        (sval.format == vpiDecStrVal)) {
+      result = sval.value.str;
+      succeeded = true;
     }
+    VpiDestroyValue(sval);
   }
-  return false;
+  return succeeded;
 }
 
 void resize(Expr *resizedExp, int32_t size) {

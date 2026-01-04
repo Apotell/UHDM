@@ -45,7 +45,13 @@ Serializer::Serializer() {
 <INIT_FACTORIES>
 }
 
-Serializer::~Serializer() { purge(); }
+Serializer::~Serializer() {
+  purge();
+  for (factories_t::const_reference entry : m_factories) {
+    delete entry.second;
+  }
+  m_factories.clear();
+}
 
 class TypespecUnifier final : public UhdmListener {
  public:
@@ -334,13 +340,12 @@ void Serializer::collectGarbage() {
   }
 
   if (ReferenceCollector* const collector = new ReferenceCollector) {
-    AnySet erased;
     while (true) {
       replacements_t replacements = collector->getReplacements(designFactory);
       if (!replacements.empty()) swap(replacements);
 
       for (factories_t::const_reference entry : m_factories) {
-        entry.second->eraseIfNotIn(collector->m_referenced, erased);
+        entry.second->eraseIfNotIn(collector->m_referenced);
       }
 
       if (replacements.empty()) break;

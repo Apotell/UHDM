@@ -29,27 +29,23 @@ def generate(models):
     headers = [ f"#include <uhdm/{name}.h>" for name in sorted(set.union(vpi_get_value_classes, vpi_get_delay_classes)) ]
 
     vpi_get_value_body = [
-        f'  const s_vpi_value* v = nullptr;',
-        f'  switch (handle->type) {{'
+         '  switch (handle->type) {'
     ] + [
-        f'    case UhdmType::{config.make_class_name(classname)}: v = String2VpiValue((({config.make_class_name(classname)}*)obj)->getValue()); break;'
+        f'    case UhdmType::{config.make_class_name(classname)}: String2VpiValue((({config.make_class_name(classname)}*)obj)->getValue(), value_p); break;'
         for classname in sorted(vpi_get_value_classes)
     ] + [
          '    default: break;',
-        f'  }}',
-        f'  if (v != nullptr) *value_p = *v;'
+         '  }',
     ] if vpi_get_value_classes else []
 
     vpi_get_delay_body = [
-        f'  const s_vpi_delay* v = nullptr;',
-        f'  switch (handle->type) {{',
+         '  switch (handle->type) {',
     ] + [
-        f'    case UhdmType::{config.make_class_name(classname)}: v = String2VpiDelay((({config.make_class_name(classname)}*)obj)->getVpiDelay()); break;'
+        f'    case UhdmType::{config.make_class_name(classname)}: String2VpiDelay((({config.make_class_name(classname)}*)obj)->getVpiDelay(), delay_p); break;'
         for classname in sorted(vpi_get_delay_classes)
     ] + [
          '    default: break;',
-        f'  }}',
-        f'  if (v != nullptr) *delay_p = *v;'
+         '  }',
     ] if vpi_get_delay_classes else []
 
     # vpi_user.cpp

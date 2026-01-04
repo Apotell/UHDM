@@ -48,16 +48,17 @@ def _get_vpi_xxx_visitor(type, vpi, card):
         content.append('  s_vpi_value value;')
         content.append('  vpi_get_value(obj_h, &value);')
         content.append('  if (value.format) {')
-        content.append('    std::string val = visit_value(&value);')
-        content.append('    if (!val.empty()) {')
+        content.append('    if (std::string val = visit_value(&value); !val.empty()) {')
         content.append('      stream_indent(indent) << val;')
         content.append('    }')
+        content.append('    VpiDestroyValue(value);')
         content.append('  }')
     elif vpi == 'vpiDelay':
         content.append('  s_vpi_delay delay;')
         content.append('  vpi_get_delays(obj_h, &delay);')
         content.append('  if (delay.da != nullptr) {')
         content.append('    stream_indent(indent) << visit_delays(&delay);')
+        content.append('    VpiDestroyDelay(delay);')
         content.append('  }')
     elif (card == '1') and (vpi not in ['vpiType', 'vpiFile', 'vpiLineNo', 'vpiColumnNo', 'vpiEndLineNo', 'vpiEndColumnNo']):
         if type == 'string':
