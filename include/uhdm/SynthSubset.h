@@ -38,9 +38,8 @@ namespace uhdm {
 class Serializer;
 class SynthSubset final : public VpiListener {
  public:
-  SynthSubset(Serializer* serializer,
-              AnySet& nonSynthesizableObjects, Design* des,
-              bool reportErrors, bool allowFormal);
+  SynthSubset(Serializer* serializer, AnySet& nonSynthesizableObjects, Design* des, bool reportErrors,
+              bool allowFormal);
   ~SynthSubset() override = default;
   void filterNonSynthesizable();
   void report(std::ostream& out);
@@ -53,8 +52,7 @@ class SynthSubset final : public VpiListener {
 
   void leaveTask(const Task* object, vpiHandle handle) override;
 
-  void leaveClassTypespec(const ClassTypespec* object,
-                          vpiHandle handle) override;
+  void leaveClassTypespec(const ClassTypespec* object, vpiHandle handle) override;
 
   // Typespec substitution to allow Yosys to perform RAM  Inference
   void leaveVariable(const Variable* object, vpiHandle handle) override;

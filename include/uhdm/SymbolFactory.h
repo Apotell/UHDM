@@ -84,8 +84,7 @@ class SymbolFactory {
  protected:
   // Create a snapshot of the current symbol table. Private, as this
   // functionality should be explicitly accessed through CreateSnapshot().
-  SymbolFactory(const SymbolFactory& parent)
-      : m_parent(&parent), m_idOffset(parent.m_idCounter + parent.m_idOffset) {}
+  SymbolFactory(const SymbolFactory& parent) : m_parent(&parent), m_idOffset(parent.m_idCounter + parent.m_idOffset) {}
 
  private:
   void purge();
@@ -94,7 +93,7 @@ class SymbolFactory {
   using Id2SymbolMap = std::deque<std::string>;
   using Symbol2IdMap = std::unordered_map<std::string_view, RawSymbolId>;
 
-  const SymbolFactory *const m_parent;
+  const SymbolFactory* const m_parent;
   const RawSymbolId m_idOffset;
 
   RawSymbolId m_idCounter = 0;

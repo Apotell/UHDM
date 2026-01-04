@@ -33,8 +33,7 @@ static int32_t usage(const char *progName) {
             << std::endl
             << "Reads input uhdm binary representations of two files and "
                "compares them topographically. (Version: "
-            << UHDM_VERSION_MAJOR << "." << UHDM_VERSION_MINOR << ") "
-            << std::endl
+            << UHDM_VERSION_MAJOR << "." << UHDM_VERSION_MINOR << ") " << std::endl
             << std::endl
             << "Exits with code" << std::endl
             << "  = 0, if input files are equal" << std::endl
@@ -83,20 +82,13 @@ int32_t main(int32_t argc, char **argv) {
     return -1;
   }
 
-  std::function<const uhdm::Design *(vpiHandle handle)> to_design =
-      [](vpiHandle handle) {
-        return (const uhdm::Design *)((const uhdm_handle *)handle)->object;
-      };
-
   std::vector<const uhdm::Design *> designsA;
   designsA.reserve(handlesA.size());
-  std::transform(handlesA.begin(), handlesA.end(), std::back_inserter(designsA),
-                 to_design);
+  std::transform(handlesA.begin(), handlesA.end(), std::back_inserter(designsA), UhdmDesignFromVpiHandle);
 
   std::vector<const uhdm::Design *> designsB;
   designsB.reserve(handlesB.size());
-  std::transform(handlesB.begin(), handlesB.end(), std::back_inserter(designsB),
-                 to_design);
+  std::transform(handlesB.begin(), handlesB.end(), std::back_inserter(designsB), UhdmDesignFromVpiHandle);
 
   for (size_t i = 0, n = designsA.size(); i < n; ++i) {
     uhdm::UhdmComparer comparer;

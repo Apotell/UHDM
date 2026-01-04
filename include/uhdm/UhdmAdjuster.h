@@ -33,8 +33,7 @@ namespace uhdm {
 class Serializer;
 class UhdmAdjuster final : public VpiListener {
  public:
-  UhdmAdjuster(Serializer* serializer, Design* design)
-      : m_serializer(serializer), m_design(design) {}
+  UhdmAdjuster(Serializer* serializer, Design* design) : m_serializer(serializer), m_design(design) {}
 
  private:
   void leaveCaseStmt(const CaseStmt* object, vpiHandle handle) final;

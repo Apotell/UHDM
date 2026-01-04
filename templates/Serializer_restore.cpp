@@ -113,7 +113,7 @@ const std::vector<vpiHandle> Serializer::restore(const std::string& filepath) {
 
   Factory* const designFactory = m_factories[UhdmType::Design];
   for (auto d : designFactory->m_objects) {
-    vpiHandle designH = m_uhdmHandleFactory.make(UhdmType::Design, d);
+    vpiHandle designH = makeUhdmHandle(UhdmType::Design, d);
     designs.emplace_back(designH);
   }
 

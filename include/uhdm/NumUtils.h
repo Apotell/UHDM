@@ -31,8 +31,7 @@
 #include <string>
 #include <string_view>
 
-namespace uhdm {
-namespace NumUtils {
+namespace uhdm::NumUtils {
 namespace internal {
 // These functions parse a number from a std::string_view into "result".
 // Returns the end of the number on success, nullptr otherwise.
@@ -68,8 +67,7 @@ const char* strToInt(std::string_view s, int32_t base, result_type* result) {
   }
 
   // If the number surely isn't -ve, try parsing as unsigned
-  if ((s.front() != '-') &&
-      (parse_result.ec == std::errc::result_out_of_range)) {
+  if ((s.front() != '-') && (parse_result.ec == std::errc::result_out_of_range)) {
     uint_type un = 0;
     parse_result = std::from_chars(s.data(), s.data() + s.size(), un, base);
     if (parse_result.ec == std::errc()) {
@@ -100,8 +98,7 @@ uint64_t getMask(uint64_t wide);
 // of that size is allowed. The final value is cast to the signed or unsigned
 // potentially flipping the sign (but we're leniently allowing that).
 template <typename result_type>
-[[nodiscard]] inline const char* parseIntLenient(std::string_view s,
-                                                 result_type* result) {
+[[nodiscard]] inline const char* parseIntLenient(std::string_view s, result_type* result) {
   if constexpr (sizeof(result_type) == 4) {
     return internal::strToInt<int32_t, uint32_t, result_type>(s, 10, result);
   } else {
@@ -110,30 +107,25 @@ template <typename result_type>
 }
 
 // Parse signed int32, stricly matching its range
-[[nodiscard]] inline const char* parseInt32(std::string_view s,
-                                            int32_t* result) {
+[[nodiscard]] inline const char* parseInt32(std::string_view s, int32_t* result) {
   return internal::strToNum(s, 10, result);
 }
 // Parse uint32, stricly matching its range; no negative numbers
-[[nodiscard]] inline const char* parseUint32(std::string_view s,
-                                             uint32_t* result) {
+[[nodiscard]] inline const char* parseUint32(std::string_view s, uint32_t* result) {
   return internal::strToNum(s, 10, result);
 }
 
 // Parse signed int64, stricly matching its range; no negative numbers
-[[nodiscard]] inline const char* parseInt64(std::string_view s,
-                                            int64_t* result) {
+[[nodiscard]] inline const char* parseInt64(std::string_view s, int64_t* result) {
   return internal::strToNum(s, 10, result);
 }
 // Parse uint64, stricly matching its range; no negative numbers
-[[nodiscard]] inline const char* parseUint64(std::string_view s,
-                                             uint64_t* result) {
+[[nodiscard]] inline const char* parseUint64(std::string_view s, uint64_t* result) {
   return internal::strToNum(s, 10, result);
 }
 
 template <typename result_type>
-[[nodiscard]] inline const char* parseBinary(std::string_view s,
-                                             result_type* result) {
+[[nodiscard]] inline const char* parseBinary(std::string_view s, result_type* result) {
   if constexpr (sizeof(result_type) == 4) {
     return internal::strToInt<int32_t, uint32_t, result_type>(s, 2, result);
   } else {
@@ -142,8 +134,7 @@ template <typename result_type>
 }
 
 template <typename result_type>
-[[nodiscard]] inline const char* parseOctal(std::string_view s,
-                                            result_type* result) {
+[[nodiscard]] inline const char* parseOctal(std::string_view s, result_type* result) {
   if constexpr (sizeof(result_type) == 4) {
     return internal::strToInt<int32_t, uint32_t, result_type>(s, 8, result);
   } else {
@@ -152,8 +143,7 @@ template <typename result_type>
 }
 
 template <typename result_type>
-[[nodiscard]] inline const char* parseHex(std::string_view s,
-                                          result_type* result) {
+[[nodiscard]] inline const char* parseHex(std::string_view s, result_type* result) {
   if constexpr (sizeof(result_type) == 4) {
     return internal::strToInt<int32_t, uint32_t, result_type>(s, 16, result);
   } else {
@@ -174,9 +164,7 @@ template <typename result_type>
 // Parse long double value.
 // Returns the pointer to one char after the parsed value or nullptr on
 // failure.
-[[nodiscard]] const char* parseLongDouble(std::string_view s,
-                                          long double* result);
-}  // namespace NumUtils
-}  // namespace uhdm
+[[nodiscard]] const char* parseLongDouble(std::string_view s, long double* result);
+}  // namespace uhdm::NumUtils
 
 #endif  // UHDM_NUMUTILS_H

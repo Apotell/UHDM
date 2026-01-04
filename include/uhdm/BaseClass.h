@@ -45,9 +45,7 @@ class Comment;
 class Serializer;
 class UhdmComparer;
 
-#ifndef SWIG
 static inline constexpr std::string_view kEmpty("");
-#endif
 
 class ClientData {
  public:
@@ -127,16 +125,13 @@ class BaseClass : public RTTI {
   // TODO: Make the next three functions pure-virtual after transition to pygen.
   virtual const BaseClass* getByVpiName(std::string_view name) const;
 
-  using get_by_vpi_type_return_t =
-      std::tuple<UhdmType, const BaseClass*,
-                 const std::vector<const BaseClass*>*>;
+  using get_by_vpi_type_return_t = std::tuple<UhdmType, const BaseClass*, const std::vector<const BaseClass*>*>;
   virtual get_by_vpi_type_return_t getByVpiType(int32_t type) const;
 
   using vpi_property_value_t = std::variant<int64_t, const char*>;
   virtual vpi_property_value_t getVpiPropertyValue(int32_t property) const;
 
-  virtual int32_t compare(const BaseClass* other,
-                          UhdmComparer* comparer) const;
+  virtual int32_t compare(const BaseClass* other, UhdmComparer* comparer) const;
 
  protected:
   std::string computeFullName() const;
@@ -145,8 +140,7 @@ class BaseClass : public RTTI {
   virtual void swap(const std::map<const BaseClass*, BaseClass*>& replacements);
 
   template <typename T>
-  static void swapT(std::vector<T*>& collection, const BaseClass* what,
-                    BaseClass* with) {
+  static void swapT(std::vector<T*>& collection, const BaseClass* what, BaseClass* with) {
     auto it = std::find(collection.begin(), collection.end(), what);
     if (it != collection.end()) {
       if (with == nullptr) {
@@ -160,13 +154,10 @@ class BaseClass : public RTTI {
   }
 
   template <typename T>
-  static void swapT(
-      std::vector<T*>& collection,
-      const std::map<const BaseClass*, BaseClass*>& replacements) {
-    if (!std::any_of(collection.cbegin(), collection.cend(),
-                     [&replacements](const BaseClass* const any) {
-                       return replacements.find(any) != replacements.cend();
-                     })) {
+  static void swapT(std::vector<T*>& collection, const std::map<const BaseClass*, BaseClass*>& replacements) {
+    if (!std::any_of(collection.cbegin(), collection.cend(), [&replacements](const BaseClass* const any) {
+          return replacements.find(any) != replacements.cend();
+        })) {
       return;
     }
 

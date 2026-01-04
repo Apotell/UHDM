@@ -28,6 +28,7 @@
 #define UHDM_VPI_UHDM_H
 
 #include <uhdm/uhdm_types.h>
+#include <uhdm/BaseClass.h>
 
 #include <string>
 #include <string_view>
@@ -38,32 +39,52 @@ namespace uhdm {
   class Serializer;
 };  // namespace uhdm
 
-struct uhdm_handle final {
-  uhdm_handle(uhdm::UhdmType type, const void* object) :
-    type(type), object(object), index(0) {}
-  const uhdm::UhdmType type;
-  const void* object;
-  uint32_t index;
+struct UhdmHandle final {
+  explicit UhdmHandle(const uhdm::BaseClass* object, uint32_t index = 0)
+      : UhdmHandle(object->getUhdmType(), object, index) {}
+  UhdmHandle(uhdm::UhdmType type, const void* object, uint32_t index = 0)
+      : type(type), object(object), index(index) {}
+
+  const uhdm::UhdmType type = uhdm::UhdmType::Any;
+  const void* const object = nullptr;
+  uint32_t index = 0;
 };
 
 class UhdmHandleFactory final {
-  friend uhdm::Serializer;
-
  public:
-  vpiHandle make(uhdm::UhdmType type, const void* object) {
-    return (vpiHandle) new uhdm_handle(type, object);
+  UhdmHandle* make(const uhdm::BaseClass* object, uint32_t index = 0) {
+    return new UhdmHandle(object, index);
   }
 
-  bool erase(vpiHandle handle) {
-    delete (uhdm_handle*)handle;
+  UhdmHandle* make(uhdm::UhdmType type, const void* object, uint32_t index = 0) {
+    return new UhdmHandle(type, object, index);
+  }
+
+  bool erase(UhdmHandle* handle) {
+    delete handle;
     return true;
   }
 
   void purge() {}
 };
 
+class ScopedUhdmHandle final {
+ public:
+  explicit ScopedUhdmHandle(const uhdm::BaseClass* object, uint32_t index = 0)
+      : m_handle(new UhdmHandle(object, index)) {}
+  ~ScopedUhdmHandle() {
+    if (m_handle != nullptr) delete m_handle;
+  }
+
+  operator vpiHandle() const { return (vpiHandle)m_handle; }
+
+ private:
+  const UhdmHandle* const m_handle = nullptr;
+};
+using ScopedVpiHandle = ScopedUhdmHandle;
+
 /** Obtain a vpiHandle from a BaseClass (any) object */
-vpiHandle NewVpiHandle (const uhdm::BaseClass* object);
+vpiHandle NewVpiHandle(const uhdm::BaseClass* object);
 
 s_vpi_value* String2VpiValue(std::string_view sv);
 

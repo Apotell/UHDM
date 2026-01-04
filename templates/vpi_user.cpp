@@ -22,8 +22,15 @@
  *
  * Created on December 14, 2019, 10:03 PM
  */
+#include <uhdm/NumUtils.h>
+#include <uhdm/Serializer.h>
+#include <uhdm/UhdmComparer.h>
+#include <uhdm/containers.h>
 #include <uhdm/sv_vpi_user.h>
+#include <uhdm/uhdm.h>
+#include <uhdm/uhdm_types.h>
 #include <uhdm/vhpi_user.h>
+#include <uhdm/vpi_uhdm.h>
 
 #include <cctype>
 #include <cstring>
@@ -31,14 +38,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include <uhdm/NumUtils.h>
-#include <uhdm/Serializer.h>
-#include <uhdm/containers.h>
-#include <uhdm/uhdm.h>
-#include <uhdm/uhdm_types.h>
-#include <uhdm/vpi_uhdm.h>
-#include <uhdm/UhdmComparer.h>
 
 <HEADERS>
 
@@ -58,14 +57,12 @@ static int32_t StriCmp(std::string_view lhs, std::string_view rhs) {
     if (lc != rc) return (lc < rc) ? -1 : +1;
   }
 
-  return (lhs.length() == rhs.length())
-    ? 0
-    : ((lhs.length() < rhs.length()) ? -1 : +1);
+  return (lhs.length() == rhs.length()) ? 0 : ((lhs.length() < rhs.length()) ? -1 : +1);
 }
 
 Design* UhdmDesignFromVpiHandle(vpiHandle hdesign) {
   if (!hdesign) return nullptr;
-  Any* tmp = (Any*)((uhdm_handle*)hdesign)->object;
+  Any* tmp = (Any*)((UhdmHandle*)hdesign)->object;
   if (tmp->getUhdmType() == UhdmType::Design)
     return (Design*)tmp;
   else
@@ -98,7 +95,9 @@ s_vpi_value* String2VpiValue(std::string_view sv) {
       case 'Z': val->value.scalar = vpiZ; break;
       case 'X': val->value.scalar = vpiX; break;
       case 'H': val->value.scalar = vpiH; break;
-      case 'L': val->value.scalar = vpiL; break;
+      case 'L':
+        val->value.scalar = vpiL;
+        break;
         // Not really clear what the difference between X and DontCare is.
         // Let's parse 'W'eak don't care as this one.
       case 'W': val->value.scalar = vpiDontCare; break;
@@ -198,7 +197,7 @@ std::string VpiValue2String(const s_vpi_value* value) {
     case vpiOctStrVal: return std::string(kOctPrefix).append(value->value.str);
     case vpiBinStrVal: return std::string(kBinPrefix).append(value->value.str);
     case vpiDecStrVal: return std::string(kDecPrefix).append(value->value.str);
-    case vpiRealVal: return std::string(kRealPrefix) .append(std::to_string(value->value.real));
+    case vpiRealVal: return std::string(kRealPrefix).append(std::to_string(value->value.real));
   }
 
   return "";
@@ -213,90 +212,77 @@ std::string VpiDelay2String(const s_vpi_delay* delay) {
       result.append("#").append(std::to_string(delay->da[0].low));
       break;
     }
-    default:
-      break;
+    default: break;
   }
   return result;
 }
 
 vpiHandle NewVpiHandle(const BaseClass* object) {
-  return reinterpret_cast<vpiHandle>(
-      new uhdm_handle(object->getUhdmType(), object));
-}
-
-static vpiHandle NewHandle(UhdmType type, const void* object) {
-  return reinterpret_cast<vpiHandle>(new uhdm_handle(type, object));
+  if (object == nullptr) return nullptr;
+  uhdm::Serializer* const serializer = object->getSerializer();
+  return serializer->makeUhdmHandle(object->getUhdmType(), object);
 }
 
 vpiHandle vpi_handle_by_index(vpiHandle object, PLI_INT32 indx) { return 0; }
 
 vpiHandle vpi_handle_by_name(PLI_BYTE8* name, vpiHandle refHandle) {
-  const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
+  const UhdmHandle* const handle = (const UhdmHandle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
-  if (object->getSerializer()->getSymbolId(name) ==
-      SymbolFactory::getBadId()) {
+  if (object->getSerializer()->getSymbolId(name) == SymbolFactory::getBadId()) {
     return nullptr;
   }
-  const BaseClass *const ref = object->getByVpiName(std::string_view(name));
-  return (ref != nullptr) ? NewVpiHandle(ref) : nullptr;
+  const BaseClass* const ref = object->getByVpiName(std::string_view(name));
+  return NewVpiHandle(ref);
 }
 
 vpiHandle vpi_handle(PLI_INT32 type, vpiHandle refHandle) {
-  const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
+  const UhdmHandle* const handle = (const UhdmHandle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
   auto [ignored1, ref, ignored2] = object->getByVpiType(type);
-  return (ref != nullptr) ? NewHandle(ref->getUhdmType(), ref) : nullptr;
+  return NewVpiHandle(ref);
 }
 
-vpiHandle vpi_handle_multi(PLI_INT32 type, vpiHandle refHandle1,
-                           vpiHandle refHandle2, ...) {
-  return 0;
-}
+vpiHandle vpi_handle_multi(PLI_INT32 type, vpiHandle refHandle1, vpiHandle refHandle2, ...) { return 0; }
 
 /* for traversing relationships */
 
 vpiHandle vpi_iterate(PLI_INT32 type, vpiHandle refHandle) {
-  const uhdm_handle* const handle = (const uhdm_handle*)refHandle;
+  const UhdmHandle* const handle = (const UhdmHandle*)refHandle;
   const BaseClass* const object = (const BaseClass*)handle->object;
   auto [refType, ignored, refCollection] = object->getByVpiType(type);
-  return (refCollection != nullptr) ? NewHandle(refType, refCollection) : nullptr;
+  uhdm::Serializer* const serializer = object->getSerializer();
+  return serializer->makeUhdmHandle(refType, refCollection);
 }
 
 PLI_INT32 vpi_compare_objects(vpiHandle handle1, vpiHandle handle2) {
-  const BaseClass* const object1 =
-      (const BaseClass*)((const uhdm_handle*)handle1)->object;
-  const BaseClass* const object2 =
-      (const BaseClass*)((const uhdm_handle*)handle2)->object;
+  const BaseClass* const object1 = (const BaseClass*)((const UhdmHandle*)handle1)->object;
+  const BaseClass* const object2 = (const BaseClass*)((const UhdmHandle*)handle2)->object;
   // NOTE: As per the standard, this API is expected to return a 1 for equal.
   // And, yes that is counter intuitive. But BaseClass::Compare returns a 0
   // for equal. Negate the result here to meet standard requirements.
   UhdmComparer comparer;
-  return (object1 == object2)
-             ? 1
-             : ((comparer.compare(object1, object2) == 0) ? 1 : 0);
+  return (object1 == object2) ? 1 : ((comparer.compare(object1, object2) == 0) ? 1 : 0);
 }
 
 vpiHandle vpi_scan(vpiHandle iterator) {
   if (!iterator) return 0;
-  uhdm_handle* handle = (uhdm_handle*)iterator;
-  const std::vector<const BaseClass*>* vect =
-      (const std::vector<const BaseClass*>*)handle->object;
+  UhdmHandle* handle = (UhdmHandle*)iterator;
+  const std::vector<const BaseClass*>* vect = (const std::vector<const BaseClass*>*)handle->object;
   if (handle->index < vect->size()) {
     const BaseClass* const object = vect->at(handle->index);
-    uhdm_handle* h = new uhdm_handle(object->getUhdmType(), object);
-    ++handle->index;
-    return (vpiHandle) h;
+    uhdm::Serializer* const serializer = object->getSerializer();
+    return serializer->makeUhdmHandle(object->getUhdmType(), object, handle->index++);
   }
   return nullptr;
 }
 
-PLI_INT32 vpi_free_object(vpiHandle object) {
-  return vpi_release_handle(object);
-}
+PLI_INT32 vpi_free_object(vpiHandle object) { return vpi_release_handle(object); }
 
-PLI_INT32 vpi_release_handle(vpiHandle object) {
-  delete (uhdm_handle*)object;
-  return 0;
+PLI_INT32 vpi_release_handle(vpiHandle handle) {
+  if (handle == nullptr) return 0;
+  const BaseClass* const object = (const BaseClass*)((UhdmHandle*)handle)->object;
+  uhdm::Serializer* const serializer = object->getSerializer();
+  return serializer->erase(handle) ? 1 : 0;
 }
 
 /* for processing properties */
@@ -318,7 +304,7 @@ PLI_INT64 vpi_get64(PLI_INT32 property, vpiHandle object) {
     return 0;
   }
 
-  const uhdm_handle* const handle = (const uhdm_handle*)object;
+  const UhdmHandle* const handle = (const UhdmHandle*)object;
   const BaseClass* const obj = (const BaseClass*)handle->object;
   BaseClass::vpi_property_value_t value = obj->getVpiPropertyValue(property);
   return std::holds_alternative<int64_t>(value) ? std::get<int64_t>(value) : 0;
@@ -329,12 +315,10 @@ PLI_BYTE8* vpi_get_str(PLI_INT32 property, vpiHandle object) {
     std::cout << "VPI ERROR: Bad usage of vpi_get_str" << std::endl;
     return 0;
   }
-  const uhdm_handle* const handle = (const uhdm_handle*)object;
+  const UhdmHandle* const handle = (const UhdmHandle*)object;
   const BaseClass* const obj = (const BaseClass*)handle->object;
   BaseClass::vpi_property_value_t value = obj->getVpiPropertyValue(property);
-  return std::holds_alternative<const char *>(value)
-      ? const_cast<char *>(std::get<const char *>(value))
-      : nullptr;
+  return std::holds_alternative<const char*>(value) ? const_cast<char*>(std::get<const char*>(value)) : nullptr;
 }
 
 /* delay processing */
@@ -345,7 +329,7 @@ void vpi_get_delays(vpiHandle object, p_vpi_delay delay_p) {
     std::cout << "VPI ERROR: Bad usage of vpi_get_delay" << std::endl;
     return;
   }
-  const uhdm_handle* const handle = (const uhdm_handle*)object;
+  const UhdmHandle* const handle = (const UhdmHandle*)object;
   const BaseClass* const obj = (const BaseClass*)handle->object;
 <VPI_GET_DELAY_BODY>
 }
@@ -360,106 +344,63 @@ void vpi_get_value(vpiHandle vexpr, p_vpi_value value_p) {
     std::cout << "VPI ERROR: Bad usage of vpi_get_value" << std::endl;
     return;
   }
-  const uhdm_handle* const handle = (const uhdm_handle*)vexpr;
+  const UhdmHandle* const handle = (const UhdmHandle*)vexpr;
   const BaseClass* const obj = (const BaseClass*)handle->object;
 <VPI_GET_VALUE_BODY>
 }
 
-vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p,
-                        p_vpi_time time_p, PLI_INT32 flags) {
-  return 0;
-}
+vpiHandle vpi_put_value(vpiHandle object, p_vpi_value value_p, p_vpi_time time_p, PLI_INT32 flags) { return 0; }
 
-void vpi_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p,
-                         PLI_INT32* index_p, PLI_UINT32 num) {}
+void vpi_get_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT32* index_p, PLI_UINT32 num) {}
 
-void vpi_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p,
-                         PLI_INT32* index_p, PLI_UINT32 num) {}
+void vpi_put_value_array(vpiHandle object, p_vpi_arrayvalue arrayvalue_p, PLI_INT32* index_p, PLI_UINT32 num) {}
 
 /* time processing */
 
 void vpi_get_time(vpiHandle object, p_vpi_time time_p) {}
 
-PLI_INT32 vpi_get_data(PLI_INT32 id, PLI_BYTE8* dataLoc, PLI_INT32 numOfBytes) {
-  return 0;
-}
+PLI_INT32 vpi_get_data(PLI_INT32 id, PLI_BYTE8* dataLoc, PLI_INT32 numOfBytes) { return 0; }
 
-PLI_INT32 vpi_put_data(PLI_INT32 id, PLI_BYTE8* dataLoc, PLI_INT32 numOfBytes) {
-  return 0;
-}
+PLI_INT32 vpi_put_data(PLI_INT32 id, PLI_BYTE8* dataLoc, PLI_INT32 numOfBytes) { return 0; }
 
 void* vpi_get_userdata(vpiHandle obj) { return 0; }
 
 PLI_INT32 vpi_put_userdata(vpiHandle obj, void* userdata) { return 0; }
 
-vpiHandle vpi_handle_by_multi_index(vpiHandle obj, PLI_INT32 num_index,
-                                    PLI_INT32* index_array) {
+vpiHandle vpi_handle_by_multi_index(vpiHandle obj, PLI_INT32 num_index, PLI_INT32* index_array) { return 0; }
+
+vpiHandle vpi_register_assertion_cb(vpiHandle assertion, PLI_INT32 reason, vpi_assertion_callback_func* cb_rtn,
+                                    PLI_BYTE8* user_data) {
   return 0;
 }
 
-
-vpiHandle vpi_register_assertion_cb(vpiHandle assertion, PLI_INT32 reason, vpi_assertion_callback_func *cb_rtn, PLI_BYTE8 *user_data) {
-  return 0;
-}
-
-
-PLI_INT32 vpi_printf(PLI_BYTE8 *format, ...) {
-  return 0;
-};
+PLI_INT32 vpi_printf(PLI_BYTE8* format, ...) { return 0; };
 
 /* callback related */
-vpiHandle vpi_register_cb(p_cb_data cb_data_p) {
-  return 0;
-}
+vpiHandle vpi_register_cb(p_cb_data cb_data_p) { return 0; }
 
-PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) {
-  return 0;
-}
+PLI_INT32 vpi_remove_cb(vpiHandle cb_obj) { return 0; }
 
-void vpi_get_cb_info(vpiHandle object, p_cb_data cb_data_p) {
-}
+void vpi_get_cb_info(vpiHandle object, p_cb_data cb_data_p) {}
 
-vpiHandle vpi_register_systf(p_vpi_systf_data systf_data_p) {
-  return 0;
-}
+vpiHandle vpi_register_systf(p_vpi_systf_data systf_data_p) { return 0; }
 
-void vpi_get_systf_info(vpiHandle object, p_vpi_systf_data systf_data_p) {
-}
+void vpi_get_systf_info(vpiHandle object, p_vpi_systf_data systf_data_p) {}
 
-PLI_UINT32 vpi_mcd_open(PLI_BYTE8 *fileName) {
-  return 0;
-}
-PLI_UINT32 vpi_mcd_close(PLI_UINT32 mcd) {
-  return 0;
-}
-PLI_BYTE8 *vpi_mcd_name(PLI_UINT32 cd) {
-  return 0;
-}
-PLI_INT32 vpi_mcd_printf(PLI_UINT32 mcd,PLI_BYTE8 *format, ...) {
-  return 0;
-}
+PLI_UINT32 vpi_mcd_open(PLI_BYTE8* fileName) { return 0; }
+PLI_UINT32 vpi_mcd_close(PLI_UINT32 mcd) { return 0; }
+PLI_BYTE8* vpi_mcd_name(PLI_UINT32 cd) { return 0; }
+PLI_INT32 vpi_mcd_printf(PLI_UINT32 mcd, PLI_BYTE8* format, ...) { return 0; }
 
-PLI_INT32 vpi_chk_error(p_vpi_error_info error_info_p) {
-  return 0;
-}
-PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) {
-  return 0;
-}
+PLI_INT32 vpi_chk_error(p_vpi_error_info error_info_p) { return 0; }
+PLI_INT32 vpi_get_vlog_info(p_vpi_vlog_info vlog_info_p) { return 0; }
 
-PLI_INT32 vpi_flush(void) {
-  return 0;
-}
-PLI_INT32 vpi_mcd_flush(PLI_UINT32 mcd) {
-  return 0;
-}
-PLI_INT32 vpi_control(PLI_INT32 operation, ...) {
-  return 0;
-}
+PLI_INT32 vpi_flush(void) { return 0; }
+PLI_INT32 vpi_mcd_flush(PLI_UINT32 mcd) { return 0; }
+PLI_INT32 vpi_control(PLI_INT32 operation, ...) { return 0; }
 
-/* 
+/*
  * 38.37.1 System task and system function callbacks
  * Global variable
  */
-void (*vlog_startup_routines[]) () = {
-  0
-};
+void (*vlog_startup_routines[])() = {0};

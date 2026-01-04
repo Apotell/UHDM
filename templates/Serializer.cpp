@@ -59,20 +59,14 @@ class TypespecUnifier final : public UhdmListener {
     using UhdmComparer::compare;
 
     inline bool isOfPrimitiveType(const Any* any) const {
-      return (any->getUhdmType() == UhdmType::BitTypespec) ||
-             (any->getUhdmType() == UhdmType::ByteTypespec) ||
-             (any->getUhdmType() == UhdmType::IntTypespec) ||
-             (any->getUhdmType() == UhdmType::IntegerTypespec) ||
-             (any->getUhdmType() == UhdmType::LogicTypespec) ||
-             (any->getUhdmType() == UhdmType::LongIntTypespec) ||
-             (any->getUhdmType() == UhdmType::RealTypespec) ||
-             (any->getUhdmType() == UhdmType::ShortIntTypespec) ||
-             (any->getUhdmType() == UhdmType::ShortRealTypespec) ||
-             (any->getUhdmType() == UhdmType::StringTypespec);
+      return (any->getUhdmType() == UhdmType::BitTypespec) || (any->getUhdmType() == UhdmType::ByteTypespec) ||
+             (any->getUhdmType() == UhdmType::IntTypespec) || (any->getUhdmType() == UhdmType::IntegerTypespec) ||
+             (any->getUhdmType() == UhdmType::LogicTypespec) || (any->getUhdmType() == UhdmType::LongIntTypespec) ||
+             (any->getUhdmType() == UhdmType::RealTypespec) || (any->getUhdmType() == UhdmType::ShortIntTypespec) ||
+             (any->getUhdmType() == UhdmType::ShortRealTypespec) || (any->getUhdmType() == UhdmType::StringTypespec);
     }
 
-    int32_t compare(const Any* plhs, uint16_t lhs, const Any* prhs,
-                    uint16_t rhs, uint32_t relation, int32_t r) final {
+    int32_t compare(const Any* plhs, uint16_t lhs, const Any* prhs, uint16_t rhs, uint32_t relation, int32_t r) final {
       if ((relation == vpiStartColumn) || (relation == vpiEndColumn)) {
         // Ignore location information for typespecs
         if (const Typespec* const p = getParent<Typespec>(plhs)) {
@@ -84,8 +78,7 @@ class TypespecUnifier final : public UhdmListener {
       return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
     }
 
-    int32_t compare(const Any* plhs, uint32_t lhs, const Any* prhs,
-                    uint32_t rhs, uint32_t relation, int32_t r) final {
+    int32_t compare(const Any* plhs, uint32_t lhs, const Any* prhs, uint32_t rhs, uint32_t relation, int32_t r) final {
       if ((relation == vpiStartLine) || (relation == vpiEndLine)) {
         // Ignore location information for typespecs
         if (const Typespec* const p = getParent<Typespec>(plhs)) {
@@ -104,28 +97,23 @@ class TypespecUnifier final : public UhdmListener {
     typename std::vector<T*> typespecs;
 
     // Don't remove UnsupportedTypespec(s)
-    std::copy_if(container.cbegin(), container.cend(),
-                 std::back_inserter(typespecs), [](const Any* const any) {
-                   return (any->getUhdmType() != UhdmType::UnsupportedTypespec);
-                 });
+    std::copy_if(container.cbegin(), container.cend(), std::back_inserter(typespecs),
+                 [](const Any* const any) { return (any->getUhdmType() != UhdmType::UnsupportedTypespec); });
     if (typespecs.size() < 2) return;
 
     // Sort and find duplicates (keep first and delete others).
-    std::sort(typespecs.begin(), typespecs.end(),
-              [this](const T* const lhs, const T* const rhs) {
-                int32_t r = static_cast<int32_t>(lhs->getUhdmType()) -
-                            static_cast<int32_t>(rhs->getUhdmType());
-                if (r == 0) r = m_comparer.compare(lhs, rhs);
-                if (r == 0) r = lhs->getUhdmId() - rhs->getUhdmId();
-                return r < 0;
-              });
+    std::sort(typespecs.begin(), typespecs.end(), [this](const T* const lhs, const T* const rhs) {
+      int32_t r = static_cast<int32_t>(lhs->getUhdmType()) - static_cast<int32_t>(rhs->getUhdmType());
+      if (r == 0) r = m_comparer.compare(lhs, rhs);
+      if (r == 0) r = lhs->getUhdmId() - rhs->getUhdmId();
+      return r < 0;
+    });
 
     T* first = const_cast<T*>(typespecs.front());
     for (size_t i = 1, ni = typespecs.size(); i < ni; ++i) {
       const T* const any = typespecs[i];
 
-      if ((first != any) && (first->getUhdmType() == any->getUhdmType()) &&
-          (m_comparer.compare(first, any) == 0)) {
+      if ((first != any) && (first->getUhdmType() == any->getUhdmType()) && (m_comparer.compare(first, any) == 0)) {
         m_replacements.emplace(any, first);
       } else {
         first = const_cast<T*>(any);
@@ -133,160 +121,121 @@ class TypespecUnifier final : public UhdmListener {
     }
   }
 
-  void enterTypespecCollection(const Any* object,
-                               const TypespecCollection& objects,
-                               uint32_t relation) final {
+  void enterTypespecCollection(const Any* object, const TypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
 
-  void enterArrayTypespecCollection(const Any* object,
-                                    const ArrayTypespecCollection& objects,
+  void enterArrayTypespecCollection(const Any* object, const ArrayTypespecCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterBitTypespecCollection(const Any* object,
-                                  const BitTypespecCollection& objects,
-                                  uint32_t relation) final {
+  void enterBitTypespecCollection(const Any* object, const BitTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterByteTypespecCollection(const Any* object,
-                                   const ByteTypespecCollection& objects,
-                                   uint32_t relation) final {
+  void enterByteTypespecCollection(const Any* object, const ByteTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterChandleTypespecCollection(const Any* object,
-                                      const ChandleTypespecCollection& objects,
+  void enterChandleTypespecCollection(const Any* object, const ChandleTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterClassTypespecCollection(const Any* object,
-                                    const ClassTypespecCollection& objects,
+  void enterClassTypespecCollection(const Any* object, const ClassTypespecCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterEnumTypespecCollection(const Any* object,
-                                   const EnumTypespecCollection& objects,
-                                   uint32_t relation) final {
+  void enterEnumTypespecCollection(const Any* object, const EnumTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterEventTypespecCollection(const Any* object,
-                                    const EventTypespecCollection& objects,
+  void enterEventTypespecCollection(const Any* object, const EventTypespecCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterImportTypespecCollection(const Any* object,
-                                     const ImportTypespecCollection& objects,
+  void enterImportTypespecCollection(const Any* object, const ImportTypespecCollection& objects,
                                      uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterIntTypespecCollection(const Any* object,
-                                  const IntTypespecCollection& objects,
-                                  uint32_t relation) final {
+  void enterIntTypespecCollection(const Any* object, const IntTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterIntegerTypespecCollection(const Any* object,
-                                      const IntegerTypespecCollection& objects,
+  void enterIntegerTypespecCollection(const Any* object, const IntegerTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterInterfaceTypespecCollection(
-      const Any* object, const InterfaceTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterInterfaceTypespecCollection(const Any* object, const InterfaceTypespecCollection& objects,
+                                        uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterLogicTypespecCollection(const Any* object,
-                                    const LogicTypespecCollection& objects,
+  void enterLogicTypespecCollection(const Any* object, const LogicTypespecCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterLongIntTypespecCollection(const Any* object,
-                                      const LongIntTypespecCollection& objects,
+  void enterLongIntTypespecCollection(const Any* object, const LongIntTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterModuleTypespecCollection(const Any* object,
-                                     const ModuleTypespecCollection& objects,
+  void enterModuleTypespecCollection(const Any* object, const ModuleTypespecCollection& objects,
                                      uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterProgramTypespecCollection(const Any* object,
-                                      const ProgramTypespecCollection& objects,
+  void enterProgramTypespecCollection(const Any* object, const ProgramTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterPropertyTypespecCollection(
-      const Any* object, const PropertyTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterPropertyTypespecCollection(const Any* object, const PropertyTypespecCollection& objects,
+                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterRealTypespecCollection(const Any* object,
-                                   const RealTypespecCollection& objects,
-                                   uint32_t relation) final {
+  void enterRealTypespecCollection(const Any* object, const RealTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterSequenceTypespecCollection(
-      const Any* object, const SequenceTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterSequenceTypespecCollection(const Any* object, const SequenceTypespecCollection& objects,
+                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterShortIntTypespecCollection(
-      const Any* object, const ShortIntTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterShortIntTypespecCollection(const Any* object, const ShortIntTypespecCollection& objects,
+                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterShortRealTypespecCollection(
-      const Any* object, const ShortRealTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterShortRealTypespecCollection(const Any* object, const ShortRealTypespecCollection& objects,
+                                        uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterStringTypespecCollection(const Any* object,
-                                     const StringTypespecCollection& objects,
+  void enterStringTypespecCollection(const Any* object, const StringTypespecCollection& objects,
                                      uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterStructTypespecCollection(const Any* object,
-                                     const StructTypespecCollection& objects,
+  void enterStructTypespecCollection(const Any* object, const StructTypespecCollection& objects,
                                      uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterTimeTypespecCollection(const Any* object,
-                                   const TimeTypespecCollection& objects,
-                                   uint32_t relation) final {
+  void enterTimeTypespecCollection(const Any* object, const TimeTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterTypeParameterCollection(const Any* object,
-                                    const TypeParameterCollection& objects,
+  void enterTypeParameterCollection(const Any* object, const TypeParameterCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterTypedefTypespecCollection(const Any* object,
-                                      const TypedefTypespecCollection& objects,
+  void enterTypedefTypespecCollection(const Any* object, const TypedefTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterUdpDefnTypespecCollection(const Any* object,
-                                      const UdpDefnTypespecCollection& objects,
+  void enterUdpDefnTypespecCollection(const Any* object, const UdpDefnTypespecCollection& objects,
                                       uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterUnionTypespecCollection(const Any* object,
-                                    const UnionTypespecCollection& objects,
+  void enterUnionTypespecCollection(const Any* object, const UnionTypespecCollection& objects,
                                     uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterUnsupportedTypespecCollection(
-      const Any* object, const UnsupportedTypespecCollection& objects,
-      uint32_t relation) final {
+  void enterUnsupportedTypespecCollection(const Any* object, const UnsupportedTypespecCollection& objects,
+                                          uint32_t relation) final {
     enterTypespecCollection(objects);
   }
-  void enterVoidTypespecCollection(const Any* object,
-                                   const VoidTypespecCollection& objects,
-                                   uint32_t relation) final {
+  void enterVoidTypespecCollection(const Any* object, const VoidTypespecCollection& objects, uint32_t relation) final {
     enterTypespecCollection(objects);
   }
 
-  void enterUnsupportedTypespec(const UnsupportedTypespec* object,
-                                uint32_t relation = 0) final {
+  void enterUnsupportedTypespec(const UnsupportedTypespec* object, uint32_t relation = 0) final {
     if (!m_callstack.empty()) m_references[object].emplace(m_callstack.back());
   }
 
@@ -294,8 +243,7 @@ class TypespecUnifier final : public UhdmListener {
     for (Any* any : factory->getObjects()) listenAny(any);
 
     if (!m_references.empty()) {
-      for (TypespecUnifier::references_t::const_reference entry :
-           m_references) {
+      for (TypespecUnifier::references_t::const_reference entry : m_references) {
         if (entry.second.size() == 1) {
           m_replacements.emplace(entry.first, nullptr);
         }
@@ -380,8 +328,7 @@ void Serializer::collectGarbage() {
 
   Factory* const designFactory = m_factories[UhdmType::Design];
   if (TypespecUnifier* const unifier = new TypespecUnifier) {
-    const replacements_t& replacements =
-        unifier->getReplacements(designFactory);
+    const replacements_t& replacements = unifier->getReplacements(designFactory);
     if (!replacements.empty()) swap(replacements);
     delete unifier;
   }
@@ -406,25 +353,22 @@ void Serializer::collectGarbage() {
   }
 }
 
-void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
-                         const Any* object1, const Any* object2) {
+void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg, const Any* object1, const Any* object2) {
   std::cerr << errorMsg << std::endl;
 }
 
-SymbolId Serializer::makeSymbol(std::string_view symbol) {
-  return m_symbolFactory.registerSymbol(symbol);
+SymbolId Serializer::makeSymbol(std::string_view symbol) { return m_symbolFactory.registerSymbol(symbol); }
+
+std::string_view Serializer::getSymbol(SymbolId id) const { return m_symbolFactory.getSymbol(id); }
+
+SymbolId Serializer::getSymbolId(std::string_view symbol) const { return m_symbolFactory.getId(symbol); }
+
+vpiHandle Serializer::makeUhdmHandle(UhdmType type, const void* object, uint32_t index /* = 0 */) {
+  return (object == nullptr) ? nullptr : (vpiHandle)m_uhdmHandleFactory.make(type, object, index);
 }
 
-std::string_view Serializer::getSymbol(SymbolId id) const {
-  return m_symbolFactory.getSymbol(id);
-}
-
-SymbolId Serializer::getSymbolId(std::string_view symbol) const {
-  return m_symbolFactory.getId(symbol);
-}
-
-vpiHandle Serializer::makeUhdmHandle(UhdmType type, const void* object) {
-  return m_uhdmHandleFactory.make(type, object);
+bool Serializer::erase(vpiHandle handle) {
+  return m_uhdmHandleFactory.erase((UhdmHandle*)handle);
 }
 
 SymbolCollection* Serializer::makeSymbolCollection() {
@@ -449,13 +393,12 @@ std::string UhdmName(UhdmType type) {
 
 // From uhdm_types.h
 std::string VpiTypeName(vpiHandle h) {
-  uhdm_handle* handle = (uhdm_handle*)h;
-  BaseClass* obj = (BaseClass*)handle->object;
+  const UhdmHandle* const handle = (const UhdmHandle*)h;
+  const BaseClass* const obj = (const BaseClass*)handle->object;
   return UhdmName(obj->getUhdmType());
 }
 
-std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats()
-    const {
+std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats() const {
   std::map<std::string, uint32_t, std::less<>> stats;
   for (factories_t::const_reference entry : m_factories) {
     stats.emplace(UhdmName(entry.first), entry.second->m_objects.size());
@@ -463,16 +406,13 @@ std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats()
   return stats;
 }
 
-void Serializer::printStats(std::ostream& strm,
-                            std::string_view infoText) const {
+void Serializer::printStats(std::ostream& strm, std::string_view infoText) const {
   strm << "=== UHDM Object Stats Begin (" << infoText << ") ===" << std::endl;
   auto stats = getObjectStats();
   std::vector<std::string_view> names;
   names.reserve(stats.size());
   std::transform(stats.begin(), stats.end(), std::back_inserter(names),
-                 [](decltype(stats)::value_type const& pair) {
-                   return std::string_view(pair.first);
-                 });
+                 [](decltype(stats)::value_type const& pair) { return std::string_view(pair.first); });
   std::sort(names.begin(), names.end());
 
   size_t total = 0;
@@ -481,14 +421,12 @@ void Serializer::printStats(std::ostream& strm,
     if (it->second > 0) {
       // The longest model name is
       // "enum_struct_union_packed_array_typespec_group"
-      strm << std::setw(48) << std::left << name << std::setw(8) << std::right
-           << it->second << std::endl;
+      strm << std::setw(48) << std::left << name << std::setw(8) << std::right << it->second << std::endl;
       total += it->second;
     }
   }
   strm << std::string(60, '-') << std::endl;
-  strm << std::setw(48) << std::left << "Total:" << std::setw(8) << std::right
-       << total << std::endl;
+  strm << std::setw(48) << std::left << "Total:" << std::setw(8) << std::right << total << std::endl;
   strm << "=== UHDM Object Stats End ===" << std::endl;
 }
 
@@ -508,7 +446,6 @@ void Serializer::purge() {
   }
 }
 
-#ifndef SWIG
 void Serializer::pushScope(Any* s) {
   if ((any_cast<Scope>(s) != nullptr) || (any_cast<Design>(s) != nullptr)) {
     m_scopeStack.emplace_back(s);
@@ -523,10 +460,7 @@ bool Serializer::popScope(Any* s) {
   return false;
 }
 
-ScopedScope::ScopedScope(Any* s) : m_any(s) {
-  m_any->getSerializer()->pushScope(s);
-}
-
+ScopedScope::ScopedScope(Any* s) : m_any(s) { m_any->getSerializer()->pushScope(s); }
 ScopedScope::~ScopedScope() { m_any->getSerializer()->popScope(m_any); }
-#endif
+
 }  // namespace uhdm

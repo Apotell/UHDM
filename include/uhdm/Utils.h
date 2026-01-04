@@ -44,21 +44,17 @@ namespace uhdm {
 }
 
 // Removing spaces on both ends.
-[[nodiscard]] constexpr std::string_view trim(std::string_view str) {
-  return ltrim(rtrim(str));
-}
+[[nodiscard]] constexpr std::string_view trim(std::string_view str) { return ltrim(rtrim(str)); }
 
 // Erase left of the input string until given character is reached.
-[[nodiscard]] constexpr std::string_view ltrim_until(std::string_view str,
-                                                     char c) {
+[[nodiscard]] constexpr std::string_view ltrim_until(std::string_view str, char c) {
   auto pos = str.find(c);
   if (pos != std::string_view::npos) str = str.substr(pos + 1);
   return str;
 }
 
 // Erase right of the input string until given character is reached.
-[[nodiscard]] constexpr std::string_view rtrim_until(std::string_view str,
-                                                     char c) {
+[[nodiscard]] constexpr std::string_view rtrim_until(std::string_view str, char c) {
   auto pos = str.rfind(c);
   if (pos != std::string_view::npos) str = str.substr(0, pos);
   return str;
@@ -66,14 +62,12 @@ namespace uhdm {
 
 // Erase from left and right of the input string until the given character is
 // reached.
-[[nodiscard]] constexpr std::string_view trim_until(std::string_view str,
-                                                    char c) {
+[[nodiscard]] constexpr std::string_view trim_until(std::string_view str, char c) {
   return ltrim_until(rtrim_until(str, c), c);
 }
 
 template <typename R = Any, typename T = Any>
-constexpr auto getActual(T* object) ->
-    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+constexpr auto getActual(T* object) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (object == nullptr) return nullptr;
 
   if (auto* const ro = any_cast<RefObj>(object)) {
@@ -111,8 +105,7 @@ bool setActual(uhdm::Any* object, T* actual) {
 }
 
 template <typename R = Typespec, typename T = Any>
-constexpr auto getTypespec(T* object) ->
-    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+constexpr auto getTypespec(T* object) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (object == nullptr) return nullptr;
 
   if (auto* const e = any_cast<Expr>(object)) {
@@ -159,8 +152,7 @@ constexpr auto getTypespec(T* object) ->
 bool setTypespec(Any* object, Typespec* typespec);
 
 template <typename R = Typespec, typename T = ArrayTypespec>
-constexpr auto getElemTypespec(T* typespec) ->
-    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+constexpr auto getElemTypespec(T* typespec) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getElemTypespec());
   }
@@ -170,8 +162,7 @@ constexpr auto getElemTypespec(T* typespec) ->
 bool setElemTypespec(ArrayTypespec* typespec, Typespec* actual);
 
 template <typename R = Typespec, typename T = ArrayTypespec>
-constexpr auto getIndexTypespec(T* typespec) ->
-    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+constexpr auto getIndexTypespec(T* typespec) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getIndexTypespec());
   }
@@ -181,8 +172,7 @@ constexpr auto getIndexTypespec(T* typespec) ->
 bool setIndexTypespec(ArrayTypespec* typespec, Typespec* actual);
 
 template <typename R, typename T = Any>
-constexpr auto getParent(T* any) ->
-    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+constexpr auto getParent(T* any) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   auto* p = any_cast<Any>(any);
   while (p != nullptr) {
     if (auto* const pp = any_cast<R>(p)) {
@@ -200,8 +190,8 @@ void prettyPrint(std::ostream& out, const Any* object, size_t indent = 0);
 std::string prettyPrint(const Any* object, size_t indent = 0);
 
 template <typename T>
-void prettyPrint(std::ostream& out, const std::vector<T*>* collection,
-                 std::string_view separator = ", ", size_t indent = 0) {
+void prettyPrint(std::ostream& out, const std::vector<T*>* collection, std::string_view separator = ", ",
+                 size_t indent = 0) {
   if (collection == nullptr) return;
 
   if (indent > 0) out << std::string(indent, ' ');

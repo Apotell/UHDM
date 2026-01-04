@@ -26,12 +26,6 @@
 #include <uhdm/uhdm.h>
 
 namespace uhdm {
-ScopedVpiHandle::ScopedVpiHandle(const Any* any) : m_handle(NewVpiHandle(any)) {}
-
-ScopedVpiHandle::~ScopedVpiHandle() {
-  if (m_handle != nullptr) vpi_release_handle(m_handle);
-}
-
 void VpiListener::listenBaseClass_(vpiHandle handle) {
   // NOTE(HS): Don't walk upwards. When initiating calls from non-design
   // objects, the intended behavior is to walk the subtree but enabling
@@ -56,9 +50,9 @@ bool VpiListener::inCallstackOfType(UhdmType type) {
 
 void VpiListener::listenAny(vpiHandle handle) {
   if (m_abortRequested) return;
-  const Any* object = (const Any*)((const uhdm_handle*)handle)->object;
+  const Any* object = (const Any*)((const UhdmHandle*)handle)->object;
   enterAny(object, handle);
-  switch (((const uhdm_handle*)handle)->type) {
+  switch (((const UhdmHandle*)handle)->type) {
 //<VPI_LISTENANY_IMPLEMENTATION>
     default : break;
   }
@@ -67,7 +61,7 @@ void VpiListener::listenAny(vpiHandle handle) {
 
 void VpiListener::listenDesigns(const std::vector<vpiHandle>& designs) {
   for (auto design_h : designs) {
-    m_currentDesign = (Design*) ((const uhdm_handle*)design_h)->object;
+    m_currentDesign = UhdmDesignFromVpiHandle(design_h);
     listenAny(design_h);
   }
 }

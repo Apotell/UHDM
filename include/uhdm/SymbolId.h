@@ -83,22 +83,17 @@ struct SymbolIdPP final {  // Pretty Printer
   const SymbolId &m_id;
   const SymbolFactory *const m_symbolFactory;
 
-  SymbolIdPP(const SymbolId &id, const SymbolFactory *const symbolFactory)
-      : m_id(id), m_symbolFactory(symbolFactory) {}
+  SymbolIdPP(const SymbolId &id, const SymbolFactory *const symbolFactory) : m_id(id), m_symbolFactory(symbolFactory) {}
 };
 
 std::ostream &operator<<(std::ostream &strm, const SymbolIdPP &id);
 
 struct SymbolIdHasher final {
-  inline size_t operator()(const SymbolId &value) const {
-    return std::hash<RawSymbolId>()((RawSymbolId)value);
-  }
+  inline size_t operator()(const SymbolId &value) const { return std::hash<RawSymbolId>()((RawSymbolId)value); }
 };
 
 struct SymbolIdEqualityComparer final {
-  inline bool operator()(const SymbolId &lhs, const SymbolId &rhs) const {
-    return (lhs == rhs);
-  }
+  inline bool operator()(const SymbolId &lhs, const SymbolId &rhs) const { return (lhs == rhs); }
 };
 
 struct SymbolIdLessThanComparer final {

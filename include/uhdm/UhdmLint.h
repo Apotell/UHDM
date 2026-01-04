@@ -31,31 +31,21 @@
 
 namespace uhdm {
 class Serializer;
+
 class UhdmLint final : public VpiListener {
  public:
-  UhdmLint(Serializer* serializer, Design* des)
-      : m_serializer(serializer), m_design(des) {}
+  UhdmLint(Serializer* serializer, Design* des) : m_serializer(serializer), m_design(des) {}
 
  private:
   void leaveBitSelect(const BitSelect* object, vpiHandle handle) override;
-
   void leaveFunction(const Function* object, vpiHandle handle) override;
-
-  void leaveStructTypespec(const StructTypespec* object,
-                           vpiHandle handle) override;
-
+  void leaveStructTypespec(const StructTypespec* object, vpiHandle handle) override;
   void leaveModule(const Module* object, vpiHandle handle) override;
-
   void leaveAssignment(const Assignment* object, vpiHandle handle) override;
-
   void leaveNet(const Net* object, vpiHandle handle) override;
-
   void leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) override;
-
   void leavePropertySpec(const PropertySpec* object, vpiHandle handle) override;
-
   void leaveSysFuncCall(const SysFuncCall* object, vpiHandle handle) override;
-
   void leavePort(const Port* object, vpiHandle handle) override;
 
   void checkMultiContAssign(const std::vector<ContAssign*>* assigns);

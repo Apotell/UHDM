@@ -38,7 +38,7 @@ def _get_listeners(classname, vpi, type, card):
     if 'vpiAll' in vpi:
       listeners.append(f'  uhdmAllIterator = false;')
       listeners.append(f'  m_visited.clear();')
-      listeners.append(f'  m_visited.emplace((const Any*)((const uhdm_handle*)handle)->object);')
+      listeners.append(f'  m_visited.emplace((const Any*)((const UhdmHandle*)handle)->object);')
 
   return listeners
 
@@ -97,7 +97,7 @@ def generate(models):
       classnames.add(ClassName)
 
       public_implementations.append(f'void VpiListener::listen{ClassName}(vpiHandle handle) {{')
-      public_implementations.append(f'  const {ClassName}* object = (const {ClassName}*) ((const uhdm_handle*)handle)->object;')
+      public_implementations.append(f'  const {ClassName}* object = (const {ClassName}*) ((const UhdmHandle*)handle)->object;')
       public_implementations.append(f'  enter{ClassName}(object, handle);')
       public_implementations.append( '  if (m_visited.insert(object).second) {')
       public_implementations.append( '    m_callstack.emplace_back(object);')

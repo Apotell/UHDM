@@ -7,7 +7,7 @@
 
 #include "gtest/gtest.h"
 #include "uhdm/vhpi_user.h"  // vpi_user functions.
-#include "uhdm/vpi_uhdm.h"   // struct uhdm_handle
+#include "uhdm/vpi_uhdm.h"   // struct UhdmHandle
 
 TEST(VpiValue, ToString) {
   s_vpi_value value;
@@ -46,9 +46,7 @@ static std::string ParseAndRegenerateString(const std::string &str) {
   return VpiValue2String(val.get());
 }
 
-static bool ParseConvertBackRoundtrip(const std::string &str) {
-  return ParseAndRegenerateString(str) == str;
-}
+static bool ParseConvertBackRoundtrip(const std::string &str) { return ParseAndRegenerateString(str) == str; }
 
 TEST(VpiValue, ParseValueFindPrefix) {
   EXPECT_EQ(ParseAndRegenerateString("INT:42"), "INT:42");

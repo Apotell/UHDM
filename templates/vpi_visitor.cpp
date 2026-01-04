@@ -31,7 +31,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 static bool showIDs = false;
 static constexpr int32_t kLevelIndent = 2;
@@ -72,8 +71,6 @@ static constexpr int32_t kLevelIndent = 2;
 
 #endif
 
-
-
 // UHDM implementation redefine these
 #ifndef vpiVarBit
   #define vpiVarBit   vpiRegBit
@@ -83,7 +80,6 @@ static constexpr int32_t kLevelIndent = 2;
 
 namespace uhdm {
 #ifdef STANDARD_VPI
-
 static std::string vpiTypeName(vpiHandle h) {
   int32_t type = vpi_get(vpiType, h);
   switch (type) {
@@ -394,7 +390,6 @@ static std::string vpiTypeName(vpiHandle h) {
     case 610: return "vpiLongIntVar";
   }
 }
-
 #endif
 
 static void release_handle(vpiHandle obj_h) {
@@ -406,42 +401,15 @@ static void release_handle(vpiHandle obj_h) {
 static std::string visit_value(s_vpi_value* value) {
   if (value == nullptr) return "";
   switch (value->format) {
-    case vpiIntVal:
-      return std::string("|INT:")
-          .append(std::to_string(value->value.integer))
-          .append("\n");
-    case vpiUIntVal:
-      return std::string("|UINT:")
-          .append(std::to_string(value->value.uint))
-          .append("\n");
-    case vpiStringVal:
-      return std::string("|STRING:")
-          .append((const char*)value->value.str)
-          .append("\n");
-    case vpiBinStrVal:
-      return std::string("|BIN:")
-          .append((const char*)value->value.str)
-          .append("\n");
-    case vpiHexStrVal:
-      return std::string("|HEX:")
-          .append((const char*)value->value.str)
-          .append("\n");
-    case vpiOctStrVal:
-      return std::string("|OCT:")
-          .append((const char*)value->value.str)
-          .append("\n");
-    case vpiRealVal:
-      return std::string("|REAL:")
-          .append(std::to_string(value->value.real))
-          .append("\n");
-    case vpiScalarVal:
-      return std::string("|SCAL:")
-          .append(std::to_string(value->value.scalar))
-          .append("\n");
-    case vpiDecStrVal:
-      return std::string("|DEC:")
-          .append((const char*)value->value.str)
-          .append("\n");
+    case vpiIntVal: return std::string("|INT:").append(std::to_string(value->value.integer)).append("\n");
+    case vpiUIntVal: return std::string("|UINT:").append(std::to_string(value->value.uint)).append("\n");
+    case vpiStringVal: return std::string("|STRING:").append((const char*)value->value.str).append("\n");
+    case vpiBinStrVal: return std::string("|BIN:").append((const char*)value->value.str).append("\n");
+    case vpiHexStrVal: return std::string("|HEX:").append((const char*)value->value.str).append("\n");
+    case vpiOctStrVal: return std::string("|OCT:").append((const char*)value->value.str).append("\n");
+    case vpiRealVal: return std::string("|REAL:").append(std::to_string(value->value.real)).append("\n");
+    case vpiScalarVal: return std::string("|SCAL:").append(std::to_string(value->value.scalar)).append("\n");
+    case vpiDecStrVal: return std::string("|DEC:").append((const char*)value->value.str).append("\n");
   }
   return "";
 }
@@ -449,20 +417,14 @@ static std::string visit_value(s_vpi_value* value) {
 static std::string visit_delays(s_vpi_delay* delay) {
   if (delay == nullptr) return "";
   switch (delay->time_type) {
-    case vpiScaledRealTime:
-      return std::string("|#")
-          .append(std::to_string(delay->da[0].low))
-          .append("\n");
+    case vpiScaledRealTime: return std::string("|#").append(std::to_string(delay->da[0].low)).append("\n");
   }
   return "";
 }
 
-std::ostream& VpiVisitor::stream_indent(int32_t indent) const {
-  return m_out << std::string(indent, ' ');
-}
+std::ostream& VpiVisitor::stream_indent(int32_t indent) const { return m_out << std::string(indent, ' '); }
 
-void VpiVisitor::visit_baseclass(vpiHandle obj_h, int32_t indent,
-                                     const char* relation, bool shallowVisit) {
+void VpiVisitor::visit_baseclass(vpiHandle obj_h, int32_t indent, const char* relation, bool shallowVisit) {
   if (vpiHandle itr = vpi_handle(vpiParent, obj_h)) {
     visit_object(itr, indent + kLevelIndent, "vpiParent", true);
     release_handle(itr);
@@ -471,19 +433,17 @@ void VpiVisitor::visit_baseclass(vpiHandle obj_h, int32_t indent,
 
 <VISITOR_PRIVATE_IMPLEMENTATIONS>
 
-void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
-                              const char* relation, bool shallowVisit) {
+void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent, const char* relation, bool shallowVisit) {
   if (!obj_h) return;
 
 #ifdef STANDARD_VPI
-  const bool alreadyVisited = m_visited,find(obj_h) != m_visited.end();
+  const bool alreadyVisited = m_visited, find(obj_h) != m_visited.end();
   m_visited.insert(obj_h);
 #else
-  const uhdm_handle* const handle = (const uhdm_handle*) obj_h;
-  const BaseClass* const object = (const BaseClass*) handle->object;
+  const UhdmHandle* const handle = (const UhdmHandle*)obj_h;
+  const BaseClass* const object = (const BaseClass*)handle->object;
   const bool alreadyVisited = (m_visited.find(object) != m_visited.end());
-  if (!shallowVisit)
-    m_visited.insert(object);
+  if (!shallowVisit) m_visited.insert(object);
 #endif
 
   const uint32_t objectType = vpi_get(vpiType, obj_h);
@@ -511,10 +471,10 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
     m_out << s;
     needs_separator = true;
   }
-  if (const char* s1 = vpi_get_str(vpiFullName, obj_h)) {   // objectName
+  if (const char* s1 = vpi_get_str(vpiFullName, obj_h)) {  // objectName
     if (needs_separator) m_out << " ";
-    m_out << "(" << s1 << ")";  // objectName
-  } else if (const char* s2 = vpi_get_str(vpiName, obj_h)) {   // objectName
+    m_out << "(" << s1 << ")";                                // objectName
+  } else if (const char* s2 = vpi_get_str(vpiName, obj_h)) {  // objectName
     if (needs_separator) m_out << " ";
     m_out << "(" << s2 << ")";  // objectName
   }
@@ -523,11 +483,9 @@ void VpiVisitor::visit_object(vpiHandle obj_h, int32_t indent,
   if (showIDs) m_out << ", id:" << object->getUhdmId();
 #endif
 
-  if ((objectType == vpiModule) || (objectType == vpiProgram) ||
-      (objectType == vpiClassDefn) || (objectType == vpiPackage) ||
-      (objectType == vpiInterface) || (objectType == vpiUdp) ||
-      (objectType == vpiSourceFile) ||
-      (objectType == vpiPreprocMacroInstance)) {
+  if ((objectType == vpiModule) || (objectType == vpiProgram) || (objectType == vpiClassDefn) ||
+      (objectType == vpiPackage) || (objectType == vpiInterface) || (objectType == vpiUdp) ||
+      (objectType == vpiSourceFile) || (objectType == vpiPreprocMacroInstance)) {
     if (const char* s = vpi_get_str(vpiFile, obj_h)) {
       m_out << ", file:" << s;  // fileName
     }
@@ -564,19 +522,16 @@ void VpiVisitor::visitWeaklyReferenced() {
   while (!m_weaklyReferenced1.empty()) {
     AnySet::const_iterator it = std::min_element(
         m_weaklyReferenced1.begin(), m_weaklyReferenced1.end(),
-        [](const Any* const lhs, const Any* const rhs) {
-          return lhs->getUhdmId() < rhs->getUhdmId();
-        });
+        [](const Any* const lhs, const Any* const rhs) { return lhs->getUhdmId() < rhs->getUhdmId(); });
     const BaseClass* const object = *it;
     m_weaklyReferenced2.emplace(object);
-    vpiHandle h =
-        object->getSerializer()->makeUhdmHandle(object->getUhdmType(), object);
+    vpiHandle h = object->getSerializer()->makeUhdmHandle(object->getUhdmType(), object);
     visit_object(h, kLevelIndent, "", false);
     release_handle(h);
   }
 }
 
-void visit_object(vpiHandle obj_h, VpiVisitor *visitor) {
+void visit_object(vpiHandle obj_h, VpiVisitor* visitor) {
   visitor->visit_object(obj_h, 0, "", false);
   if (visitor->getVisitWeaklyReferenced()) {
     visitor->visitWeaklyReferenced();
@@ -597,7 +552,7 @@ void visit_designs(const std::vector<vpiHandle>& designs, VpiVisitor* visitor) {
   }
 }
 
-void visit_designs(const std::vector<vpiHandle>& designs, std::ostream &out) {
+void visit_designs(const std::vector<vpiHandle>& designs, std::ostream& out) {
   VpiVisitor visitor(out);
   visit_designs(designs, &visitor);
 }
@@ -609,8 +564,7 @@ std::string decompile(const Any* handle) {
   }
   VpiVisitor::visited_t visited;
   vpi_show_ids(true);
-  vpiHandle dh =
-      handle->getSerializer()->makeUhdmHandle(handle->getUhdmType(), handle);
+  vpiHandle dh = handle->getSerializer()->makeUhdmHandle(handle->getUhdmType(), handle);
   std::stringstream out;
   VpiVisitor visitor(out);
   visitor.visit_object(dh, 0, "decompile", false);
@@ -633,17 +587,15 @@ std::string decompileVPI(vpiHandle handle) {
   return out.str();
 }
 
-} // namespace uhdm
+}  // namespace uhdm
 
-void vpi_show_ids(bool show) {
-  showIDs = show;
-}
+void vpi_show_ids(bool show) { showIDs = show; }
 
 extern "C" {
-  void vpi_decompiler (vpiHandle design) {
-    std::vector<vpiHandle> designs;
-    designs.push_back(design);
-    uhdm::visit_designs(designs, std::cout);
-    std::cout << std::endl;
-  }
+void vpi_decompiler(vpiHandle design) {
+  std::vector<vpiHandle> designs;
+  designs.push_back(design);
+  uhdm::visit_designs(designs, std::cout);
+  std::cout << std::endl;
+}
 }

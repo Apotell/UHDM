@@ -7,7 +7,7 @@
 #include "uhdm/uhdm.h"
 #include "uhdm/uhdm_types.h"  // for uhdmconstant
 #include "uhdm/vhpi_user.h"   // vpi_user functions.
-#include "uhdm/vpi_uhdm.h"    // struct uhdm_handle
+#include "uhdm/vpi_uhdm.h"    // struct UhdmHandle
 
 TEST(VpiGetTest, WriteReadRoundtrip) {
   uhdm::Serializer serializer;
@@ -24,7 +24,7 @@ TEST(VpiGetTest, WriteReadRoundtrip) {
   EXPECT_TRUE(value->setSize(12345));
   EXPECT_TRUE(value->setDecompile("decompile"));
 
-  uhdm_handle uhdm_handle(uhdm::UhdmType::Constant, value);
+  UhdmHandle uhdm_handle(uhdm::UhdmType::Constant, value);
   vpiHandle vpi_handle = (vpiHandle)&uhdm_handle;
 
   // Request all the properties set above via vpi

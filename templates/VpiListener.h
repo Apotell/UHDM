@@ -36,83 +36,63 @@
 #include <set>
 #include <vector>
 
-#define TRACE_CONTEXT                   \
-  "[" << ((const Any *)object)->getStartLine() <<      \
-  "," << ((const Any *)object)->getStartColumn() <<    \
-  ":" << ((const Any *)object)->getEndLine() <<        \
-  "," << ((const Any *)object)->getEndColumn() <<      \
-  "]"
+#define TRACE_CONTEXT                                                                                   \
+  "[" << ((const Any *)object)->getStartLine() << "," << ((const Any *)object)->getStartColumn() << ":" \
+      << ((const Any *)object)->getEndLine() << "," << ((const Any *)object)->getEndColumn() << "]"
 
-#define TRACE_ENTER strm                \
-  << std::string(++indent * 2, ' ')     \
-  << __func__ << ": " << TRACE_CONTEXT  \
-  << std::endl
-#define TRACE_LEAVE strm                \
-  << std::string(2 * indent--, ' ')     \
-  << __func__ << ": " << TRACE_CONTEXT  \
-  << std::endl
+#define TRACE_ENTER strm << std::string(++indent * 2, ' ') << __func__ << ": " << TRACE_CONTEXT << std::endl
+#define TRACE_LEAVE strm << std::string(2 * indent--, ' ') << __func__ << ": " << TRACE_CONTEXT << std::endl
 
 namespace uhdm {
 class Serializer;
 
-class ScopedVpiHandle final {
- public:
-  ScopedVpiHandle(const Any *any);
-  ~ScopedVpiHandle();
-
-  operator vpiHandle() const { return m_handle; }
-
- private:
-  const vpiHandle m_handle = nullptr;
-};
-
 class VpiListener {
-protected:
+ protected:
   using visited_t = AnySet;
   using any_stack_t = std::vector<const Any *>;
 
-public:
+ public:
   // Use implicit constructor to initialize all members
   // VpiListener()
 
   virtual ~VpiListener() = default;
 
-public:
+ public:
   void listenAny(vpiHandle handle);
-  void listenDesigns(const std::vector<vpiHandle>& designs);
+  void listenDesigns(const std::vector<vpiHandle> &designs);
 //<VPI_PUBLIC_LISTEN_DECLARATIONS>
 
-  virtual void enterAny(const Any* object, vpiHandle handle) {}
-  virtual void leaveAny(const Any* object, vpiHandle handle) {}
+  virtual void enterAny(const Any *object, vpiHandle handle) {}
+  virtual void leaveAny(const Any *object, vpiHandle handle) {}
 
 //<VPI_ENTER_LEAVE_DECLARATIONS>
   bool isInUhdmAllIterator() const { return uhdmAllIterator; }
   bool inCallstackOfType(UhdmType type);
-  Design* currentDesign() { return m_currentDesign; }
+  Design *currentDesign() { return m_currentDesign; }
 
   void requestAbort() { m_abortRequested = true; }
 
-protected:
+ protected:
   visited_t m_visited;
   any_stack_t m_callstack;
   bool m_abortRequested = false;
   bool uhdmAllIterator = false;
-  Design* m_currentDesign = nullptr;
+  Design *m_currentDesign = nullptr;
 
-private:
+ private:
   void listenBaseClass_(vpiHandle handle);
 //<VPI_PRIVATE_LISTEN_DECLARATIONS>
 };
 
 class VpiListenerTracer : public VpiListener {
-  public:
-    VpiListenerTracer(std::ostream &strm) : strm(strm) {}
-    ~VpiListenerTracer() final = default;
+ public:
+  VpiListenerTracer(std::ostream &strm) : strm(strm) {}
+  ~VpiListenerTracer() final = default;
 
 //<VPI_LISTENER_TRACER_METHODS>
-  protected:
-   std::ostream &strm;
-   int32_t indent = -1;
+ protected:
+  std::ostream &strm;
+  int32_t indent = -1;
 };
 }  // namespace uhdm
 

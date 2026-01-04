@@ -73,14 +73,11 @@ enum ErrorType {
   UHDM_FORCING_UNSIGNED_TYPE = 733
 };
 
-#ifndef SWIG
 using ErrorHandler =
     std::function<void(ErrorType errType, const std::string&,
                        const Any* object1, const Any* object2)>;
-
 void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
                          const Any* object1, const Any* object2);
-#endif
 
 class Factory final {
   friend Serializer;
@@ -178,7 +175,6 @@ class Serializer final {
   Serializer();
   ~Serializer();
 
-#ifndef SWIG
   void save(const std::filesystem::path& filepath);
   void save(const std::string& filepath);
   void purge();
@@ -195,7 +191,6 @@ class Serializer final {
   Factory* getFactory() {
     return m_factories[T::kUhdmType];
   }
-#endif
 
   const std::vector<vpiHandle> restore(const std::filesystem::path& filepath);
   const std::vector<vpiHandle> restore(const std::string& filepath);
@@ -205,7 +200,6 @@ class Serializer final {
   void swap(const Any* what, Any* with);
   void swap(const std::map<const Any*, Any*>& replacements);
 
-#ifndef SWIG
  private:
   template <typename T>
   T* make(Factory* const factory) {
@@ -254,7 +248,8 @@ class Serializer final {
 
   SymbolCollection* makeSymbolCollection();
 
-  vpiHandle makeUhdmHandle(UhdmType type, const void* object);
+  vpiHandle makeUhdmHandle(UhdmType type, const void* object, uint32_t index = 0);
+  bool erase(vpiHandle handle);
 
   bool erase(const BaseClass* p);
   template<typename T>
@@ -262,7 +257,6 @@ class Serializer final {
     return m_factories[T::kUhdmType]->template erase<T>(collection);
   }
 
-#ifndef SWIG
   void pushScope(Any* s);
   bool popScope(Any* s);
   Any* topScope() const {
@@ -280,7 +274,6 @@ class Serializer final {
   }
 
   friend class ScopedScope;
-#endif
 
   struct SaveAdapter;
   friend struct SaveAdapter;
@@ -305,10 +298,8 @@ class Serializer final {
 
   using factories_t = std::map<UhdmType, Factory*>;
   factories_t m_factories;
-#endif
 };
 
-#ifndef SWIG
 class ScopedScope final {
  public:
   ScopedScope(Any* s);
@@ -317,7 +308,6 @@ class ScopedScope final {
  private:
   Any* const m_any = nullptr;
 };
-#endif
 } // namespace uhdm
 
 #endif  // UHDM_SERIALIZER_H
