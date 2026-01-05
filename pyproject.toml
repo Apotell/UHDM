@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "cmake>=3.12", "ninja"]
+build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+# Skip obsolete Python versions and maximize compatibility
+# cp36-* is EOL, pp* (PyPy) is often niche for C++ extensions unless requested
+skip = ["cp36-*", "pp*"]
+
+# Build for major platforms
+build-verbosity = 1
+
+[tool.cibuildwheel.linux]
+# manylinux2014 is a safe default for modern C++ standards (C++17)
+manylinux-x86_64-image = "manylinux2014"
+
+[tool.cibuildwheel.macos]
+# Support both x86_64 and arm64
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]

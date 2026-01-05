@@ -1,13 +1,51 @@
 name: pyuhdm
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main ]
 
 jobs:
-  build:
+  # Quick check for PRs/commits using standard Ubuntu environment
+  build_sdist:
+    name: Build Source Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build sdist
+        run: pipx run build --sdist
+      - uses: actions/upload-artifact@v3
+        with:
+          path: dist/*.tar.gz
+
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.16.5
+        # env:
+        #   CIBW_SOME_OPTION: value
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  # Keep original simple build/test for fast feedback loop without full wheel matrix
+  test_native:
+    name: Fast Native Test (Linux)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build python3-pip
@@ -15,13 +53,8 @@ jobs:
       run: |
         pip3 install --upgrade pip
         pip3 install pytest
-    - name: Build
+    - name: Build and Install
       run: |
-        mkdir build
-        cd build
-        cmake ..
-        cmake --build .
-    - name: Install Python Package
-      run: pip3 install .
+        pip3 install . -v
     - name: Run Tests
       run: pytest -v
