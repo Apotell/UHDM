@@ -32,6 +32,7 @@ class CMakeBuild(build_ext):
         cmake_args = [
             f'-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}',
             f'-DPython3_EXECUTABLE={sys.executable}',
+            '-DPython3_FIND_STRATEGY=LOCATION',
             # Ensure we are building the python bindings
             '-DBUILD_SHARED_LIBS=ON',  # Just in case, though shared is usually default for extensions
         ]
