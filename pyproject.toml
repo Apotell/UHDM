@@ -1,45 +1,25 @@
 [build-system]
-requires = ["setuptools>=73", "wheel", "cmake>=3.12", "ninja", "orderedmultidict"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.5.0", "pybind11", "orderedmultidict", "cmake>=3.12"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyuhdm"
-# dynamic = ["version"]
 version = "0.1.0"
-requires-python = ">=3.8"
 description = "Python bindings for UHDM"
 readme = "README.md"
-license = "Apache-2.0"
-license-files = ["LICENSE*"]
-keywords = ["UHDM"]
+license = {text = "Apache-2.0"}
+requires-python = ">=3.8"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: C++ :: 11",
+  "Programming Language :: C++ :: 17",
   "Operating System :: OS Independent",
 ]
 
-# [tool.setuptools.dynamic]
-# version = {attr = "pyuhdm._version.__version__"}
+[tool.scikit-build]
+# Minimal configuration for scikit-build-core
+cmake.version = ">=3.12"
+cmake.args = ["-GUnix Makefiles"]
 
-[tool.cibuildwheel]
-# Skip obsolete Python versions and maximize compatibility
-# cp36-* is EOL, pp* (PyPy) is often niche for C++ extensions unless requested
-skip = ["cp36-*", "pp*"]
-
-# Build for major platforms
-build-verbosity = 1
-
-[tool.cibuildwheel.linux]
-# manylinux2014 is a safe default for modern C++ standards (C++17)
-manylinux-x86_64-image = "manylinux2014"
-
-[tool.cibuildwheel.macos]
-# Support both x86_64 and arm64
-archs = ["x86_64", "arm64"]
-
-[tool.cibuildwheel.windows]
-archs = ["AMD64"]
+# We want the wheel to contain the extension module at the root
+# wheel.packages = [] # Auto-discovery usually works if installed correctly

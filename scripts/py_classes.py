@@ -101,7 +101,7 @@ def generate(models):
 
   content = content.replace('// <IMPLEMENTATION_INCLUDES>', '\n'.join(sorted(includes)).rstrip())
   content = content.replace('// <BIND_CLASSES_FORWARD_DECLARATIONS>', '\n'.join(sorted(declarations)).rstrip())
-  content = content.replace('// <BIND_CLASSES_INVOCATIONS>', '\n'.join(sorted(invocations)).rstrip())
+  content = content.replace('// <BIND_CLASSES_INVOCATIONS>', '\n'.join(invocations).rstrip())
   file_utils.set_content_if_changed(config.get_output_python_source_filepath('py_classes.cpp'), content)
 
   return True
