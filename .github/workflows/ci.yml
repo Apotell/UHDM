@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         python-version: ["3.9", "3.10"]
@@ -24,20 +25,40 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Native  dependencies required by UHDM / pyuhdm
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y capnproto libcapnp-dev
+
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
       - name: Install build dependencies
-        run: pip install scikit-build-core pybind11 build wheel pytest
+        run: |
+          python -m pip install \
+            scikit-build-core \
+            pybind11 \
+            build \
+            wheel \
+            pytest
 
       - name: Editable install
-        run: pip install -e .
+        run: |
+          python -m pip install -e .
 
       - name: Verify import
-        run: python -c "import pyuhdm"
+        run: |
+          python - <<EOF
+          import pyuhdm
+          print(pyuhdm)
+          print(pyuhdm.__file__)
+          EOF
 
       - name: Build wheel
-        run: pip wheel . --no-deps
+        run: |
+          python -m pip wheel . --no-deps
 
-      - name: Run tests
-        run: pytest -k "not VpiListener"
+      - name: Run tests (skip VpiListener)
+        run: |
+          pytest -v -k "not VpiListener"
