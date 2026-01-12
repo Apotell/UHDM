@@ -9,6 +9,7 @@ _include_dirname = 'include'
 _models_dirname = 'model'
 _output_headers_dirname = 'uhdm'
 _output_sources_dirname = 'src'
+_output_python_sources_dirname = 'python'
 _verbose = True
 
 _log_mutex = Lock()
@@ -52,7 +53,16 @@ def configure(args=None):
   if not os.path.exists(output_sources_dirpath):
     os.makedirs(output_sources_dirpath)
 
-  print(f'Configuration update: srcdir={_source_dirpath}, tmpdir={_templates_dirpath}, headers={output_headers_dirpath}, sources={output_sources_dirpath}')
+  output_python_sources_dirpath = os.path.join(_output_dirpath, _output_python_sources_dirname)
+  if not os.path.exists(output_python_sources_dirpath):
+    os.makedirs(output_python_sources_dirpath)
+
+  print((
+    f'Configuration update: '
+    f'srcdir={_source_dirpath}, tmpdir={_templates_dirpath}, '
+    f'headers={output_headers_dirpath}, sources={output_sources_dirpath}, '
+    f'python={output_python_sources_dirpath}'
+  ))
 
 
 def get_source_dirpath():
@@ -89,6 +99,12 @@ def get_output_source_dirpath():
   return os.path.join(_output_dirpath, _output_sources_dirname)
 
 
+def get_output_python_source_dirpath():
+  global _output_dirpath
+  global _output_python_sources_dirname
+  return os.path.join(_output_dirpath, _output_python_sources_dirname)
+
+
 def get_output_header_filepath(filename):
   global _output_dirpath
   global _output_headers_dirname
@@ -99,6 +115,12 @@ def get_output_source_filepath(filename):
   global _output_dirpath
   global _output_sources_dirname
   return os.path.join(_output_dirpath, _output_sources_dirname, filename)
+
+
+def get_output_python_source_filepath(filename):
+  global _output_dirpath
+  global _output_python_sources_dirname
+  return os.path.join(_output_dirpath, _output_python_sources_dirname, filename)
 
 
 def get_modellist_filepath():

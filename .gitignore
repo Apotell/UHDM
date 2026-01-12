@@ -3,9 +3,15 @@ __pycache__
 .vs
 .vscode
 *.user
+*.pyc
+*.whl
 
 # Build directories
 build
 out
 CMakeBuilds
 CMakeSettings.json
+
+# Python packaging
+dist/
+*.egg-info/

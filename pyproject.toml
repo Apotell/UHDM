@@ -1,0 +1,28 @@
+[build-system]
+requires = ["scikit-build-core>=0.5.0", "pybind11", "orderedmultidict", "cmake>=3.20"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyuhdm"
+version = "0.1.0"
+description = "Python bindings for UHDM"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.8"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: C++ :: 17",
+  "Operating System :: OS Independent",
+]
+
+[tool.scikit-build]
+# Minimal configuration for scikit-build-core
+cmake.version = ">=3.20"
+cmake.args = ["-GNinja", "-DUHDM_BUILD_TESTS=OFF"]
+build-dir = "out/build/{wheel_tag}"
+build.verbose = true
+logging.level = "DEBUG"
+
+# We want the wheel to contain the extension module at the root
+# wheel.packages = [] # Auto-discovery usually works if installed correctly
