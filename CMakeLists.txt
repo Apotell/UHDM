@@ -366,6 +366,9 @@ target_link_libraries(uhdm-hier PRIVATE uhdm)
 add_executable(uhdm-lint ${PROJECT_SOURCE_DIR}/util/uhdm-lint.cpp)
 target_link_libraries(uhdm-lint PRIVATE uhdm)
 
+add_executable(vscode-uhdm-debugger ${PROJECT_SOURCE_DIR}/util/vscode-uhdm-debugger.cpp)
+target_link_libraries(vscode-uhdm-debugger PRIVATE uhdm)
+
 # Installation tester
 # TODO: once we have a cmake package (find_package(uhdm)), this installation
 # tester should use that.
@@ -387,7 +390,7 @@ target_link_libraries(test_inst PRIVATE uhdm capnp kj
 
 # Installation target
 install(
-  TARGETS capnp kj uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-gentest uhdm-hier uhdm-lint
+  TARGETS capnp kj uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-gentest uhdm-hier uhdm-lint vscode-uhdm-debugger
   EXPORT uhdmTargets
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm
 )
@@ -415,6 +418,7 @@ if (WIN32 AND (CMAKE_CXX_COMPILER_ID MATCHES "MSVC"))
           $<TARGET_PDB_FILE:uhdm-gentest>
           $<TARGET_PDB_FILE:uhdm-hier>
           $<TARGET_PDB_FILE:uhdm-lint>
+          $<TARGET_PDB_FILE:vscode-uhdm-debugger>
     CONFIGURATIONS Debug RelWithDebInfo
     DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
