@@ -127,7 +127,7 @@ def generate(models):
         restore_adapters.append('')
 
     uhdm_name_map = [ f'    case UhdmType::{name} /* = {id} */: return "{name}";' for name, id in type_map.items() if name != 'BaseClass' ]
-    init_factories = [ f'  m_factories[UhdmType::{name}] = new Factory;' for name in type_map.keys() ]
+    init_factories = [ f'  m_factories[UhdmType::{name}] = new Factory;' for name in type_map.keys() if name != 'BaseClass' ]
 
     # Serializer.h
     with open(config.get_template_filepath('Serializer.h'), 'rt') as strm:

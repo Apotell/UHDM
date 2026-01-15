@@ -31,6 +31,7 @@
 #include <uhdm/uhdm_types.h>
 #include <uhdm/vhpi_user.h>
 #include <uhdm/vpi_uhdm.h>
+#include <uhdm/Utils.h>
 
 #include <cctype>
 #include <cstring>
@@ -69,88 +70,93 @@ Design* UhdmDesignFromVpiHandle(vpiHandle hdesign) {
     return nullptr;
 }
 
-s_vpi_value* String2VpiValue(std::string_view sv) {
+void String2VpiValue(std::string_view sv, s_vpi_value* value) {
   while (!sv.empty() && isspace(sv.front())) sv.remove_prefix(1);
-  s_vpi_value* val = new s_vpi_value;
-  val->format = 0;
-  val->value.integer = 0;
-  val->value.scalar = 0;
-  val->value.str = nullptr;
+  value->format = 0;
+  value->value = {0};
   if (sv.find("UINT:") == 0) {
-    val->format = vpiUIntVal;
+    value->format = vpiUIntVal;
     sv.remove_prefix(std::string_view("UINT:").length());
-    if (NumUtils::parseUint64(sv, &val->value.uint) == nullptr) {
-      val->value.uint = 0;
+    if (NumUtils::parseUint64(sv, &value->value.uint) == nullptr) {
+      value->value.uint = 0;
     }
   } else if (sv.find("INT:") == 0) {
-    val->format = vpiIntVal;
+    value->format = vpiIntVal;
     sv.remove_prefix(std::string_view("INT:").length());
-    if (NumUtils::parseInt64(sv, &val->value.integer) == nullptr) {
-      val->value.integer = 0;
+    if (NumUtils::parseInt64(sv, &value->value.integer) == nullptr) {
+      value->value.integer = 0;
     }
   } else if (sv.find("SCAL:") == 0) {
-    val->format = vpiScalarVal;
+    value->format = vpiScalarVal;
     sv.remove_prefix(std::string_view("SCAL:").length());
     switch (sv.front()) {
-      case 'Z': val->value.scalar = vpiZ; break;
-      case 'X': val->value.scalar = vpiX; break;
-      case 'H': val->value.scalar = vpiH; break;
-      case 'L':
-        val->value.scalar = vpiL;
-        break;
+      case 'Z': value->value.scalar = vpiZ; break;
+      case 'X': value->value.scalar = vpiX; break;
+      case 'H': value->value.scalar = vpiH; break;
+      case 'L': value->value.scalar = vpiL; break;
         // Not really clear what the difference between X and DontCare is.
         // Let's parse 'W'eak don't care as this one.
-      case 'W': val->value.scalar = vpiDontCare; break;
+      case 'W': value->value.scalar = vpiDontCare; break;
       default: {
         if (StriCmp(sv, std::string_view("DontCare")) == 0) {
-          val->value.scalar = vpiDontCare;
+          value->value.scalar = vpiDontCare;
         } else if (StriCmp(sv, std::string_view("NoChange")) == 0) {
-          val->value.scalar = vpiNoChange;
+          value->value.scalar = vpiNoChange;
         } else {
           // Maybe written numerically?
-          if (NumUtils::parseInt32(sv, &val->value.scalar) == nullptr) {
-            val->value.scalar = 0;
+          if (NumUtils::parseInt32(sv, &value->value.scalar) == nullptr) {
+            value->value.scalar = 0;
           }
         }
       } break;
     }
   } else if (sv.find("BIN:") == 0) {
-    val->format = vpiBinStrVal;
+    value->format = vpiBinStrVal;
     sv.remove_prefix(std::string_view("BIN:").length());
-    val->value.str = StrClone(sv);
+    value->value.str = StrClone(sv);
   } else if (sv.find("HEX:") == 0) {
-    val->format = vpiHexStrVal;
+    value->format = vpiHexStrVal;
     sv.remove_prefix(std::string_view("HEX:").length());
-    val->value.str = StrClone(sv);
+    value->value.str = StrClone(sv);
   } else if (sv.find("OCT:") == 0) {
-    val->format = vpiOctStrVal;
+    value->format = vpiOctStrVal;
     sv.remove_prefix(std::string_view("OCT:").length());
-    val->value.str = StrClone(sv);
+    value->value.str = StrClone(sv);
   } else if (sv.find("STRING:") == 0) {
-    val->format = vpiStringVal;
+    value->format = vpiStringVal;
     sv.remove_prefix(std::string_view("STRING:").length());
-    val->value.str = StrClone(sv);
+    value->value.str = StrClone(sv);
   } else if (sv.find("REAL:") == 0) {
-    val->format = vpiRealVal;
+    value->format = vpiRealVal;
     sv.remove_prefix(std::string_view("REAL:").length());
-    if (NumUtils::parseDouble(sv, &val->value.real) == nullptr) {
-      val->value.real = 0;
+    if (NumUtils::parseDouble(sv, &value->value.real) == nullptr) {
+      value->value.real = 0;
     }
   } else if (sv.find("DEC:") == 0) {
-    val->format = vpiDecStrVal;
+    value->format = vpiDecStrVal;
     sv.remove_prefix(std::string_view("DEC:").length());
-    val->value.str = StrClone(sv);
+    value->value.str = StrClone(sv);
   }
-
-  return val;
 }
 
-s_vpi_delay* String2VpiDelay(std::string_view sv) {
+void VpiDestroyValue(s_vpi_value& value) {
+  switch (value.format) {
+    case vpiBinStrVal:
+    case vpiDecStrVal:
+    case vpiHexStrVal:
+    case vpiOctStrVal:
+    case vpiStringVal: {
+      delete[] value.value.str;
+    } break;
+    default: break;
+  }
+}
+
+void String2VpiDelay(std::string_view sv, s_vpi_delay* delay) {
   while (!sv.empty() && isspace(sv.front())) sv.remove_prefix(1);
-  s_vpi_delay* delay = new s_vpi_delay;
   delay->da = nullptr;
   if (!sv.empty() && (sv.front() == '#')) {
-    delay->da = new t_vpi_time;
+    delay->da = new t_vpi_time[1];
     delay->no_of_delays = 1;
     delay->time_type = vpiScaledRealTime;
     sv.remove_prefix(1);
@@ -159,7 +165,10 @@ s_vpi_delay* String2VpiDelay(std::string_view sv) {
     }
     delay->da[0].type = vpiScaledRealTime;
   }
-  return delay;
+}
+
+void VpiDestroyDelay(s_vpi_delay& delay) {
+  if (delay.da != nullptr) delete [] delay.da;
 }
 
 std::string VpiValue2String(const s_vpi_value* value) {
@@ -175,8 +184,8 @@ std::string VpiValue2String(const s_vpi_value* value) {
 
   if (!value) return "";
   switch (value->format) {
-    case vpiIntVal: return std::string(kIntPrefix).append(std::to_string(value->value.integer));
-    case vpiUIntVal: return std::string(kUIntPrefix).append(std::to_string(value->value.uint));
+    case vpiIntVal: return StrCat(kIntPrefix, value->value.integer);
+    case vpiUIntVal: return StrCat(kUIntPrefix, value->value.uint);
     case vpiScalarVal: {
       switch (value->value.scalar) {
         case vpi0: return "SCAL:0";
@@ -189,15 +198,15 @@ std::string VpiValue2String(const s_vpi_value* value) {
         case vpiNoChange: return "SCAL:NoChange";
         default:
           // mmh, some unknown number.
-          return std::string(kScalPrefix).append(std::to_string(value->value.scalar));
+          return StrCat(kScalPrefix, value->value.scalar);
       }
     }
-    case vpiStringVal: return std::string(kStrPrefix).append(value->value.str);
-    case vpiHexStrVal: return std::string(kHexPrefix).append(value->value.str);
-    case vpiOctStrVal: return std::string(kOctPrefix).append(value->value.str);
-    case vpiBinStrVal: return std::string(kBinPrefix).append(value->value.str);
-    case vpiDecStrVal: return std::string(kDecPrefix).append(value->value.str);
-    case vpiRealVal: return std::string(kRealPrefix).append(std::to_string(value->value.real));
+    case vpiStringVal: return StrCat(kStrPrefix, value->value.str);
+    case vpiHexStrVal: return StrCat(kHexPrefix, value->value.str);
+    case vpiOctStrVal: return StrCat(kOctPrefix, value->value.str);
+    case vpiBinStrVal: return StrCat(kBinPrefix, value->value.str);
+    case vpiDecStrVal: return StrCat(kDecPrefix, value->value.str);
+    case vpiRealVal: return StrCat(kRealPrefix, value->value.real);
   }
 
   return "";
@@ -209,7 +218,7 @@ std::string VpiDelay2String(const s_vpi_delay* delay) {
   if (delay->da == nullptr) return result;
   switch (delay->time_type) {
     case vpiScaledRealTime: {
-      result.append("#").append(std::to_string(delay->da[0].low));
+      result = StrCat("#", delay->da[0].low);
       break;
     }
     default: break;
@@ -324,7 +333,7 @@ PLI_BYTE8* vpi_get_str(PLI_INT32 property, vpiHandle object) {
 /* delay processing */
 
 void vpi_get_delays(vpiHandle object, p_vpi_delay delay_p) {
-  delay_p->da = nullptr;
+  std::memset(delay_p, 0, sizeof(t_vpi_delay));
   if (!object) {
     std::cout << "VPI ERROR: Bad usage of vpi_get_delay" << std::endl;
     return;
@@ -339,7 +348,7 @@ void vpi_put_delays(vpiHandle object, p_vpi_delay delay_p) {}
 /* value processing */
 
 void vpi_get_value(vpiHandle vexpr, p_vpi_value value_p) {
-  value_p->format = 0;
+  std::memset(value_p, 0, sizeof(t_vpi_value));
   if (!vexpr) {
     std::cout << "VPI ERROR: Bad usage of vpi_get_value" << std::endl;
     return;

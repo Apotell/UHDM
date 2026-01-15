@@ -29,9 +29,9 @@
 #include <uhdm/SymbolId.h>
 
 #include <deque>
+#include <map>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace uhdm {
@@ -91,10 +91,10 @@ class SymbolFactory {
   void appendSymbols(int64_t up_to, std::vector<std::string_view>* dest) const;
 
   using Id2SymbolMap = std::deque<std::string>;
-  using Symbol2IdMap = std::unordered_map<std::string_view, RawSymbolId>;
+  using Symbol2IdMap = std::map<std::string_view, RawSymbolId>;
 
   const SymbolFactory* const m_parent;
-  const RawSymbolId m_idOffset;
+  const RawSymbolId m_idOffset = 0;
 
   RawSymbolId m_idCounter = 0;
 
@@ -105,7 +105,7 @@ class SymbolFactory {
   // m_id2SymbolMap
   Symbol2IdMap m_symbol2IdMap;
 
-  friend Serializer;
+  friend class Serializer;
 };
 }  // namespace uhdm
 

@@ -27,21 +27,17 @@
 
 namespace uhdm {
 
-SymbolFactory::SymbolFactory() : m_parent(nullptr), m_idOffset(0) {
-  registerSymbol(getBadSymbol());
-}
+SymbolFactory::SymbolFactory() : m_parent(nullptr), m_idOffset(0) { registerSymbol(getBadSymbol()); }
 
 std::string_view SymbolFactory::getEmptyMacroMarker() {
   static constexpr std::string_view k_emptyMacroMarker("@@EMPTY_MACRO@@");
   return k_emptyMacroMarker;
 }
 
-std::pair<SymbolId, std::string_view> SymbolFactory::add(
-    std::string_view symbol) {
+std::pair<SymbolId, std::string_view> SymbolFactory::add(std::string_view symbol) {
   if (m_parent) {
     if (auto [id, normalized] = m_parent->get(symbol);
-        (id != getBadId() || symbol == getBadSymbol()) &&
-        (RawSymbolId)id < m_idOffset) {
+        (id != getBadId() || symbol == getBadSymbol()) && (RawSymbolId)id < m_idOffset) {
       return {id, normalized};
     }
   }
@@ -56,20 +52,17 @@ std::pair<SymbolId, std::string_view> SymbolFactory::add(
     return {SymbolId(found->second + m_idOffset, found->first), found->first};
   }
   const std::string& normalized = m_id2SymbolMap.emplace_back(symbol);
-  const auto inserted = m_symbol2IdMap.insert({normalized, m_idCounter});
+  const auto inserted = m_symbol2IdMap.emplace(normalized, m_idCounter);
   assert(inserted.second);  // This new insert must succeed.
   m_idCounter++;
   // Read the comment above about using the string from m_id2SymbolMap
   // to build the returned pair.
-  return {SymbolId(inserted.first->second + m_idOffset, inserted.first->first),
-          inserted.first->first};
+  return {SymbolId(inserted.first->second + m_idOffset, inserted.first->first), inserted.first->first};
 }
 
-std::pair<SymbolId, std::string_view> SymbolFactory::get(
-    std::string_view symbol) const {
+std::pair<SymbolId, std::string_view> SymbolFactory::get(std::string_view symbol) const {
   if (m_parent) {
-    if (auto [id, normalized] = m_parent->get(symbol);
-        id != getBadId() && (RawSymbolId)id < m_idOffset) {
+    if (auto [id, normalized] = m_parent->get(symbol); id != getBadId() && (RawSymbolId)id < m_idOffset) {
       return {id, normalized};
     }
   }
@@ -79,9 +72,7 @@ std::pair<SymbolId, std::string_view> SymbolFactory::get(
   auto found = m_symbol2IdMap.find(symbol);
   return (found == m_symbol2IdMap.end())
              ? std::make_pair(getBadId(), getBadSymbol())
-             : std::make_pair(
-                   SymbolId(found->second + m_idOffset, found->first),
-                   found->first);
+             : std::make_pair(SymbolId(found->second + m_idOffset, found->first), found->first);
 }
 
 std::string_view SymbolFactory::getSymbol(SymbolId id) const {
@@ -99,14 +90,13 @@ SymbolId SymbolFactory::copyFrom(SymbolId id, const SymbolFactory* rhs) {
   return id ? registerSymbol(rhs->getSymbol(id)) : BadSymbolId;
 }
 
-void SymbolFactory::appendSymbols(int64_t up_to,
-                                  std::vector<std::string_view>* dest) const {
+void SymbolFactory::appendSymbols(int64_t up_to, std::vector<std::string_view>* dest) const {
   if (m_parent) m_parent->appendSymbols(m_idOffset, dest);
   up_to -= m_idOffset;
   assert(up_to >= 0);
   for (const auto& s : m_id2SymbolMap) {
     if (up_to-- <= 0) return;
-    dest->push_back(s);
+    dest->emplace_back(s);
   }
 }
 

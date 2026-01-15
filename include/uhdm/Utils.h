@@ -28,9 +28,24 @@
 #include <uhdm/Serializer.h>
 #include <uhdm/uhdm.h>
 
+#include <sstream>
 #include <type_traits>
 
 namespace uhdm {
+// StrCat(): concatenate the string representations of each argument into a string which is returned.
+template <typename... Ts>
+[[nodiscard]] std::string StrCat(Ts&&... args) {
+  std::ostringstream out;
+  (out << ... << std::forward<Ts>(args));
+  return out.str();
+}
+
+// Similar to StrCat(), append arguments, converted to strings to "dest" string.
+template <typename... Ts>
+void StrAppend(std::string* dest, Ts&&... args) {
+  dest->append(StrCat(std::forward<Ts>(args)...));
+}
+
 // Remove whitespace at the beginning of the string.
 [[nodiscard]] constexpr std::string_view ltrim(std::string_view str) {
   while (!str.empty() && std::isspace(str.front())) str.remove_prefix(1);

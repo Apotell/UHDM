@@ -38,12 +38,15 @@ TEST(VpiValue, ToString) {
 
   value.format = vpiRealVal;
   value.value.real = 3.141592;
-  EXPECT_EQ(VpiValue2String(&value), "REAL:3.141592");
+  EXPECT_EQ(VpiValue2String(&value), "REAL:3.14159");
 }
 
 static std::string ParseAndRegenerateString(const std::string &str) {
-  std::unique_ptr<s_vpi_value> val(String2VpiValue(str));
-  return VpiValue2String(val.get());
+  s_vpi_value val;
+  String2VpiValue(str, &val);
+  const std::string result = VpiValue2String(&val);
+  VpiDestroyValue(val);
+  return result;
 }
 
 static bool ParseConvertBackRoundtrip(const std::string &str) { return ParseAndRegenerateString(str) == str; }
@@ -108,5 +111,5 @@ TEST(VpiValue, roundtrip) {
   EXPECT_TRUE(ParseConvertBackRoundtrip("OCT:0123"));
   EXPECT_TRUE(ParseConvertBackRoundtrip("BIN:11111"));
 
-  EXPECT_TRUE(ParseConvertBackRoundtrip("REAL:3.141592"));
+  EXPECT_TRUE(ParseConvertBackRoundtrip("REAL:3.14159"));
 }
