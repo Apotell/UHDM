@@ -32,8 +32,7 @@
 #include <iostream>
 
 namespace uhdm {
-Elaborator::Elaborator(Serializer* serializer, bool debug /* = false */,
-                       bool muteErrors /* = false */)
+Elaborator::Elaborator(Serializer* serializer, bool debug /* = false */, bool muteErrors /* = false */)
     : Cloner(serializer), m_debug(debug), m_muteErrors(muteErrors) {}
 
 static void propagateParamAssign(ParamAssign* pass, const Any* target) {
@@ -95,14 +94,12 @@ static void propagateParamAssign(ParamAssign* pass, const Any* target) {
       }
       break;
     }
-    default:
-      break;
+    default: break;
   }
 }
 
 void Elaborator::enterVariable(const Variable* object, vpiHandle handle) {
-  if (!m_inHierarchy)
-    return;  // Only do class var propagation while in elaboration
+  if (!m_inHierarchy) return;  // Only do class var propagation while in elaboration
   if (getTypespec<ClassTypespec>(object) != nullptr) {
     if (const RefTypespec* tps = object->getTypespec()) {
       Variable* const var = const_cast<Variable*>(object);
@@ -134,13 +131,11 @@ void Elaborator::enterModule(const Module* object, vpiHandle handle) {
   const std::string_view instName = object->getName();
   const std::string_view defName = object->getDefName();
   bool flatModule =
-      instName.empty() && ((object->getParent() == 0) ||
-                           ((object->getParent() != 0) &&
-                            (object->getParent()->getVpiType() != vpiModule)));
+      instName.empty() &&
+      ((object->getParent() == 0) || ((object->getParent() != 0) && (object->getParent()->getVpiType() != vpiModule)));
   // false when it is a module in a hierachy tree
   if (m_debug)
-    std::cout << "Module: " << defName << " (" << instName
-              << ") Flat:" << flatModule << ", Top:" << topLevelModule
+    std::cout << "Module: " << defName << " (" << instName << ") Flat:" << flatModule << ", Top:" << topLevelModule
               << std::endl;
 
   if (flatModule) {
@@ -371,8 +366,7 @@ void Elaborator::enterModule(const Module* object, vpiHandle handle) {
   Module* inst = const_cast<Module*>(object);
   // false when it is a module in a hierachy tree
   if (m_debug)
-    std::cout << "Module: " << defName << " (" << instName
-              << ") Flat:" << flatModule << ", Top:" << topLevelModule
+    std::cout << "Module: " << defName << " (" << instName << ") Flat:" << flatModule << ", Top:" << topLevelModule
               << std::endl;
 
   if (flatModule) {
@@ -392,15 +386,14 @@ void Elaborator::enterModule(const Module* object, vpiHandle handle) {
       const BaseClass* comp = (*itrDef).second;
       if (comp->getVpiType() != vpiModule) return;
       Module* defMod = (Module*)comp;
-//<MODULE_ELABORATOR_LISTENER>
+      //<MODULE_ELABORATOR_LISTENER>
     }
   }
 }
 
 void Elaborator::leaveModule(const Module* object, vpiHandle handle) {
   bindScheduledTaskFunc();
-  if (m_inHierarchy && !m_instStack.empty() &&
-      (std::get<0>(m_instStack.back()) == object)) {
+  if (m_inHierarchy && !m_instStack.empty() && (std::get<0>(m_instStack.back()) == object)) {
     m_instStack.pop_back();
     if (m_instStack.empty()) {
       m_inHierarchy = false;
@@ -458,8 +451,7 @@ void Elaborator::leavePackage(const Package* object, vpiHandle handle) {
         enterTaskFunc(obj, nullptr);
         auto* tf = clone(obj, (Package*)object);
         if (!tf->getName().empty()) {
-          ComponentMap& funcMap =
-              std::get<3>(m_instStack.at(m_instStack.size() - 2));
+          ComponentMap& funcMap = std::get<3>(m_instStack.at(m_instStack.size() - 2));
           auto it = funcMap.find(tf->getName());
           if (it != funcMap.end()) funcMap.erase(it);
           funcMap.emplace(tf->getName(), tf);
@@ -546,7 +538,7 @@ void Elaborator::enterClassDefn(const ClassDefn* object, vpiHandle handle) {
   m_instStack.emplace_back(object, varMap, paramMap, funcMap, modMap);
   if (!m_muteErrors && !m_clone) return;
   ClassDefn* cl = (ClassDefn*)object;
-//<CLASS_ELABORATOR_LISTENER>
+  //<CLASS_ELABORATOR_LISTENER>
 }
 
 void Elaborator::bindScheduledTaskFunc() {
@@ -569,13 +561,10 @@ void Elaborator::enterInterface(const Interface* object, vpiHandle handle) {
   const std::string_view instName = object->getName();
   const std::string_view defName = object->getDefName();
   bool flatModule =
-      instName.empty() && ((object->getParent() == 0) ||
-                           ((object->getParent() != 0) &&
-                            (object->getParent()->getVpiType() != vpiModule)));
+      instName.empty() &&
+      ((object->getParent() == 0) || ((object->getParent() != 0) && (object->getParent()->getVpiType() != vpiModule)));
   // false when it is an interface in a hierachy tree
-  if (m_debug)
-    std::cout << "Module: " << defName << " (" << instName
-              << ") Flat:" << flatModule << std::endl;
+  if (m_debug) std::cout << "Module: " << defName << " (" << instName << ") Flat:" << flatModule << std::endl;
 
   if (flatModule) {
     // Flat list of module (unelaborated)
@@ -755,8 +744,7 @@ void Elaborator::enterInterface(const Interface* object, vpiHandle handle) {
           }
           break;
         }
-        default:
-          break;
+        default: break;
       }
     }
   }
@@ -773,8 +761,7 @@ void Elaborator::leaveInterface(const Interface* object, vpiHandle handle) {
 
 Any* Elaborator::bindNet(std::string_view name) const {
   if (name.empty()) return nullptr;
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     if (m_ignoreLastInstance) {
       if (i == m_instStack.rbegin()) continue;
     }
@@ -794,8 +781,7 @@ Any* Elaborator::bindNet(std::string_view name) const {
 // Bind to a net or parameter in the current instance
 Any* Elaborator::bindAny(std::string_view name) const {
   if (name.empty()) return nullptr;
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     if (m_ignoreLastInstance) {
       if (i == m_instStack.rbegin()) continue;
     }
@@ -835,8 +821,7 @@ Any* Elaborator::bindAny(std::string_view name) const {
 // Bind to a param in the current instance
 Any* Elaborator::bindParam(std::string_view name) const {
   if (name.empty()) return nullptr;
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     if (m_ignoreLastInstance) {
       if (i == m_instStack.rbegin()) continue;
     }
@@ -854,11 +839,9 @@ Any* Elaborator::bindParam(std::string_view name) const {
 }
 
 // Bind to a Function or Task in the current scope
-TaskFunc* Elaborator::bindTaskFunc(std::string_view name,
-                                   const Variable* prefix) const {
+TaskFunc* Elaborator::bindTaskFunc(std::string_view name, const Variable* prefix) const {
   if (name.empty()) return nullptr;
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     if (m_ignoreLastInstance) {
       if (i == m_instStack.rbegin()) continue;
     }
@@ -886,8 +869,7 @@ TaskFunc* Elaborator::bindTaskFunc(std::string_view name,
           const ClassDefn* base_defn = nullptr;
           if (const Extends* ext = defn->getExtends()) {
             if (const RefTypespec* ctps_rt = ext->getClassTypespec()) {
-              if (const ClassTypespec* ctps =
-                      ctps_rt->getActual<ClassTypespec>()) {
+              if (const ClassTypespec* ctps = ctps_rt->getActual<ClassTypespec>()) {
                 base_defn = ctps->getClassDefn();
               }
             }
@@ -900,10 +882,8 @@ TaskFunc* Elaborator::bindTaskFunc(std::string_view name,
   return nullptr;
 }
 
-bool Elaborator::isFunctionCall(std::string_view name,
-                                const Expr* prefix) const {
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+bool Elaborator::isFunctionCall(std::string_view name, const Expr* prefix) const {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     const ComponentMap& funcMap = std::get<3>(*i);
     ComponentMap::const_iterator funcItr = funcMap.find(name);
     if (funcItr != funcMap.end()) {
@@ -927,8 +907,7 @@ bool Elaborator::isFunctionCall(std::string_view name,
 }
 
 bool Elaborator::isTaskCall(std::string_view name, const Expr* prefix) const {
-  for (InstStack::const_reverse_iterator i = m_instStack.rbegin();
-       i != m_instStack.rend(); ++i) {
+  for (InstStack::const_reverse_iterator i = m_instStack.rbegin(); i != m_instStack.rend(); ++i) {
     const ComponentMap& funcMap = std::get<3>(*i);
     ComponentMap::const_iterator funcItr = funcMap.find(name);
     if (funcItr != funcMap.end()) {
@@ -1114,21 +1093,13 @@ void Elaborator::leaveForkStmt(const ForkStmt* object, vpiHandle handle) {
   }
 }
 
-void Elaborator::enterFunction(const Function* object, vpiHandle handle) {
-  enterTaskFunc(object, handle);
-}
+void Elaborator::enterFunction(const Function* object, vpiHandle handle) { enterTaskFunc(object, handle); }
 
-void Elaborator::leaveFunction(const Function* object, vpiHandle handle) {
-  leaveTaskFunc(object, handle);
-}
+void Elaborator::leaveFunction(const Function* object, vpiHandle handle) { leaveTaskFunc(object, handle); }
 
-void Elaborator::enterTask(const Task* object, vpiHandle handle) {
-  enterTaskFunc(object, handle);
-}
+void Elaborator::enterTask(const Task* object, vpiHandle handle) { enterTaskFunc(object, handle); }
 
-void Elaborator::leaveTask(const Task* object, vpiHandle handle) {
-  leaveTaskFunc(object, handle);
-}
+void Elaborator::leaveTask(const Task* object, vpiHandle handle) { leaveTaskFunc(object, handle); }
 
 void Elaborator::enterGenScope(const GenScope* object, vpiHandle handle) {
   // Collect instance elaborated nets
@@ -1249,8 +1220,7 @@ void Elaborator::popVar(Any* var) {
   }
 }
 
-void Elaborator::enterMethodFuncCall(const MethodFuncCall* object,
-                                     vpiHandle handle) {
+void Elaborator::enterMethodFuncCall(const MethodFuncCall* object, vpiHandle handle) {
   ComponentMap netMap;
   ComponentMap paramMap;
   ComponentMap funcMap;
@@ -1265,8 +1235,7 @@ void Elaborator::enterMethodFuncCall(const MethodFuncCall* object,
   m_instStack.emplace_back(object, netMap, paramMap, funcMap, modMap);
 }
 
-void Elaborator::leaveMethodFuncCall(const MethodFuncCall* object,
-                                     vpiHandle handle) {
+void Elaborator::leaveMethodFuncCall(const MethodFuncCall* object, vpiHandle handle) {
   if (!m_instStack.empty() && (std::get<0>(m_instStack.back()) == object)) {
     m_instStack.pop_back();
   }
@@ -1279,30 +1248,22 @@ void Elaborator::leaveRefObj(const RefObj* object, vpiHandle handle) {
   // Logic net are the default binding (When no proper binding was found).
   // Hier path binding leaf node is more accurately done in the clone_tree
   // Operation because of variable name scope shadowing issues.
-  if ((!actual) ||
-      (actual && parent && parent->getUhdmType() != UhdmType::HierPath)) {
+  if ((!actual) || (actual && parent && parent->getUhdmType() != UhdmType::HierPath)) {
     if (Any* res = bindAny(object->getName())) {
       ((RefObj*)object)->setActual(res, true);
     }
   }
 }
 
-void Elaborator::leaveBitSelect(const BitSelect* object, vpiHandle handle) {
+void Elaborator::leaveBitSelect(const BitSelect* object, vpiHandle handle) { leaveRefObj(object, handle); }
+
+void Elaborator::leaveIndexedPartSelect(const IndexedPartSelect* object, vpiHandle handle) {
   leaveRefObj(object, handle);
 }
 
-void Elaborator::leaveIndexedPartSelect(const IndexedPartSelect* object,
-                                        vpiHandle handle) {
-  leaveRefObj(object, handle);
-}
+void Elaborator::leavePartSelect(const PartSelect* object, vpiHandle handle) { leaveRefObj(object, handle); }
 
-void Elaborator::leavePartSelect(const PartSelect* object, vpiHandle handle) {
-  leaveRefObj(object, handle);
-}
-
-void Elaborator::leaveVarSelect(const VarSelect* object, vpiHandle handle) {
-  leaveRefObj(object, handle);
-}
+void Elaborator::leaveVarSelect(const VarSelect* object, vpiHandle handle) { leaveRefObj(object, handle); }
 
 // clang-format off
 //<COPY_IMPLEMENTATIONS>
@@ -1328,8 +1289,7 @@ Any* Elaborator::cloneAny(const Any* source, Any* parent) {
           // won't work!!
           target->setUhdmId(id);
           copy(static_cast<const Parameter*>(source), targetParameter);
-        } else if (TypeParameter* const targetTypeParameter =
-                       any_cast<TypeParameter>(target)) {
+        } else if (TypeParameter* const targetTypeParameter = any_cast<TypeParameter>(target)) {
           const uint32_t id = target->getUhdmId();
           // *targetTypeParameter = *static_cast<const TypeParameter*>(source);
           // This won't work!!
@@ -1345,8 +1305,7 @@ Any* Elaborator::cloneAny(const Any* source, Any* parent) {
     case UhdmType::ForkStmt: {
       enterForkStmt(static_cast<const ForkStmt*>(source), nullptr);
     } break;
-    default:
-      break;
+    default: break;
   }
 
   Any* target = Cloner::cloneAny(source, parent);
@@ -1358,8 +1317,7 @@ Any* Elaborator::cloneAny(const Any* source, Any* parent) {
     case UhdmType::ForkStmt: {
       leaveForkStmt(static_cast<const ForkStmt*>(source), nullptr);
     } break;
-    default:
-      break;
+    default: break;
   }
 
   return target;
@@ -1368,26 +1326,20 @@ Any* Elaborator::cloneAny(const Any* source, Any* parent) {
 SysFuncCall* Elaborator::clone(const SysFuncCall* source, Any* parent) {
   SysFuncCall* const target = m_serializer->clone<SysFuncCall>(source);
   target->setParent(parent, true);
-  if (auto obj = source->getUserSystf())
-    target->setUserSystf(clone(obj, target), true);
+  if (auto obj = source->getUserSystf()) target->setUserSystf(clone(obj, target), true);
   if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
-  if (auto vec = source->getArguments())
-    target->setArguments(cloneT(vec, target), true);
-  if (auto obj = source->getTypespec())
-    target->setTypespec(clone(obj, target), true);
+  if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+  if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
   return target;
 }
 
 SysTaskCall* Elaborator::clone(const SysTaskCall* source, Any* parent) {
   SysTaskCall* const target = m_serializer->clone<SysTaskCall>(source);
   target->setParent(parent, true);
-  if (auto obj = source->getUserSystf())
-    target->setUserSystf(clone(obj, target), true);
+  if (auto obj = source->getUserSystf()) target->setUserSystf(clone(obj, target), true);
   if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
-  if (auto vec = source->getArguments())
-    target->setArguments(cloneT(vec, target), true);
-  if (auto obj = source->getTypespec())
-    target->setTypespec(clone(obj, target), true);
+  if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+  if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
   return target;
 }
 
@@ -1400,12 +1352,10 @@ TFCall* Elaborator::clone(const MethodFuncCall* source, Any* parent) {
   if (is_function) {
     MethodFuncCall* const target = m_serializer->clone<MethodFuncCall>(source);
     target->setParent(parent, true);
-    if (auto obj = source->getPrefix())
-      target->setPrefix(clone(obj, target), true);
+    if (auto obj = source->getPrefix()) target->setPrefix(clone(obj, target), true);
     // const Any* parent = target->getParent();
     const Variable* var = getActual<Variable>(target->getPrefix());
-    if (getTypespec<ClassTypespec>(var) != nullptr)
-      m_scheduledTfCallBinding.emplace_back(target, var);
+    if (getTypespec<ClassTypespec>(var) != nullptr) m_scheduledTfCallBinding.emplace_back(target, var);
     Any* pushedVar = nullptr;
     // if (auto vec = source->getArguments()) {
     //   auto clone_vec = target->getArguments(true);
@@ -1454,10 +1404,8 @@ TFCall* Elaborator::clone(const MethodFuncCall* source, Any* parent) {
     // }
     if (auto obj = source->getWith()) target->setWith(clone(obj, target), true);
     if (pushedVar) popVar(pushedVar);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   } else {
     MethodTaskCall* const target = m_serializer->make<MethodTaskCall>();
@@ -1469,18 +1417,13 @@ TFCall* Elaborator::clone(const MethodFuncCall* source, Any* parent) {
     target->setStartColumn(source->getStartColumn());
     target->setEndLine(source->getEndLine());
     target->setEndColumn(source->getEndColumn());
-    if (auto obj = source->getPrefix())
-      target->setPrefix(clone(obj, target), true);
+    if (auto obj = source->getPrefix()) target->setPrefix(clone(obj, target), true);
     const Variable* var = getActual<Variable>(target->getPrefix());
-    if (getTypespec<ClassTypespec>(var) != nullptr)
-      m_scheduledTfCallBinding.emplace_back(target, var);
+    if (getTypespec<ClassTypespec>(var) != nullptr) m_scheduledTfCallBinding.emplace_back(target, var);
     if (auto obj = source->getWith()) target->setWith(clone(obj, target), true);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   }
 }
@@ -1489,8 +1432,7 @@ Constant* Elaborator::clone(const Constant* source, Any* parent) {
   if (uniquifyTypespec() || (source->getSize() == -1)) {
     Constant* const target = m_serializer->clone<Constant>(source);
     target->setParent(parent, true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   } else {
     return const_cast<Constant*>(source);
@@ -1501,10 +1443,8 @@ TaggedPattern* Elaborator::clone(const TaggedPattern* source, Any* parent) {
   if (uniquifyTypespec()) {
     TaggedPattern* const target = m_serializer->clone<TaggedPattern>(source);
     target->setParent(parent, true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
-    if (auto obj = source->getPattern())
-      target->setPattern(clone(obj, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getPattern()) target->setPattern(clone(obj, target), true);
     return target;
   } else {
     return const_cast<TaggedPattern*>(source);
@@ -1520,18 +1460,13 @@ TFCall* Elaborator::clone(const MethodTaskCall* source, Any* parent) {
   if (is_task) {
     MethodTaskCall* const target = m_serializer->clone<MethodTaskCall>(source);
     target->setParent(parent, true);
-    if (auto obj = source->getPrefix())
-      target->setPrefix(clone(obj, target), true);
+    if (auto obj = source->getPrefix()) target->setPrefix(clone(obj, target), true);
     const Variable* var = getActual<Variable>(target->getPrefix());
-    if (getTypespec<ClassTypespec>(var) != nullptr)
-      m_scheduledTfCallBinding.emplace_back(target, var);
+    if (getTypespec<ClassTypespec>(var) != nullptr) m_scheduledTfCallBinding.emplace_back(target, var);
     if (auto obj = source->getWith()) target->setWith(clone(obj, target), true);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   } else {
     MethodFuncCall* const target = m_serializer->make<MethodFuncCall>();
@@ -1543,18 +1478,13 @@ TFCall* Elaborator::clone(const MethodTaskCall* source, Any* parent) {
     target->setStartColumn(source->getStartColumn());
     target->setEndLine(source->getEndLine());
     target->setEndColumn(source->getEndColumn());
-    if (auto obj = source->getPrefix())
-      target->setPrefix(clone(obj, target), true);
+    if (auto obj = source->getPrefix()) target->setPrefix(clone(obj, target), true);
     const Variable* var = getActual<Variable>(target->getPrefix());
-    if (getTypespec<ClassTypespec>(var) != nullptr)
-      m_scheduledTfCallBinding.emplace_back(target, var);
+    if (getTypespec<ClassTypespec>(var) != nullptr) m_scheduledTfCallBinding.emplace_back(target, var);
     if (auto obj = source->getWith()) target->setWith(clone(obj, target), true);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   }
 }
@@ -1565,12 +1495,9 @@ TFCall* Elaborator::clone(const FuncCall* source, Any* parent) {
     FuncCall* const target = m_serializer->clone<FuncCall>(source);
     target->setParent(parent, true);
     m_scheduledTfCallBinding.emplace_back(target, nullptr);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   } else {
     TaskCall* const target = m_serializer->make<TaskCall>();
@@ -1583,12 +1510,9 @@ TFCall* Elaborator::clone(const FuncCall* source, Any* parent) {
     target->setEndLine(source->getEndLine());
     target->setEndColumn(source->getEndColumn());
     m_scheduledTfCallBinding.emplace_back(target, nullptr);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   }
 }
@@ -1599,12 +1523,9 @@ TFCall* Elaborator::clone(const TaskCall* source, Any* parent) {
     TaskCall* const target = m_serializer->clone<TaskCall>(source);
     target->setParent(parent, true);
     m_scheduledTfCallBinding.emplace_back(target, nullptr);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   } else {
     FuncCall* const target = m_serializer->make<FuncCall>();
@@ -1617,12 +1538,9 @@ TFCall* Elaborator::clone(const TaskCall* source, Any* parent) {
     target->setEndColumn(source->getEndColumn());
     target->setArguments(source->getArguments(), true);
     m_scheduledTfCallBinding.emplace_back(target, nullptr);
-    if (auto obj = source->getScope())
-      target->setScope(clone(obj, target), true);
-    if (auto vec = source->getArguments())
-      target->setArguments(cloneT(vec, target), true);
-    if (auto obj = source->getTypespec())
-      target->setTypespec(clone(obj, target), true);
+    if (auto obj = source->getScope()) target->setScope(clone(obj, target), true);
+    if (auto vec = source->getArguments()) target->setArguments(cloneT(vec, target), true);
+    if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
     return target;
   }
 }
@@ -1630,8 +1548,7 @@ TFCall* Elaborator::clone(const TaskCall* source, Any* parent) {
 GenScopeArray* Elaborator::clone(const GenScopeArray* source, Any* parent) {
   GenScopeArray* const target = m_serializer->clone<GenScopeArray>(source);
   target->setParent(parent, true);
-  if (auto obj = source->getGenVar())
-    target->setGenVar(clone(obj, target), true);
+  if (auto obj = source->getGenVar()) target->setGenVar(clone(obj, target), true);
   if (auto vec = source->getGenScopes()) {
     auto clone_vec = target->getGenScopes(true);
     for (auto obj : *vec) {
@@ -1640,53 +1557,33 @@ GenScopeArray* Elaborator::clone(const GenScopeArray* source, Any* parent) {
       leaveGenScope(obj, nullptr);
     }
   }
-  if (auto obj = source->getInstance())
-    target->setInstance(clone(obj, target), true);
+  if (auto obj = source->getInstance()) target->setInstance(clone(obj, target), true);
   return target;
 }
 
 Function* Elaborator::clone(const Function* source, Any* parent) {
   Function* const target = m_serializer->clone<Function>(source);
   target->setParent(parent, true);
-  if (auto obj = source->getLeftExpr())
-    target->setLeftExpr(clone(obj, target), true);
-  if (auto obj = source->getRightExpr())
-    target->setRightExpr(clone(obj, target), true);
-  if (auto obj = source->getReturn())
-    target->setReturn(clone(obj, target), true);
-  if (auto obj = source->getInstance())
-    target->setInstance((Instance*)obj, true);
-  if (Instance* inst = any_cast<Instance>(parent))
-    target->setInstance(inst, true);
-  if (auto obj = source->getClassDefn())
-    target->setClassDefn(clone(obj, target), true);
-  if (auto vec = source->getIODecls())
-    target->setIODecls(cloneT(vec, target), true);
-  if (auto vec = source->getVariables())
-    target->setVariables(cloneT(vec, target), true);
-  if (auto vec = source->getParameters())
-    target->setParameters(cloneT(vec, target), true);
-  if (auto vec = source->getTypespecs())
-    target->setTypespecs(cloneT(vec, target), true);
+  if (auto obj = source->getLeftExpr()) target->setLeftExpr(clone(obj, target), true);
+  if (auto obj = source->getRightExpr()) target->setRightExpr(clone(obj, target), true);
+  if (auto obj = source->getReturn()) target->setReturn(clone(obj, target), true);
+  if (auto obj = source->getInstance()) target->setInstance((Instance*)obj, true);
+  if (Instance* inst = any_cast<Instance>(parent)) target->setInstance(inst, true);
+  if (auto obj = source->getClassDefn()) target->setClassDefn(clone(obj, target), true);
+  if (auto vec = source->getIODecls()) target->setIODecls(cloneT(vec, target), true);
+  if (auto vec = source->getVariables()) target->setVariables(cloneT(vec, target), true);
+  if (auto vec = source->getParameters()) target->setParameters(cloneT(vec, target), true);
+  if (auto vec = source->getTypespecs()) target->setTypespecs(cloneT(vec, target), true);
   enterTaskFunc(target, nullptr);
-  if (auto vec = source->getConcurrentAssertions())
-    target->setConcurrentAssertions(cloneT(vec, target), true);
-  if (auto vec = source->getPropertyDecls())
-    target->setPropertyDecls(cloneT(vec, target), true);
-  if (auto vec = source->getSequenceDecls())
-    target->setSequenceDecls(cloneT(vec, target), true);
-  if (auto vec = source->getNamedEvents())
-    target->setNamedEvents(cloneT(vec, target), true);
-  if (auto vec = source->getNamedEventArrays())
-    target->setNamedEventArrays(cloneT(vec, target), true);
-  if (auto vec = source->getParamAssigns())
-    target->setParamAssigns(cloneT(vec, target), true);
-  if (auto vec = source->getLetDecls())
-    target->setLetDecls(cloneT(vec, target), true);
-  if (auto vec = source->getAttributes())
-    target->setAttributes(cloneT(vec, target), true);
-  if (auto vec = source->getInstanceItems())
-    target->setInstanceItems(cloneT(vec, target), true);
+  if (auto vec = source->getConcurrentAssertions()) target->setConcurrentAssertions(cloneT(vec, target), true);
+  if (auto vec = source->getPropertyDecls()) target->setPropertyDecls(cloneT(vec, target), true);
+  if (auto vec = source->getSequenceDecls()) target->setSequenceDecls(cloneT(vec, target), true);
+  if (auto vec = source->getNamedEvents()) target->setNamedEvents(cloneT(vec, target), true);
+  if (auto vec = source->getNamedEventArrays()) target->setNamedEventArrays(cloneT(vec, target), true);
+  if (auto vec = source->getParamAssigns()) target->setParamAssigns(cloneT(vec, target), true);
+  if (auto vec = source->getLetDecls()) target->setLetDecls(cloneT(vec, target), true);
+  if (auto vec = source->getAttributes()) target->setAttributes(cloneT(vec, target), true);
+  if (auto vec = source->getInstanceItems()) target->setInstanceItems(cloneT(vec, target), true);
   if (auto obj = source->getStmt()) target->setStmt(clone(obj, target), true);
   leaveTaskFunc(target, nullptr);
   return target;
@@ -1695,45 +1592,26 @@ Function* Elaborator::clone(const Function* source, Any* parent) {
 Task* Elaborator::clone(const Task* source, Any* parent) {
   Task* const target = m_serializer->clone<Task>(source);
   target->setParent(parent, true);
-  if (auto obj = source->getLeftExpr())
-    target->setLeftExpr(clone(obj, target), true);
-  if (auto obj = source->getRightExpr())
-    target->setRightExpr(clone(obj, target), true);
-  if (auto obj = source->getReturn())
-    target->setReturn(clone(obj, target), true);
-  if (auto obj = source->getInstance())
-    target->setInstance((Instance*)obj, true);
-  if (Instance* inst = any_cast<Instance>(parent))
-    target->setInstance(inst, true);
-  if (auto obj = source->getClassDefn())
-    target->setClassDefn(clone(obj, target), true);
-  if (auto vec = source->getIODecls())
-    target->setIODecls(cloneT(vec, target), true);
-  if (auto vec = source->getVariables())
-    target->setVariables(cloneT(vec, target), true);
-  if (auto vec = source->getTypespecs())
-    target->setTypespecs(cloneT(vec, target), true);
+  if (auto obj = source->getLeftExpr()) target->setLeftExpr(clone(obj, target), true);
+  if (auto obj = source->getRightExpr()) target->setRightExpr(clone(obj, target), true);
+  if (auto obj = source->getReturn()) target->setReturn(clone(obj, target), true);
+  if (auto obj = source->getInstance()) target->setInstance((Instance*)obj, true);
+  if (Instance* inst = any_cast<Instance>(parent)) target->setInstance(inst, true);
+  if (auto obj = source->getClassDefn()) target->setClassDefn(clone(obj, target), true);
+  if (auto vec = source->getIODecls()) target->setIODecls(cloneT(vec, target), true);
+  if (auto vec = source->getVariables()) target->setVariables(cloneT(vec, target), true);
+  if (auto vec = source->getTypespecs()) target->setTypespecs(cloneT(vec, target), true);
   enterTaskFunc(target, nullptr);
-  if (auto vec = source->getConcurrentAssertions())
-    target->setConcurrentAssertions(cloneT(vec, target), true);
-  if (auto vec = source->getPropertyDecls())
-    target->setPropertyDecls(cloneT(vec, target), true);
-  if (auto vec = source->getSequenceDecls())
-    target->setSequenceDecls(cloneT(vec, target), true);
-  if (auto vec = source->getNamedEvents())
-    target->setNamedEvents(cloneT(vec, target), true);
-  if (auto vec = source->getNamedEventArrays())
-    target->setNamedEventArrays(cloneT(vec, target), true);
-  if (auto vec = source->getParamAssigns())
-    target->setParamAssigns(cloneT(vec, target), true);
-  if (auto vec = source->getLetDecls())
-    target->setLetDecls(cloneT(vec, target), true);
-  if (auto vec = source->getAttributes())
-    target->setAttributes(cloneT(vec, target), true);
-  if (auto vec = source->getParameters())
-    target->setParameters(cloneT(vec, target), true);
-  if (auto vec = source->getInstanceItems())
-    target->setInstanceItems(cloneT(vec, target), true);
+  if (auto vec = source->getConcurrentAssertions()) target->setConcurrentAssertions(cloneT(vec, target), true);
+  if (auto vec = source->getPropertyDecls()) target->setPropertyDecls(cloneT(vec, target), true);
+  if (auto vec = source->getSequenceDecls()) target->setSequenceDecls(cloneT(vec, target), true);
+  if (auto vec = source->getNamedEvents()) target->setNamedEvents(cloneT(vec, target), true);
+  if (auto vec = source->getNamedEventArrays()) target->setNamedEventArrays(cloneT(vec, target), true);
+  if (auto vec = source->getParamAssigns()) target->setParamAssigns(cloneT(vec, target), true);
+  if (auto vec = source->getLetDecls()) target->setLetDecls(cloneT(vec, target), true);
+  if (auto vec = source->getAttributes()) target->setAttributes(cloneT(vec, target), true);
+  if (auto vec = source->getParameters()) target->setParameters(cloneT(vec, target), true);
+  if (auto vec = source->getInstanceItems()) target->setInstanceItems(cloneT(vec, target), true);
   if (auto obj = source->getStmt()) target->setStmt(clone(obj, target), true);
   leaveTaskFunc(target, nullptr);
   return target;
@@ -1774,12 +1652,10 @@ ContAssign* Elaborator::clone(const ContAssign* source, Any* parent) {
     if (RefObj* ro = any_cast<RefObj>(lhs)) {
       if (Variable* const var = ro->getActual<Variable>()) {
         if (StructTypespec* const st = getTypespec<StructTypespec>(var)) {
-          ExprEval eval(m_muteErrors);
-          if (Expr* res =
-                  eval.flattenPatternAssignments(*m_serializer, st, rhs)) {
+          ExprEval eval(nullptr, m_muteErrors);
+          if (Expr* res = eval.flattenPatternAssignments(*m_serializer, st, rhs)) {
             if (res->getUhdmType() == UhdmType::Operation) {
-              ((Operation*)rhs)
-                  ->setOperands(((Operation*)res)->getOperands(), true);
+              ((Operation*)rhs)->setOperands(((Operation*)res)->getOperands(), true);
             }
           }
         }
@@ -1790,8 +1666,7 @@ ContAssign* Elaborator::clone(const ContAssign* source, Any* parent) {
   return target;
 }
 
-Any* Elaborator::bindClassTypespec(ClassTypespec* ctps, Any* current,
-                                   std::string_view name, bool& found) {
+Any* Elaborator::bindClassTypespec(ClassTypespec* ctps, Any* current, std::string_view name, bool& found) {
   Any* previous = nullptr;
   const ClassDefn* defn = ctps->getClassDefn();
   while (defn) {
@@ -1877,8 +1752,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
               ClassDefn* def = (ClassDefn*)tmp;
               if (const Extends* ext = def->getExtends()) {
                 if (const RefTypespec* rt = ext->getClassTypespec()) {
-                  if (const ClassTypespec* ctps =
-                          rt->getActual<ClassTypespec>()) {
+                  if (const ClassTypespec* ctps = rt->getActual<ClassTypespec>()) {
                     ref->setActual((Any*)ctps->getClassDefn(), true);
                     found = true;
                     break;
@@ -1928,8 +1802,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 if (scope->getTopModules()) {
                   for (auto m : *scope->getTopModules()) {
                     const std::string_view modName = m->getName();
-                    if (modName == name || modName == nameIndexed ||
-                        modName == std::string("work@").append(name)) {
+                    if (modName == name || modName == nameIndexed || modName == std::string("work@").append(name)) {
                       found = true;
                       previous = m;
                       if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2006,8 +1879,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                   }
                   if (!found && scope->getGenScopeArrays()) {
                     for (auto gsa : *scope->getGenScopeArrays()) {
-                      if (gsa->getName() == name ||
-                          gsa->getName() == nameIndexed) {
+                      if (gsa->getName() == name || gsa->getName() == nameIndexed) {
                         if (!gsa->getGenScopes()->empty()) {
                           auto gs = gsa->getGenScopes()->front();
                           if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2081,15 +1953,13 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 // }
                 if (const RefTypespec* rt = avar->getTypespec()) {
                   tps = rt->getActual();
-                  if (const ArrayTypespec* atps =
-                          rt->getActual<ArrayTypespec>()) {
+                  if (const ArrayTypespec* atps = rt->getActual<ArrayTypespec>()) {
                     if (const RefTypespec* ert = atps->getElemTypespec()) {
                       tps = ert->getActual();
                     }
                   }
                 }
-                if (name == "size" || name == "exists" || name == "find" ||
-                    name == "max" || name == "min") {
+                if (name == "size" || name == "exists" || name == "find" || name == "max" || name == "min") {
                   FuncCall* call = m_serializer->make<FuncCall>();
                   call->setName(name);
                   call->setParent(target, true);
@@ -2158,8 +2028,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 }
                 break;
               }
-              default:
-                break;
+              default: break;
             }
 
             switch (actual_type) {
@@ -2225,8 +2094,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 }
                 if (!found && mod->getGenScopeArrays()) {
                   for (auto gsa : *mod->getGenScopeArrays()) {
-                    if (gsa->getName() == name ||
-                        gsa->getName() == nameIndexed) {
+                    if (gsa->getName() == name || gsa->getName() == nameIndexed) {
                       if (!gsa->getGenScopes()->empty()) {
                         auto gs = gsa->getGenScopes()->front();
                         if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2241,8 +2109,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 }
                 if (!found && mod->getTaskFuncs()) {
                   for (auto tsf : *mod->getTaskFuncs()) {
-                    if (tsf->getName() == name ||
-                        tsf->getName() == nameIndexed) {
+                    if (tsf->getName() == name || tsf->getName() == nameIndexed) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
                         cro->setActual(tsf, true);
                       }
@@ -2254,8 +2121,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 }
                 if (!found && mod->getParamAssigns()) {
                   for (auto pa : *mod->getParamAssigns()) {
-                    if (pa->getLhs()->getName() == name ||
-                        pa->getLhs()->getName() == nameIndexed) {
+                    if (pa->getLhs()->getName() == name || pa->getLhs()->getName() == nameIndexed) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
                         cro->setActual(pa->getRhs(), true);
                       }
@@ -2271,15 +2137,12 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 const Typespec* ts = getTypespec(actual);
                 if (ts == nullptr) break;
 
-                if (const ClassTypespec* const cts =
-                        any_cast<ClassTypespec>(ts)) {
-                  Any* tmp = bindClassTypespec(const_cast<ClassTypespec*>(cts),
-                                               current, name, found);
+                if (const ClassTypespec* const cts = any_cast<ClassTypespec>(ts)) {
+                  Any* tmp = bindClassTypespec(const_cast<ClassTypespec*>(cts), current, name, found);
                   if (found) {
                     previous = tmp;
                   }
-                } else if (const StructTypespec* const sts =
-                               any_cast<StructTypespec>(ts)) {
+                } else if (const StructTypespec* const sts = any_cast<StructTypespec>(ts)) {
                   for (TypespecMember* member : *sts->getMembers()) {
                     if (member->getName() == name) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2290,8 +2153,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                       break;
                     }
                   }
-                } else if (const UnionTypespec* const uts =
-                               any_cast<UnionTypespec>(ts)) {
+                } else if (const UnionTypespec* const uts = any_cast<UnionTypespec>(ts)) {
                   for (TypespecMember* member : *uts->getMembers()) {
                     if (member->getName() == name) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2418,8 +2280,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 }
                 if (!found && interf->getGenScopeArrays()) {
                   for (auto gsa : *interf->getGenScopeArrays()) {
-                    if (gsa->getName() == name ||
-                        gsa->getName() == nameIndexed) {
+                    if (gsa->getName() == name || gsa->getName() == nameIndexed) {
                       if (!gsa->getGenScopes()->empty()) {
                         auto gs = gsa->getGenScopes()->front();
                         if (RefObj* cro = any_cast<RefObj>(current)) {
@@ -2503,8 +2364,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                     found = true;
                 }
                 // TODO: class method support
-                if (current->getUhdmType() == UhdmType::MethodFuncCall)
-                  found = true;
+                if (current->getUhdmType() == UhdmType::MethodFuncCall) found = true;
                 break;
               }
               case UhdmType::Parameter: {
@@ -2624,8 +2484,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                     }
                     if (oper_found == false) {
                       for (uint32_t i = 0; i < fieldTypes.size(); i++) {
-                        if (ttp->getUhdmType() ==
-                            fieldTypes[i]->getUhdmType()) {
+                        if (ttp->getUhdmType() == fieldTypes[i]->getUhdmType()) {
                           tmp[i] = oper;
                           oper_found = true;
                           res = tmp[i];
@@ -2652,16 +2511,13 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
               }
               default:
                 // TODO: class method support
-                if (current->getUhdmType() == UhdmType::MethodFuncCall)
-                  found = true;
+                if (current->getUhdmType() == UhdmType::MethodFuncCall) found = true;
                 break;
             }
             if (!found) {
               if ((!muteErrors()) && (!isInUhdmAllIterator())) {
                 const std::string errMsg(source->getName());
-                m_serializer->getErrorHandler()(
-                    ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, source,
-                    nullptr);
+                m_serializer->getErrorHandler()(ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, source, nullptr);
               }
             }
           } else {
@@ -2670,9 +2526,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                 break;
               }
               const std::string errMsg(source->getName());
-              m_serializer->getErrorHandler()(
-                  ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, source,
-                  nullptr);
+              m_serializer->getErrorHandler()(ErrorType::UHDM_UNRESOLVED_HIER_PATH, errMsg, source, nullptr);
             }
           }
         } else if (previous->getUhdmType() == UhdmType::TypespecMember) {
@@ -2839,8 +2693,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
           break;
         } else if (previous->getUhdmType() == UhdmType::GenScope) {
           GenScope* scope = (GenScope*)previous;
-          if ((obj->getUhdmType() == UhdmType::MethodFuncCall) ||
-              (obj->getUhdmType() == UhdmType::MethodTaskCall)) {
+          if ((obj->getUhdmType() == UhdmType::MethodFuncCall) || (obj->getUhdmType() == UhdmType::MethodTaskCall)) {
             MethodFuncCall* call = (MethodFuncCall*)current;
             if (scope->getTaskFuncs()) {
               for (auto tf : *scope->getTaskFuncs()) {
@@ -2896,113 +2749,86 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
     }
   }
   if (auto vec = source->getUses()) target->setUses(cloneT(vec, target), true);
-  if (auto obj = source->getTypespec())
-    target->setTypespec(clone(obj, target), true);
+  if (auto obj = source->getTypespec()) target->setTypespec(clone(obj, target), true);
   return target;
 }
 
 Typespec* Elaborator::clone(const ArrayTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ArrayTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ArrayTypespec*>(source);
 }
 Typespec* Elaborator::clone(const BitTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<BitTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<BitTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ByteTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ByteTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ByteTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ChandleTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ChandleTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ChandleTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ClassTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ClassTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ClassTypespec*>(source);
 }
 Typespec* Elaborator::clone(const EnumTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<EnumTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<EnumTypespec*>(source);
 }
 Typespec* Elaborator::clone(const EventTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<EventTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<EventTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ImportTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ImportTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ImportTypespec*>(source);
 }
 Typespec* Elaborator::clone(const IntTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<IntTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<IntTypespec*>(source);
 }
 Typespec* Elaborator::clone(const IntegerTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<IntegerTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<IntegerTypespec*>(source);
 }
 Typespec* Elaborator::clone(const InterfaceTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<InterfaceTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<InterfaceTypespec*>(source);
 }
 Typespec* Elaborator::clone(const LogicTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<LogicTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<LogicTypespec*>(source);
 }
 Typespec* Elaborator::clone(const LongIntTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<LongIntTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<LongIntTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ModuleTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ModuleTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ModuleTypespec*>(source);
 }
 Typespec* Elaborator::clone(const PropertyTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<PropertyTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<PropertyTypespec*>(source);
 }
 Typespec* Elaborator::clone(const RealTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<RealTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<RealTypespec*>(source);
 }
 Typespec* Elaborator::clone(const SequenceTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<SequenceTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<SequenceTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ShortIntTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ShortIntTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ShortIntTypespec*>(source);
 }
 Typespec* Elaborator::clone(const ShortRealTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<ShortRealTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<ShortRealTypespec*>(source);
 }
 Typespec* Elaborator::clone(const StringTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<StringTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<StringTypespec*>(source);
 }
 Typespec* Elaborator::clone(const StructTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<StructTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<StructTypespec*>(source);
 }
 Typespec* Elaborator::clone(const TimeTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<TimeTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<TimeTypespec*>(source);
 }
 Typespec* Elaborator::clone(const TypeParameter* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<TypeParameter*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<TypeParameter*>(source);
 }
 Typespec* Elaborator::clone(const UnionTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<UnionTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<UnionTypespec*>(source);
 }
 Typespec* Elaborator::clone(const UnsupportedTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<UnsupportedTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<UnsupportedTypespec*>(source);
 }
 Typespec* Elaborator::clone(const VoidTypespec* source, Any* parent) {
-  return uniquifyTypespec() ? Cloner::clone(source, parent)
-                            : const_cast<VoidTypespec*>(source);
+  return uniquifyTypespec() ? Cloner::clone(source, parent) : const_cast<VoidTypespec*>(source);
 }
 }  // namespace uhdm

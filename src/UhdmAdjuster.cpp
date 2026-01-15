@@ -213,7 +213,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
     const Any* parent = object->getParent();
     int32_t size = object->getSize();
     bool invalidValue = false;
-    ExprEval eval;
+    ExprEval eval(nullptr);
     Elaborator elaborator(m_serializer);
     if (parent) {
       if (parent->getUhdmType() == UhdmType::Operation) {
@@ -222,10 +222,9 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
         int32_t i = 0;
         for (Any* oper : *op->getOperands()) {
           if (oper != object) {
-            int32_t tmp = static_cast<int32_t>(eval.size(
-                oper, invalidValue, m_currentInstance, op, true, true));
-            if (!invalidValue) {
-              size = tmp;
+            uint64_t bits = 0;
+            if ((invalidValue = eval.getBitCount(oper, op, true, &bits, true))) {
+              size = bits;
             }
           } else {
             indexSelf = i;
@@ -235,8 +234,9 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
         if (size != object->getSize()) {
           Constant* newc = elaborator.clone<>(object, nullptr);
           newc->setSize(size);
-          int64_t val = eval.get_value(invalidValue, object);
-          if (val == 1) {
+
+          int64_t val = 0;
+          if (eval.getInt64(object, &val) && (val == 1)) {
             uint64_t mask = NumUtils::getMask(size);
             newc->setValue("UINT:" + std::to_string(mask));
             newc->setDecompile(std::to_string(mask));
@@ -257,11 +257,9 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
                 TypespecMember* member = (TypespecMember*)actual;
                 if (const RefTypespec* rt = member->getTypespec()) {
                   if (const Typespec* tps = rt->getActual()) {
-                    uint64_t tmp =
-                        eval.size(tps, invalidValue, m_currentInstance, assign,
-                                  true, true);
-                    if (!invalidValue) {
-                      size = static_cast<int32_t>(tmp);
+                    uint64_t bits = 0;
+                    if ((invalidValue = eval.getBitCount(tps, assign, true, &bits, true))) {
+                      size = static_cast<int32_t>(bits);
                     }
                   }
                 }
@@ -272,8 +270,9 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
         if (size != object->getSize()) {
           Constant* newc = elaborator.clone<>(object, nullptr);
           newc->setSize(size);
-          int64_t val = eval.get_value(invalidValue, object);
-          if (val == 1) {
+
+          int64_t val = 0;
+          if (eval.getInt64(object, &val) && (val == 1)) {
             uint64_t mask = NumUtils::getMask(size);
             newc->setValue("UINT:" + std::to_string(mask));
             newc->setDecompile(std::to_string(mask));
@@ -289,11 +288,11 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
 void UhdmAdjuster::updateParentWithReducedExpression(const Any* object,
                                                      const Any* parent) {
   bool invalidValue = false;
-  ExprEval eval(true);
+  ExprEval eval(nullptr, true);
   eval.reduceExceptions({vpiAssignmentPatternOp, vpiMultiAssignmentPatternOp,
                          vpiConcatOp, vpiMultiConcatOp, vpiBitNegOp});
-  Expr* tmp =
-      eval.reduceExpr(object, invalidValue, m_currentInstance, parent, true);
+  Expr* tmp = nullptr;
+  invalidValue = !eval.reduceExpr(any_cast<Expr>(object), parent, &tmp, true);
   if (invalidValue) return;
   if (tmp == nullptr) return;
   if (tmp->getUhdmType() == UhdmType::Constant) {
@@ -365,8 +364,7 @@ void UhdmAdjuster::leaveFuncCall(const FuncCall* object, vpiHandle handle) {
   if (isInUhdmAllIterator()) return;
   const std::string_view name = object->getName();
   if (name.find("::") != std::string::npos) {
-    ExprEval eval;
-    std::vector<std::string_view> res = eval.tokenizeMulti(name, "::");
+    std::vector<std::string_view> res = tokenize(name, "::");
     const std::string_view packName = res[0];
     const std::string_view funcName = res[1];
     if (m_design->getTopPackages()) {

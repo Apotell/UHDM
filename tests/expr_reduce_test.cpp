@@ -61,10 +61,22 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     m1->setStartLine(10);
     Constant* c1 = s->make<Constant>();
     c1->setValue("INT:2");
+    c1->setDecompile("2");
     c1->setConstType(vpiIntConst);
+    RefTypespec* rt1 = s->make<RefTypespec>();
+    c1->setTypespec(rt1);
+    IntTypespec* t1 = s->make<IntTypespec>();
+    t1->setSigned(true);
+    rt1->setActual(t1);
     Constant* c2 = s->make<Constant>();
     c2->setValue("INT:3");
+    c2->setDecompile("3");
     c2->setConstType(vpiIntConst);
+    RefTypespec* rt2 = s->make<RefTypespec>();
+    c2->setTypespec(rt2);
+    IntTypespec* t2 = s->make<IntTypespec>();
+    t2->setSigned(true);
+    rt2->setActual(t2);
     Operation* oper = s->make<Operation>();
     oper->setOpType(vpiAddOp);
     AnyCollection* operands = s->makeCollection<Any>();
@@ -92,7 +104,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
   return Designs;
 }
 
-TEST(FullElabTest, ElaborationRoundtrip) {
+TEST(ExprReduceTest, ReduceExpression) {
   Serializer serializer;
   const std::vector<vpiHandle>& designs = build_designs(&serializer);
   const std::string before = designs_to_string(designs);
@@ -116,13 +128,17 @@ TEST(FullElabTest, ElaborationRoundtrip) {
   Design* d = UhdmDesignFromVpiHandle(dh);
   for (auto m : *d->getTopModules()) {
     for (auto pass : *m->getParamAssigns()) {
-      const Any* rhs = pass->getRhs();
-      ExprEval eval;
-      bool invalidValue = false;
-      Expr* reduced = eval.reduceExpr(rhs, invalidValue, m, pass);
-      int64_t val = eval.get_value(invalidValue, reduced);
+      const Expr* rhs = pass->getRhs<Expr>();
+      ExprEval eval(nullptr);
+      Expr* reduced = nullptr;
+      bool succeeded = eval.reduceExpr(rhs, pass, &reduced, true);
+      EXPECT_TRUE(succeeded);
+
+      int64_t val = 0;
+      succeeded = eval.getInt64(reduced, &val);
+
       EXPECT_EQ(val, 5);
-      EXPECT_EQ(invalidValue, false);
+      EXPECT_TRUE(succeeded);
     }
   }
 }

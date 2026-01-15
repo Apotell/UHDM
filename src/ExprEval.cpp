@@ -17,7 +17,7 @@
 
 /*
  * File:   ExprEval.cpp
- * Author: alaindargelas
+ * Author: hs
  *
  * Created on July 3, 2021, 8:03 PM
  */
@@ -30,219 +30,5668 @@
 #include <uhdm/Utils.h>
 #include <uhdm/uhdm.h>
 
+#include <bitset>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <sstream>
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4018)  // '<=': signed/unsigned mismatch
+#pragma warning(disable : 4293)  // '<<': shift count negative or too big,
+                                 // undefined behavior
+#pragma warning(disable : 4389)  // signed/unsigned mismatch
+#endif
+
 namespace uhdm {
-class DetectRefObj final : public UhdmVisitor {
- public:
-  explicit DetectRefObj() {}
-  ~DetectRefObj() override = default;
 
-  void visitRefObj(const RefObj *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  void visitBitSelect(const BitSelect *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  void visitIndexedPartSelect(const IndexedPartSelect *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  void visitPartSelect(const PartSelect *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  void visitVarSelect(const VarSelect *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  void visitHierPath(const HierPath *object) final {
-    hasRefObj = true;
-    requestAbort();
-  }
-  bool refObjDetected() const { return hasRefObj; }
+struct identity final {
+  constexpr static bool boolean_result = false;
 
- private:
-  bool hasRefObj = false;
+  template <class T>
+  inline constexpr T operator()(const T &x) const {
+    return x;
+  };
+  inline std::string operator()(std::string_view x) const { return std::string(x); };
 };
 
-bool ExprEval::isFullySpecified(const Typespec *tps) {
-  if (tps == nullptr) {
-    return true;
+struct unary_reduce_and final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr bool operator()(T v) const {
+    using UT = typename std::make_unsigned<T>::type;
+    UT u = static_cast<UT>(v);
+    return u == std::numeric_limits<UT>::max();
   }
-  DetectRefObj detector;
-  detector.visit(tps);
-  if (detector.refObjDetected()) {
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "0";
+
+    // v may contain '0', '1', 'x', 'z', or other characters.
+    // Reduction AND -> if ANY non-'1' found -> result is '0'
+    for (char c : v) {
+      if (c != '1') return "0";
+    }
+    return "1";
+  }
+};
+
+struct unary_reduce_or final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr bool operator()(T v) const {
+    using UT = typename std::make_unsigned<T>::type;
+    return static_cast<UT>(v) != 0;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "0";
+
+    // If ANY bit is '1' -> result is '1'
+    for (char c : v) {
+      if (c == '1') return "1";
+    }
+
+    return "0";
+  }
+};
+
+struct unary_reduce_xor final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr bool operator()(T v) const {
+    using UT = typename std::make_unsigned<T>::type;
+
+    UT x = static_cast<UT>(v);
+    bool parity = false;
+    while (x) {
+      parity ^= (x & 1u);
+      x >>= 1u;
+    }
+    return parity;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "0";
+
+    bool parity = false;
+    bool hasUnknown = false;
+
+    for (char c : v) {
+      switch (c) {
+        case '1': parity = !parity; break;
+        case '0': break;
+        case 'x':
+        case 'X':
+        case 'z':
+        case 'Z':
+        default: hasUnknown = true; break;
+      }
+    }
+
+    // Unknown dominates ONLY if parity cannot be resolved with known bits
+    if (hasUnknown) return "x";
+
+    return parity ? "1" : "0";
+  }
+};
+
+struct unary_negate final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return std::negate()(v);
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "0";
+
+    const size_t width = v.size();
+
+    // If any unknown bit -> full unknown
+    for (char c : v) {
+      if ((c == 'x') || (c == 'z')) {
+        return std::string(width, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        return std::string(width, 'X');
+      }
+    }
+
+    // Convert binary string to signed integer
+    int64_t val = 0;
+    for (char c : v) {
+      val = (val << 1) | ((c == '1') ? 1 : 0);
+    }
+
+    // Determine sign bit (2’s complement)
+    bool negative = (v[0] == '1');
+    if (negative) {
+      // Convert from two's complement to signed integer
+      val -= (1LL << width);
+    }
+
+    // Apply negate
+    val = -val;
+
+    // Convert back to two's complement binary with fixed width
+    int64_t mod = (1LL << width);
+    val &= (mod - 1);  // wrap
+
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; ++i) {
+      if (val & (1LL << (width - 1 - i))) out[i] = '1';
+    }
+
+    return out;
+  }
+};
+
+struct unary_bit_not final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return std::bit_not()(v);
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "";
+
+    std::string out;
+    out.reserve(v.size());
+
+    for (char c : v) {
+      switch (c) {
+        case '0': out.push_back('1'); break;
+        case '1': out.push_back('0'); break;
+        case 'x':
+        case 'z': out.push_back('x'); break;  // unknown result
+        case 'X':
+        case 'Z': out.push_back('X'); break;  // unknown result
+        default: out.push_back('x'); break;   // any illegal -> unknown
+      }
+    }
+
+    return out;
+  }
+};
+
+struct unary_logical_not final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return std::logical_not()(v);
+  }
+  inline std::string operator()(std::string_view v) const {
+    bool has_one = false;
+    bool has_zero = false;
+    bool has_xz = false;
+
+    for (char c : v) {
+      switch (c) {
+        case '1': has_one = true; break;
+        case '0': has_zero = true; break;
+        case 'x':
+        case 'X':
+        case 'z':
+        case 'Z': has_xz = true; break;
+        default: break;
+      }
+    }
+
+    // Logical reduction:
+    // If any 1 → boolean = 1 → !1 = 0
+    if (has_one) return "0";
+
+    // No 1s. If all zeros → boolean = 0 → !0 = 1
+    if (!has_xz) return "1";
+
+    // No 1s, has X/Z → boolean = X → !X = X
+    return "x";
+  }
+};
+
+struct unary_and_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_and()(v) ? T{1} : T{0};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "x";
+
+    bool hasZero = false;
+    bool hasXorZ = false;
+
+    for (char c : v) {
+      switch (c) {
+        case '1': break;
+        case '0': hasZero = true; break;
+        case 'x':
+        case 'X':
+        case 'z':
+        case 'Z': hasXorZ = true; break;
+        default: hasXorZ = true; break;
+      }
+    }
+
+    // If any 0 present, definite false => result 0
+    if (hasZero) return "0";
+
+    // If all bits 1 => true => result 1
+    if (!hasZero && !hasXorZ) return "1";
+
+    // Otherwise, uncertainty => result x
+    return "x";
+  }
+};
+
+struct unary_nand_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_and()(v) ? T{0} : T{1};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "x";
+
+    bool hasZero = false;
+    bool hasXorZ = false;
+
+    for (char c : v) {
+      switch (c) {
+        case '1': break;
+        case '0': hasZero = true; break;
+        case 'x':
+        case 'X':
+        case 'z':
+        case 'Z': hasXorZ = true; break;
+        default: hasXorZ = true; break;
+      }
+    }
+
+    // Reduction AND result outcomes
+    if (hasZero) {
+      // &v = 0  => ~&v = 1
+      return "1";
+    }
+
+    if (!hasZero && !hasXorZ) {
+      // &v = 1 => ~&v = 0
+      return "0";
+    }
+
+    // &v = x => ~&v = x
+    return "x";
+  }
+};
+
+struct unary_or_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_or()(v) ? T{1} : T{0};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    if (v.empty()) return "x";
+
+    bool hasXorZ = false;
+
+    for (char c : v) {
+      switch (c) {
+        case '1': return "1";  // Short-circuit: OR reduces to 1
+        case '0': break;       // continue checking
+        case 'x':
+        case 'X':
+        case 'z':
+        case 'Z': hasXorZ = true; break;
+        default: hasXorZ = true; break;
+      }
+    }
+
+    if (hasXorZ) {
+      return "x";
+    }
+
+    return "0";  // All zeros
+  }
+};
+
+struct unary_nor_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_or()(v) ? T{0} : T{1};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    bool has1 = false;
+    bool hasUnknown = false;
+
+    for (char c : v) {
+      if (c == '1')
+        has1 = true;
+      else if (c != '0')  // x, z, ?, etc
+        hasUnknown = true;
+    }
+
+    if (has1) return "0";        // OR = 1, so NOR = 0
+    if (hasUnknown) return "x";  // OR = x, so NOR = x
+    return "1";                  // all zeros → OR = 0 → NOR = 1
+  }
+};
+
+struct unary_xor_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_xor()(v) ? T{1} : T{0};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    bool parity = false;
+
+    for (char c : v) {
+      if (c == '1')
+        parity ^= true;
+      else if (c == '0')
+        parity ^= false;
+      else
+        return "x";  // SystemVerilog: unknown propagates
+    }
+
+    return parity ? "1" : "0";
+  }
+};
+
+struct unary_xnor_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return unary_reduce_xor()(v) ? T{0} : T{1};
+  }
+  template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const {
+    bool parity = false;
+
+    for (char c : v) {
+      if (c == '1')
+        parity ^= true;
+      else if (c == '0')
+        parity ^= false;
+      else
+        return "x";  // SystemVerilog unknown propagation
+    }
+
+    // XNOR = NOT XOR
+    return parity ? "0" : "1";
+  }
+};
+
+struct unary_preinc_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v + 1;
+  }
+  inline std::string operator()(std::string_view v) const {
+    // 1. X/Z propagation
+    if (v.find_first_of("xz") != std::string::npos) {
+      return std::string(v.size(), 'x');
+    } else if (v.find_first_of("XZ") != std::string::npos) {
+      return std::string(v.size(), 'X');
+    }
+
+    // 2. Convert to unsigned integer
+    unsigned long long val = 0;
+    for (char c : v) {
+      val = (val << 1) | (c == '1');
+    }
+
+    // 3. Increment
+    val += 1;
+
+    // 4. Truncate to original width (wrap-around)
+    std::string result(v.size(), '0');
+    for (int32_t i = int32_t(v.size()) - 1; i >= 0; --i) {
+      result[i] = (val & 1ULL) ? '1' : '0';
+      val >>= 1ULL;
+    }
+
+    return result;
+  }
+};
+
+struct unary_predec_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v - 1;
+  }
+
+  inline std::string operator()(std::string_view v) const {
+    const size_t width = v.size();
+
+    // X/Z propagation
+    if (v.find_first_of("xz") != std::string::npos) return std::string(width, 'x');
+    if (v.find_first_of("XZ") != std::string::npos) return std::string(width, 'X');
+
+    // Convert binary string to unsigned
+    unsigned long long val = 0;
+    for (char c : v) {
+      val = (val << 1) | (c == '1');
+    }
+
+    // Mask to width (important!)
+    unsigned long long mask = (width >= 64) ? ~0ULL : ((1ULL << width) - 1);
+
+    // Pre-decrement with wrap-around
+    val = (val - 1) & mask;
+
+    // Convert back to binary string
+    std::string result(width, '0');
+    for (int32_t i = int32_t(width) - 1; i >= 0; --i) {
+      result[i] = (val & 1ULL) ? '1' : '0';
+      val >>= 1ULL;
+    }
+
+    return result;
+  }
+};
+
+struct unary_postinc_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const { return std::string(v); }
+};
+
+struct unary_postdec_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
+  inline constexpr T operator()(T v) const {
+    return v;
+  }
+  inline std::string operator()(std::string_view v) const { return std::string(v); }
+};
+
+struct binary_plus final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a + b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // Any X/Z → return X
+    auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
+
+    if (has_unknown(a) || has_unknown(b)) {
+      return "x";
+    }
+
+    // Convert binary strings → integers
+    auto to_uint = [](std::string_view v) -> uint64_t {
+      uint64_t val = 0;
+      for (char c : v) {
+        val = (val << 1) | (c == '1' ? 1 : 0);
+      }
+      return val;
+    };
+
+    uint64_t av = to_uint(a);
+    uint64_t bv = to_uint(b);
+    uint64_t sum = av + bv;
+
+    // Result width = max width of inputs
+    size_t width = std::max(a.size(), b.size());
+
+    // Convert back to binary with correct width
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; i++) {
+      size_t bit = width - 1 - i;
+      out[i] = ((sum >> bit) & 1) ? '1' : '0';
+    }
+
+    return out;
+  }
+};
+
+struct binary_minus final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a - b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // Check X/Z in operand
+    auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
+
+    if (has_unknown(a) || has_unknown(b)) {
+      return "x";  // SystemVerilog: arithmetic with X/Z → X
+    }
+
+    // Convert binary string to uint64
+    auto to_uint = [](std::string_view v) -> uint64_t {
+      uint64_t val = 0;
+      for (char c : v) {
+        val = (val << 1) | (c == '1' ? 1 : 0);
+      }
+      return val;
+    };
+
+    uint64_t av = to_uint(a);
+    uint64_t bv = to_uint(b);
+
+    // Perform subtraction
+    uint64_t diff = av - bv;
+
+    // Result width = max operand width
+    size_t width = std::max(a.size(), b.size());
+
+    // Convert back to binary string
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; i++) {
+      size_t bit = width - 1 - i;
+      out[i] = ((diff >> bit) & 1) ? '1' : '0';
+    }
+
+    return out;
+  }
+};
+
+struct binary_multiplies final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a * b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // Check for X/Z in operands
+    auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
+
+    if (has_unknown(a) || has_unknown(b)) {
+      return "x";  // X propagation for arithmetic ops
+    }
+
+    // Convert binary string to uint64
+    auto to_uint = [](std::string_view v) -> uint64_t {
+      uint64_t val = 0;
+      for (char c : v) {
+        val = (val << 1) | (c == '1' ? 1ULL : 0ULL);
+      }
+      return val;
+    };
+
+    uint64_t av = to_uint(a);
+    uint64_t bv = to_uint(b);
+
+    uint64_t product = av * bv;
+
+    // Result width = a_width + b_width (SystemVerilog rule)
+    size_t width = std::max(a.size(), b.size());
+
+    // Convert result to binary string
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; i++) {
+      size_t bit = width - 1 - i;
+      out[i] = ((product >> bit) & 1ULL) ? '1' : '0';
+    }
+
+    return out;
+  }
+};
+
+struct binary_divides final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a / b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // Check for X/Z in operands
+    auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
+
+    if (has_unknown(a) || has_unknown(b)) {
+      return "x";  // X propagation
+    }
+
+    // Convert binary string to uint64
+    auto to_uint = [](std::string_view v) -> uint64_t {
+      uint64_t val = 0;
+      for (char c : v) {
+        val = (val << 1) | (c == '1' ? 1ULL : 0ULL);
+      }
+      return val;
+    };
+
+    uint64_t av = to_uint(a);
+    uint64_t bv = to_uint(b);
+
+    // Division by zero → X (SystemVerilog behavior)
+    if (bv == 0) return "x";
+
+    uint64_t div = av / bv;
+
+    // Result width = width of A (SystemVerilog rule)
+    size_t width = a.size();
+
+    // Convert result to binary string
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; i++) {
+      size_t bit = width - 1 - i;
+      out[i] = ((div >> bit) & 1ULL) ? '1' : '0';
+    }
+
+    return out;
+  }
+};
+
+struct binary_bit_or final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a | b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // Make widths equal (pad left with zeros)
+    size_t w = std::max(a.size(), b.size());
+
+    auto pad = [&](std::string_view v) {
+      std::string s(w - v.size(), '0');
+      s += v;
+      return s;
+    };
+
+    std::string as = pad(a);
+    std::string bs = pad(b);
+
+    std::string out(w, '0');
+
+    auto is1 = [](char c) { return c == '1'; };
+    auto is0 = [](char c) { return c == '0'; };
+    auto is_unknown = [](char c) { return (c == 'x') || (c == 'X') || (c == 'z') || (c == 'Z'); };
+
+    for (size_t i = 0; i < w; i++) {
+      char A = as[i];
+      char B = bs[i];
+
+      if (is1(A) || is1(B)) {
+        // If either is '1' → result = 1
+        out[i] = '1';
+      } else if (is0(A) && is0(B)) {
+        // If both are 0 → result = 0
+        out[i] = '0';
+      } else if ((A == 'z') || (B == 'z')) {
+        // If z involved → x
+        out[i] = 'x';
+      } else if ((A == 'Z') || (B == 'Z')) {
+        out[i] = 'X';
+      } else {
+        // Remaining cases are X combinations → x
+        out[i] = 'x';
+      }
+    }
+
+    return out;
+  }
+};
+
+struct binary_bit_xor final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a ^ b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    size_t w = std::max(a.size(), b.size());
+
+    auto pad_msb = [&](std::string_view v) {
+      std::string s(w - v.size(), '0');  // pad MSB
+      s += v;
+      return s;
+    };
+
+    std::string as = pad_msb(a);
+    std::string bs = pad_msb(b);
+    std::string out(w, '0');
+
+    for (size_t i = 0; i < w; i++) {
+      char A = as[i];
+      char B = bs[i];
+
+      // If either is unknown (x/z), output X
+      if ((A == 'x') || (A == 'z') || (B == 'x') || (B == 'z')) {
+        out[i] = 'x';
+      } else if ((A == 'X') || (A == 'Z') || (B == 'X') || (B == 'Z')) {
+        out[i] = 'X';
+      } else {
+        // Both 0 or 1, normal XOR
+        out[i] = ((A == '1') != (B == '1')) ? '1' : '0';
+      }
+    }
+
+    return out;
+  }
+};
+
+struct binary_modulus_op {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a % b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return std::fmod(a, b);
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // If either operand has unknown bits → result is X
+    auto has_unknown_xz = [](std::string_view s) { return s.find_first_of("xz") != std::string_view::npos; };
+    auto has_unknown_XZ = [](std::string_view s) { return s.find_first_of("XZ") != std::string_view::npos; };
+
+    if (has_unknown_xz(a) || has_unknown_xz(b)) {
+      size_t w = std::max(a.size(), b.size());
+      return std::string(w, 'x');
+    } else if (has_unknown_XZ(a) || has_unknown_XZ(b)) {
+      size_t w = std::max(a.size(), b.size());
+      return std::string(w, 'X');
+    }
+
+    // Convert binary strings to integer
+    auto bin_to_int = [](std::string_view s) -> uint64_t {
+      uint64_t val = 0;
+      for (char c : s) {
+        val <<= 1;
+        if (c == '1') val |= 1;
+      }
+      return val;
+    };
+
+    uint64_t val_a = bin_to_int(a);
+    uint64_t val_b = bin_to_int(b);
+
+    // Avoid division by zero
+    if (val_b == 0) {
+      size_t w = std::max(a.size(), b.size());
+      return std::string(w, 'x');  // X for invalid modulus
+    }
+
+    uint64_t val_r = val_a % val_b;
+
+    // Convert back to binary string, pad to original width
+    size_t width = a.size();  // or max(a.size(), b.size())
+    std::string out(width, '0');
+    for (size_t i = 0; i < width; i++) {
+      if ((val_r >> (width - 1 - i)) & 1) {
+        out[i] = '1';
+      }
+    }
+
+    return out;
+  }
+};
+
+struct binary_bit_and {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a & b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    size_t width = std::max(a.size(), b.size());
+    std::string out(width, '0');
+
+    for (size_t i = 0; i < width; ++i) {
+      char bit_a = (i < width - a.size()) ? '0' : a[i - (width - a.size())];
+      char bit_b = (i < width - b.size()) ? '0' : b[i - (width - b.size())];
+
+      if ((bit_a == '0') || (bit_b == '0')) {
+        out[i] = '0';
+      } else if ((bit_a == '1') && (bit_b == '1')) {
+        out[i] = '1';
+      } else {
+        // x, z propagation
+        out[i] = 'x';
+      }
+    }
+
+    return out;
+  }
+};
+
+struct binary_equal final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a == b;
+  }
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    auto get_bit = [](std::string_view s, size_t i, size_t w) -> char {
+      return (i < w - s.size()) ? '0' : s[i - (w - s.size())];
+    };
+
+    const size_t width = std::max(a.size(), b.size());
+
+    char unknown = 0;
+    for (size_t i = 0; i < width; ++i) {
+      char ba = get_bit(a, i, width);
+      char bb = get_bit(b, i, width);
+
+      if ((ba == 'x') || (ba == 'z') || (bb == 'x') || (bb == 'z')) {
+        if (unknown == 0) unknown = 'x';
+      } else if ((ba == 'X') || (ba == 'Z') || (bb == 'X') || (bb == 'Z')) {
+        if (unknown == 0) unknown = 'X';
+      } else if (ba != bb) {
+        return "0";  // definite mismatch
+      }
+    }
+    if (unknown == 0) unknown = '1';
+    return std::string(1, unknown);
+  }
+};
+
+struct binary_not_equal final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a != b;
+  }
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    auto get_bit = [](std::string_view s, size_t i, size_t w) -> char {
+      return (i < w - s.size()) ? '0' : s[i - (w - s.size())];
+    };
+
+    const size_t width = std::max(a.size(), b.size());
+
+    char unknown = 0;
+    for (size_t i = 0; i < width; ++i) {
+      char ba = get_bit(a, i, width);
+      char bb = get_bit(b, i, width);
+
+      if ((ba == 'x') || (ba == 'z') || (bb == 'x') || (bb == 'z')) {
+        if (unknown == 0) unknown = 'x';
+      } else if ((ba == 'X') || (ba == 'Z') || (bb == 'X') || (bb == 'Z')) {
+        if (unknown == 0) unknown = 'X';
+      } else if (ba != bb) {
+        return "1";  // definite inequality
+      }
+    }
+    if (unknown == 0) unknown = '0';
+    return std::string(1, unknown);
+  }
+};
+
+struct binary_greater final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a > b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
+    if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
+      return "x";
+    } else if ((a.find_first_of("XZ") != std::string::npos) || (b.find_first_of("XZ") != std::string::npos)) {
+      return "X";
+    }
+
+    // Pad the shorter string with '0' on the left
+    const size_t width = std::max(a.size(), b.size());
+    const std::string a_padded = StrCat(std::string(width - a.size(), '0'), a);
+    const std::string b_padded = StrCat(std::string(width - b.size(), '0'), b);
+
+    // Compare as unsigned
+    for (size_t i = 0; i < width; ++i) {
+      if (a_padded[i] > b_padded[i]) return "1";
+      if (a_padded[i] < b_padded[i]) return "0";
+    }
+
+    // Equal
+    return "0";
+  }
+};
+
+struct binary_greater_equal final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a >= b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
+    if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
+      return "x";
+    } else if ((a.find_first_of("XZ") != std::string::npos) || (b.find_first_of("XZ") != std::string::npos)) {
+      return "X";
+    }
+
+    // Pad the shorter string with '0' on the left
+    const size_t width = std::max(a.size(), b.size());
+    const std::string a_padded = StrCat(std::string(width - a.size(), '0'), a);
+    const std::string b_padded = StrCat(std::string(width - b.size(), '0'), b);
+
+    // Compare bit by bit
+    for (size_t i = 0; i < width; ++i) {
+      if (a_padded[i] > b_padded[i]) return "1";
+      if (a_padded[i] < b_padded[i]) return "0";
+    }
+
+    // Equal
+    return "1";
+  }
+};
+
+struct binary_less final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a < b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
+    if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
+      return "x";
+    } else if ((a.find_first_of("XZ") != std::string::npos) || (b.find_first_of("XZ") != std::string::npos)) {
+      return "X";
+    }
+
+    // Pad the shorter string with '0' on the left
+    const size_t width = std::max(a.size(), b.size());
+    const std::string a_padded = StrCat(std::string(width - a.size(), '0'), a);
+    const std::string b_padded = StrCat(std::string(width - b.size(), '0'), b);
+
+    // Compare bit by bit
+    for (size_t i = 0; i < width; ++i) {
+      if (a_padded[i] < b_padded[i]) return "1";
+      if (a_padded[i] > b_padded[i]) return "0";
+    }
+
+    // Equal
+    return "0";
+  }
+};
+
+struct binary_less_equal final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a <= b;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
+    if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
+      return "x";
+    } else if ((a.find_first_of("XZ") != std::string::npos) || (b.find_first_of("XZ") != std::string::npos)) {
+      return "X";
+    }
+
+    // Pad the shorter string with '0' on the left
+    const size_t width = std::max(a.size(), b.size());
+    const std::string a_padded = StrCat(std::string(width - a.size(), '0'), a);
+    const std::string b_padded = StrCat(std::string(width - b.size(), '0'), b);
+
+    // Compare bit by bit
+    for (size_t i = 0; i < width; ++i) {
+      if (a_padded[i] < b_padded[i]) return "1";
+      if (a_padded[i] > b_padded[i]) return "0";
+    }
+
+    // Equal
+    return "1";
+  }
+};
+
+struct binary_logical_and_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return (a && b);
+  }
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    auto reduce_to_bit = [](std::string_view v) {
+      char unknown = 0;
+
+      for (char c : v) {
+        if (c == '1') return '1';
+        if ((c == 'x') || (c == 'z')) {
+          if (unknown == 0) unknown = c;
+        }
+        if ((c == 'X') || (c == 'Z')) {
+          if (unknown == 0) unknown = c;
+        }
+      }
+
+      return (unknown == 0) ? '0' : unknown;
+    };
+
+    char ra = reduce_to_bit(a);
+    char rb = reduce_to_bit(b);
+
+    // Boolean AND with X-propagation
+    if ((ra == '0') || (rb == '0')) return "0";
+    if ((ra == '1') && (rb == '1')) return "1";
+    return "x";
+  }
+};
+
+struct binary_logical_or_op final {
+  constexpr static bool boolean_result = true;
+
+  template <typename A, typename B,
+            std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return (a || b);
+  }
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    bool unknown = false;
+
+    for (char c : a) {
+      if (c == '1') return "1";
+      if (c != '0') unknown = true;
+      if (unknown) break;
+    }
+    for (char c : b) {
+      if (c == '1') return "1";
+      if (c != '0') unknown = true;
+      if (unknown) break;
+    }
+
+    return unknown ? "x" : "0";
+  }
+};
+
+struct binary_xnor_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return ~(a ^ b);
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    if (a.size() != b.size()) return "x";  // size mismatch → unknown
+
+    std::string result;
+    result.reserve(a.size());
+
+    for (size_t i = 0; i < a.size(); ++i) {
+      char ca = a[i];
+      char cb = b[i];
+
+      if ((ca != '0') && (ca != '1')) {  // unknown
+        result.push_back('x');
+      } else if ((cb != '0') && (cb != '1')) {  // unknown
+        result.push_back('x');
+      } else {
+        result.push_back((ca == cb) ? '1' : '0');
+      }
+    }
+
+    return result;
+  }
+};
+
+struct binary_nand_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return ~(a & b);
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view v1, std::string_view v2) const {
+    if (v1.size() != v2.size()) return "x";  // size mismatch → unknown
+
+    std::string result;
+    result.reserve(v1.size());
+
+    for (size_t i = 0; i < v1.size(); ++i) {
+      char a = v1[i];
+      char b = v2[i];
+
+      // If either is unknown, result is unknown
+      if (((a != '0') && (a != '1')) || ((b != '0') && (b != '1'))) {
+        result.push_back('x');
+      } else {
+        // bitwise NAND: ~(a & b)
+        result.push_back(((a == '1' && b == '1') ? '0' : '1'));
+      }
+    }
+
+    return result;
+  }
+};
+
+struct binary_nor_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return ~(a | b);
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view v1, std::string_view v2) const {
+    if (v1.size() != v2.size()) return "x";  // size mismatch → unknown
+
+    std::string result;
+    result.reserve(v1.size());
+
+    for (size_t i = 0; i < v1.size(); ++i) {
+      char a = v1[i];
+      char b = v2[i];
+
+      const bool a_known = (a == '0') || (a == '1');
+      const bool b_known = (b == '0') || (b == '1');
+
+      // Any unknown → result is x
+      if (!a_known || !b_known) {
+        result.push_back('x');
+      } else {
+        // bitwise NOR: ~(a | b)
+        char or_val = ((a == '1') || (b == '1')) ? '1' : '0';
+        char nor_val = (or_val == '1') ? '0' : '1';
+        result.push_back(nor_val);
+      }
+    }
+
+    return result;
+  }
+};
+
+// TODO:: I don't think below operator convered all use cases
+// binary_imply_op
+// binary_overlap_imply_op
+// binary_non_overlap_imply_op
+// Rest all is working, but need to check across different types
+
+struct binary_imply_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) const {
+    return (!a) || b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) const {
     return false;
   }
-  return true;
+  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+};
+
+struct binary_overlap_imply_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) const {
+    return (!a) || b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) const {
+    return false;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+};
+
+struct binary_non_overlap_imply_op final {
+  constexpr static bool boolean_result = false;
+
+  bool prev_a = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) {
+    bool result = true;
+
+    // If previous cycle had a=1, b must be 1 now
+    if (prev_a) result = (b == 1);
+
+    // update for next cycle
+    prev_a = (a == 1);
+
+    return result;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr bool operator()(A a, B b) {
+    return false;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+};
+
+struct binary_logical_lshift_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr A operator()(A a, B b) const {
+    using V = std::make_unsigned_t<A>;
+    V ua = static_cast<V>(a);
+
+    constexpr int32_t WIDTH = sizeof(V) * 8;
+
+    if (b >= WIDTH) return static_cast<V>(0);
+
+    return static_cast<V>(ua << b);
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    const size_t width = a.size();
+
+    // 1. Shift amount must be known (no X/Z)
+    unsigned shift = 0;
+    for (char c : b) {
+      if ((c == '0') || (c == '1')) {
+        shift = (shift << 1) | (c == '1');
+      } else if ((c == 'x') || (c == 'z')) {
+        // X/Z in shift amount → all X
+        return std::string(width, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        // X/Z in shift amount → all X
+        return std::string(width, 'X');
+      }
+    }
+
+    // 2. Shift >= width → all zeros
+    if (shift >= width) {
+      return std::string(width, '0');
+    }
+
+    // 3. Logical left shift
+    std::string result(width, '0');
+
+    for (size_t i = 0; i < width - shift; ++i) {
+      result[i] = a[i + shift];
+    }
+
+    return result;
+  }
+};
+
+struct binary_logical_rshift_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr A operator()(A a, B b) const {
+    using V = std::make_unsigned_t<A>;
+    V ua = static_cast<V>(a);
+
+    constexpr int32_t WIDTH = sizeof(V) * 8;
+    if (b >= WIDTH) return static_cast<V>(0);
+
+    return static_cast<V>(ua >> b);
+  }
+
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    size_t width = a.size();
+
+    // 1. Check shift amount for X/Z
+    for (char c : b) {
+      if ((c == 'x') || (c == 'z')) {
+        return std::string(width, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        return std::string(width, 'X');
+      }
+    }
+
+    // 2. Convert binary string to integer
+    int32_t shift = 0;
+    for (char c : b) {
+      shift = (shift << 1) | (c - '0');
+    }
+
+    if (shift >= (int32_t)width) return std::string(width, '0');
+
+    std::string result(width, '0');
+
+    for (size_t i = 0; i < width - shift; ++i) {
+      result[width - 1 - i] = a[width - 1 - i - shift];
+    }
+
+    return result;
+  }
+};
+
+struct binary_arith_lshift_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename A, typename B,
+            typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
+  inline constexpr A operator()(A a, B b) const {
+    return static_cast<std::make_unsigned_t<A>>(a) << b;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    const size_t N = a.size();
+
+    // Binary shift amount with x/z check
+    int32_t sh = 0;
+    for (char c : b) {
+      if ((c == 'x') || (c == 'z')) {
+        return std::string(N, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        return std::string(N, 'X');
+      } else {
+        sh = (sh << 1) | (c - '0');
+      }
+    }
+
+    if (sh <= 0) return std::string(a);
+    if (static_cast<size_t>(sh) >= N) return std::string(N, '0');
+
+    std::string out;
+    out.reserve(N);
+
+    // Drop MSBs, shift left
+    out.append(a.substr(sh));  // keep a[sh .. N-1]
+    out.append(sh, '0');       // append zeros at LSB
+
+    return out;
+  }
+};
+
+struct binary_arith_rshift_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename U,
+            typename std::enable_if<std::is_integral<T>::value && std::is_integral<U>::value, bool>::type = true>
+  inline constexpr T operator()(T a, U b) const {
+    using ST = std::make_signed_t<T>;
+    using UT = std::make_unsigned_t<T>;
+
+    constexpr int32_t WIDTH = sizeof(T) * 8;
+
+    // Convert to signed for arithmetic shift
+    ST sa = static_cast<ST>(a);
+
+    // Do arithmetic right shift (sign-extended)
+    ST shifted = sa >> b;
+
+    // Mask back to original width (important!)
+    UT mask = (WIDTH == 64) ? ~UT(0) : ((UT(1) << WIDTH) - 1);
+
+    return static_cast<T>(shifted & mask);
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return a;
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    size_t width = a.size();
+
+    // 1. Check shift amount for X/Z
+    for (char c : b) {
+      if ((c == 'x') || (c == 'z')) {
+        return std::string(width, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        return std::string(width, 'X');
+      }
+    }
+
+    // 2. Convert binary string to integer
+    int32_t shift = 0;
+    for (char c : b) {
+      shift = (shift << 1) | (c - '0');
+    }
+
+    if (shift >= (int32_t)width) return std::string(width, '0');
+
+    std::string result(width, '0');
+
+    for (size_t i = 0; i < width - shift; ++i) {
+      result[width - 1 - i] = a[width - 1 - i - shift];
+    }
+
+    return result;
+  }
+};
+
+struct binary_power_op final {
+  constexpr static bool boolean_result = false;
+
+  template <typename T, typename U,
+            typename std::enable_if<std::is_integral<T>::value && std::is_integral<U>::value, bool>::type = true>
+  inline constexpr T operator()(T a, U b) const {
+    using R = typename std::common_type_t<T, U>;
+    R base = static_cast<R>(a);
+    R exp = static_cast<R>(b);
+
+    if (exp < 0) return R(0);
+
+    R result = 1;
+    while (exp > 0) {
+      if (exp & 1) result *= base;
+      base *= base;
+      exp >>= 1;
+    }
+    return result;
+  }
+  template <
+      typename A, typename B,
+      typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
+  inline constexpr auto operator()(A a, B b) const {
+    return std::pow(a, b);
+  }
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    const size_t N = a.size();
+
+    // 1. Parse exponent string
+    long long exp = 0;
+    try {
+      exp = std::stoll(std::string(b));
+    } catch (...) {
+      // exponent has x/z → whole result is x
+      return std::string(N, 'x');
+    }
+
+    if (exp < 0) return std::string(N, '0');
+
+    // exp == 0 case: result = ...0001
+    if (exp == 0) {
+      std::string out(N, '0');
+      out.back() = '1';
+      return out;
+    }
+
+    // 2. Detect X/Z in base
+    for (char c : a) {
+      if ((c == 'x') || (c == 'z')) {
+        return std::string(N, 'x');
+      } else if ((c == 'X') || (c == 'Z')) {
+        return std::string(N, 'X');
+      }
+    }
+
+    // 3. Convert 0/1 string → 64-bit integer
+    unsigned long long base = 0;
+    for (char c : a) base = (base << 1) | (c == '1');
+
+    // 4. Exponentiation with early truncation
+    unsigned long long result = 1;
+    unsigned long long bbase = base;
+
+    for (long long e = exp; e > 0; e >>= 1) {
+      if ((e & 1) != 0) {
+        result *= bbase;
+        // If the result exceeds N bits, overflow → fine, SV truncates
+        if (result >> N) break;
+      }
+      bbase *= bbase;
+      if (bbase >> N) break;
+    }
+
+    // 5. Convert result to N-bit vector
+    std::string out(N, '0');
+    for (int32_t i = N - 1; i >= 0; --i) {
+      out[i] = (result & 1) ? '1' : '0';
+      result >>= 1;
+    }
+
+    return out;
+  }
+};
+
+struct binary_concat_op final {
+  constexpr static bool boolean_result = false;
+
+  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+};
+
+struct binary_replicate_op final {
+  constexpr static bool boolean_result = false;
+
+  inline std::string operator()(int64_t count, std::string_view value) const {
+    if (count <= 0) return {};
+
+    const size_t n = static_cast<size_t>(count);
+
+    std::string result;
+    result.reserve(value.size() * n);
+
+    for (size_t i = 0; i < n; ++i) {
+      result.append(value);
+    }
+
+    return result;
+  }
+};
+
+struct unary_replicate_extend_op final {
+  constexpr static bool boolean_result = false;
+
+  inline std::string operator()(size_t width, std::string_view value) const {
+    if (value.size() == 1) {
+      return std::string(width, value.front());
+    }
+
+    if (value.size() == width) {
+      return std::string(value);
+    }
+
+    if (value.size() > width) {
+      return std::string(value.substr(value.size() - width));
+    }
+
+    size_t missing = width - value.size();
+    return StrCat(std::string(missing, value.front()), value);
+  }
+  inline std::string operator()(std::string_view width, std::string_view value) const { return std::string(value); }
+};
+
+struct binary_case_eq_op final {
+  constexpr static bool boolean_result = false;
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    if (a.length() != b.length()) return "0";
+
+    for (size_t i = 0, ni = a.length(); i < ni; ++i) {
+      if (a[i] != b[i]) return "0";
+    }
+    return "1";
+  }
+};
+
+struct binary_case_neq_op final {
+  constexpr static bool boolean_result = false;
+
+  inline std::string operator()(std::string_view a, std::string_view b) const {
+    binary_case_eq_op eq;
+    return (eq(a, b) == "1") ? "0" : "1";
+  }
+};
+
+struct ExprEval::cast_op final {
+  template <typename R>
+  inline std::enable_if_t<std::is_integral<R>::value, R> operator()(const value_t &value) const {
+    return std::visit(
+        [](auto &&arg) -> R {
+          using T = std::decay_t<decltype(arg)>;
+
+          /* numeric → int32_t */
+          if constexpr (std::is_same_v<T, nvalue_t>) {
+            return std::visit([](auto &&v) -> R { return static_cast<R>(v); }, arg);
+          }
+
+          /* real → int32_t (truncate toward zero) */
+          else if constexpr (std::is_same_v<T, rvalue_t>) {
+            return std::visit(
+                [](auto &&v) -> R {
+                  if constexpr (std::is_signed_v<R>) {
+                    return static_cast<R>((v >= 0.0) ? std::floor(v + 0.5) : std::ceil(v - 0.5));
+                  } else {
+                    return static_cast<R>(std::floor(v + 0.5));
+                  }
+                },
+                arg);
+          }
+
+          /* string → int32_t (binary semantics) */
+          else if constexpr (std::is_same_v<T, svalue_t>) {
+            return std::visit(
+                [](const std::string &s) -> R {
+                  std::string norm = s;
+                  for (char &c : norm) {
+                    if ((c == 'x') || (c == 'X') || (c == 'z') || (c == 'Z') || (c == '?')) {
+                      c = '0';
+                    }
+                  }
+
+                  uint64_t v = 0;
+                  if (!NumUtils::parseBinary(norm, &v)) return R{0};
+                  return static_cast<R>(v);
+                },
+                arg);
+          } else {
+            return R{0};
+          }
+        },
+        value);
+  }
+
+  template <typename R, typename std::enable_if<std::is_floating_point<R>::value, bool>::type = true>
+  inline constexpr R operator()(const value_t &value) const {
+    return std::visit(
+        [](auto &&arg) -> R {
+          using T = std::decay_t<decltype(arg)>;
+
+          if constexpr (std::is_same_v<T, nvalue_t>) {
+            return std::visit([](auto &&v) { return static_cast<R>(v); }, arg);
+          } else if constexpr (std::is_same_v<T, rvalue_t>) {
+            return std::visit([](auto &&v) { return static_cast<R>(v); }, arg);
+          } else if constexpr (std::is_same_v<T, svalue_t>) {
+            return std::visit(
+                [](auto &&v) -> double {
+                  std::string norm = v;
+                  for (char &c : norm) {
+                    if ((c == 'x') || (c == 'X') || (c == 'z') || (c == 'Z') || (c == '?')) {
+                      c = '0';
+                    }
+                  }
+                  uint64_t d = 0;
+                  if (!NumUtils::parseBinary(norm, &d)) {
+                    d = 0;  // FIXME: Need to handle failure!
+                  }
+                  return d;
+                },
+                arg);
+          } else {
+            return 0;
+          }
+        },
+        value);
+  }
+
+  template <typename R, typename std::enable_if<std::is_same<R, std::string>::value, bool>::type = true>
+  inline R operator()(const value_t &value) const {
+    if (std::holds_alternative<svalue_t>(value)) {
+      return std::get<std::string>(std::get<svalue_t>(value));
+    } else if (std::holds_alternative<nvalue_t>(value)) {
+      return std::visit(
+          [](auto &&arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+            constexpr size_t bits = sizeof(T) * 8;
+
+            std::ostringstream oss;
+            oss << std::bitset<bits>(static_cast<std::make_unsigned_t<T>>(arg));
+            return oss.str();  // will be stored in svalue_t inside value_t
+          },
+          std::get<nvalue_t>(value));
+    } else if (std::holds_alternative<rvalue_t>(value)) {
+      return std::visit(
+          [](auto &&arg) -> std::string {
+            std::ostringstream oss;
+            oss << arg;
+            return oss.str();
+          },
+          std::get<rvalue_t>(value));
+    }
+    return {};
+  }
+};
+
+struct ExprEval::is_signed_op final {
+  inline bool operator()(const value_t &value) const {
+    if (!std::holds_alternative<nvalue_t>(value)) {
+      return false;
+    }
+
+    return std::visit(
+        [](auto &&arg) -> bool {
+          using T = std::decay_t<decltype(arg)>;
+          return std::is_signed_v<T>;
+        },
+        std::get<nvalue_t>(value));
+  }
+};
+
+struct ExprEval::is_unsigned_op final {
+  inline bool operator()(const value_t &value) const {
+    if (!std::holds_alternative<nvalue_t>(value)) {
+      return false;
+    }
+
+    return std::visit(
+        [](auto &&arg) -> bool {
+          using T = std::decay_t<decltype(arg)>;
+          return std::is_unsigned_v<T>;
+        },
+        std::get<nvalue_t>(value));
+  }
+};
+
+struct ExprEval::rank_op final {
+  inline uint32_t operator()(UhdmType ut) const {
+    switch (ut) {
+      case UhdmType::ByteTypespec: return 1;
+      case UhdmType::ShortIntTypespec: return 2;
+      case UhdmType::IntTypespec: return 3;
+      case UhdmType::LongIntTypespec: return 4;
+      case UhdmType::IntegerTypespec: return 5;
+      case UhdmType::LogicTypespec: return 6;
+      case UhdmType::ShortRealTypespec: return 7;
+      case UhdmType::RealTypespec: return 8;
+      default: return 0;
+    }
+  }
+};
+
+class DetectRefObj final : public UhdmVisitor {
+ public:
+  void visitAny(const Any *any) final {
+    switch (any->getUhdmType()) {
+      case UhdmType::RefObj:
+      case UhdmType::BitSelect:
+      case UhdmType::IndexedPartSelect:
+      case UhdmType::PartSelect:
+      case UhdmType::VarSelect:
+      case UhdmType::HierPath:
+        m_hasRefObj = true;
+        requestAbort();
+        break;
+
+      default: break;
+    };
+  }
+  bool refObjDetected() const { return m_hasRefObj; }
+
+ private:
+  bool m_hasRefObj = false;
+};
+
+ExprEval::ExprEval(ObjectProvider *provider, bool muteError /* = false */)
+    : m_provider(provider), m_muteError(muteError) {}
+
+bool ExprEval::isFullySpecified(const Typespec *tps) {
+  if (tps == nullptr) return true;
+  DetectRefObj detector;
+  detector.visit(tps);
+  return !detector.refObjDetected();
 }
 
-std::string ExprEval::toBinary(const Constant *c) {
-  std::string result;
-  if (c == nullptr) return result;
-  int32_t type = c->getConstType();
-  std::string_view sv = c->getValue();
-  switch (type) {
+inline static bool isFourState(const Typespec *typespec) {
+  return (typespec->getUhdmType() == UhdmType::IntegerTypespec) || (typespec->getUhdmType() == UhdmType::LogicTypespec);
+}
+
+inline static constexpr bool isConvSysFunc(std::string_view name) {
+  return (name == "$rtoi") || (name == "$itor") || (name == "$signed") || (name == "$unsigned") ||
+         (name == "$realtobits") || (name == "$bitstoreal") || (name == "$shortrealtobits") || (name == "$cast") ||
+         (name == "$bitstoshortreal");
+}
+
+inline static constexpr bool isMathSysFunc(std::string_view name) {
+  return (name == "$clog2") || (name == "$asin") || (name == "$acos") || (name == "$atan") || (name == "$ln") ||
+         (name == "$log10") || (name == "$exp") || (name == "$sqrt") || (name == "$floor") || (name == "$ceil") ||
+         (name == "$sin") || (name == "$cos") || (name == "$tan") || (name == "$sinh") || (name == "$cosh") ||
+         (name == "$tanh") || (name == "$asinh") || (name == "$acosh") || (name == "$atanh") || (name == "$atan2") ||
+         (name == "$hypot") || (name == "$pow");
+}
+inline static bool isDataQuerySysFunc(std::string_view name) {
+  return (name == "$bits") || (name == "$isunbounded") || (name == "$typename");
+}
+
+inline static bool isArrayQuerySysFunc(std::string_view name) {
+  return (name == "$unpacked_dimensions") || (name == "$dimensions") || (name == "$left") || (name == "$right") ||
+         (name == "$low") || (name == "$high") || (name == "$increment") || (name == "$size");
+}
+
+inline static bool isBitVectorSysFunc(std::string_view name) {
+  return (name == "$countbits") || (name == "$onehot") || (name == "$isunknown") || (name == "$countones") ||
+         (name == "$onehot0");
+}
+
+template <typename T1, typename T2, typename T3>
+std::variant<std::monostate, T2, T3> ExprEval::parseNumber(const T1 *typespec, std::string_view sv,
+                                                           int32_t constType) const {
+  std::variant<std::monostate, T2, T3> value;
+  switch (constType) {
     case vpiBinaryConst: {
-      sv.remove_prefix(std::string_view("BIN:").length());
-      result = sv;
-      if (c->getSize() >= 0) {
-        if (result.size() < (uint32_t)c->getSize()) {
-          uint32_t rsize = result.size();
-          for (uint32_t i = 0; i < (uint32_t)c->getSize() - rsize; i++) {
-            result = "0" + result;
-          }
-        }
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::parseBinary(sv, &v)) value = v;
+      } else {
+        T3 v = 0;
+        if (NumUtils::parseBinary(sv, &v)) value = v;
       }
-      break;
-    }
+    } break;
+
     case vpiDecConst: {
-      sv.remove_prefix(std::string_view("DEC:").length());
-      uint64_t res = 0;
-      if (NumUtils::parseIntLenient(sv, &res) == nullptr) {
-        res = 0;
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::internal::strToNum(sv, 10, &v)) value = v;
+      } else {
+        const bool sign = sv.front() == '-';
+        if (sign) sv.remove_prefix(1);
+
+        T3 v = 0;
+        if (NumUtils::internal::strToNum(sv, 10, &v)) {
+          value = sign ? static_cast<T3>(-v) : v;
+        }
       }
-      result = NumUtils::toBinary(c->getSize(), res);
-      break;
-    }
+    } break;
+
     case vpiHexConst: {
-      sv.remove_prefix(std::string_view("HEX:").length());
-      result = NumUtils::hexToBin(sv);
-      if (c->getSize() >= 0) {
-        if (result.size() < (uint32_t)c->getSize()) {
-          uint32_t rsize = result.size();
-          for (uint32_t i = 0; i < (uint32_t)c->getSize() - rsize; i++) {
-            result = "0" + result;
-          }
-        }
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::parseHex(sv, &v)) value = v;
+      } else {
+        T3 v = 0;
+        if (NumUtils::parseHex(sv, &v)) value = v;
       }
-      break;
-    }
+    } break;
+
     case vpiOctConst: {
-      sv.remove_prefix(std::string_view("OCT:").length());
-      result = NumUtils::hexToBin(sv);
-      if (c->getSize() >= 0) {
-        if (result.size() < (uint32_t)c->getSize()) {
-          uint32_t rsize = result.size();
-          for (uint32_t i = 0; i < (uint32_t)c->getSize() - rsize; i++) {
-            result = "0" + result;
-          }
-        }
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::parseOctal(sv, &v)) value = v;
+      } else {
+        T3 v = 0;
+        if (NumUtils::parseOctal(sv, &v)) value = v;
       }
       break;
     }
     case vpiIntConst: {
-      sv.remove_prefix(std::string_view("INT:").length());
-      uint64_t res = 0;
-      if (NumUtils::parseIntLenient(sv, &res) == nullptr) {
-        res = 0;
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::internal::strToNum(sv, 10, &v)) value = v;
+      } else {
+        const bool sign = sv.front() == '-';
+        if (sign) sv.remove_prefix(1);
+
+        T3 v = 0;
+        if (NumUtils::parseIntLenient(sv, 10, &v)) {
+          value = sign ? static_cast<T3>(-v) : v;
+        }
       }
-      result = NumUtils::toBinary(c->getSize(), res);
-      break;
-    }
+    } break;
     case vpiUIntConst: {
-      sv.remove_prefix(std::string_view("UINT:").length());
-      uint64_t res = 0;
-      if (NumUtils::parseUint64(sv, &res) == nullptr) {
-        res = 0;
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::parseIntLenient(sv, 10, &v)) {
+          value = v;
+        }
+      } else {
+        const bool sign = sv.front() == '-';
+        if (sign) sv.remove_prefix(1);
+
+        T3 v = 0;
+        if (NumUtils::internal::strToNum(sv, 10, &v)) {
+          value = sign ? static_cast<T3>(-v) : v;
+        }
       }
-      result = NumUtils::toBinary(c->getSize(), res);
-      break;
-    }
+    } break;
+
     case vpiScalar: {
-      sv.remove_prefix(std::string_view("SCAL:").length());
-      uint64_t res = 0;
-      if (NumUtils::parseBinary(sv, &res) == nullptr) {
-        res = 0;
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (NumUtils::parseBinary(sv, &v)) value = v;
+      } else {
+        const bool sign = sv.front() == '-';
+        if (sign) sv.remove_prefix(1);
+
+        T3 v = 0;
+        if (NumUtils::parseBinary(sv, &v)) {
+          value = sign ? static_cast<T3>(-v) : v;
+        }
       }
-      result = NumUtils::toBinary(c->getSize(), res);
-      break;
-    }
+    } break;
+
     case vpiStringConst: {
-      sv.remove_prefix(std::string_view("STRING:").length());
-      if (sv.size() > 32) {
-        return result;
+      if (sv.length() > 16) break;
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        for (uint32_t i = 0, ni = sv.size(); i < ni; ++i) {
+          v += (sv[i] << ((sv.size() - (i + 1)) * 8));
+        }
+      } else {
+        T3 v = 0;
+        for (uint32_t i = 0, ni = sv.size(); i < ni; ++i) {
+          v += (sv[i] << ((sv.size() - (i + 1)) * 8));
+        }
       }
-      uint64_t res = 0;
-      for (uint32_t i = 0; i < sv.size(); i++) {
-        res += (sv[i] << ((sv.size() - (i + 1)) * 8));
-      }
-      result = NumUtils::toBinary(c->getSize(), res);
-      break;
-    }
+    } break;
+
     case vpiRealConst: {
       // Don't do the double precision math, leave it to client tools
-      break;
-    }
-    default: {
-      if (sv.find("UINT:") == 0) {
-        sv.remove_prefix(std::string_view("UINT:").length());
-        uint64_t res = 0;
-        if (NumUtils::parseUint64(sv, &res) == nullptr) {
-          res = 0;
-        }
-        result = NumUtils::toBinary(c->getSize(), res);
-      } else {
-        sv.remove_prefix(std::string_view("INT:").length());
-        uint64_t res = 0;
-        if (NumUtils::parseIntLenient(sv, &res) == nullptr) {
-          res = 0;
-        }
-        result = NumUtils::toBinary(c->getSize(), res);
-      }
-      break;
-    }
+    } break;
+
+    default: break;
   }
-  return result;
+  return value;
 }
 
-std::vector<std::string_view> ExprEval::tokenizeMulti(std::string_view str, std::string_view multichar_separator) {
-  std::vector<std::string_view> result;
-  if (str.empty()) return result;
+template <typename T1, typename T2, typename T3>
+std::variant<std::monostate, T2, T3> ExprEval::parseNumber(const TimeTypespec *typespec, std::string_view sv,
+                                                           int32_t constType) const {
+  std::variant<std::monostate, T2, T3> value;
+  const bool sign = sv.front() == '-';
+  if (sign) sv.remove_prefix(1);
 
-  size_t start = 0;
-  size_t end = 0;
-  const size_t sepSize = multichar_separator.size();
-  const size_t stringSize = str.size();
-  for (size_t i = 0; i < stringSize; i++) {
-    bool isSeparator = true;
-    for (size_t j = 0; j < sepSize; j++) {
-      if (i + j >= stringSize) break;
-      if (str[i + j] != multichar_separator[j]) {
-        isSeparator = false;
+  T3 v = 0;
+  if (NumUtils::internal::strToNum(sv, 10, &v)) {
+    value = sign ? static_cast<T3>(-v) : v;
+  }
+  return value;
+}
+
+template <typename T1, typename T2, typename T3>
+std::variant<std::monostate, T2, T3, std::string> ExprEval::parseBinary(const T1 *typespec, std::string_view sv,
+                                                                        int32_t constType) const {
+  std::variant<std::monostate, T2, T3, std::string> value;
+  switch (constType) {
+    case vpiBinaryConst: {
+      if (typespec->getSigned()) {
+        T2 v = 0;
+        if (!isFourState(typespec) && (sv.length() <= (sizeof(T2) * 8)) && NumUtils::parseBinary(sv, &v)) {
+          value = v;
+        } else {
+          value = std::move(std::string(sv));
+        }
+      } else {
+        T3 v = 0;
+        if (!isFourState(typespec) && (sv.length() <= (sizeof(T3) * 8)) && NumUtils::parseBinary(sv, &v)) {
+          value = v;
+        } else {
+          value = std::move(std::string(sv));
+        }
+      }
+    } break;
+
+    case vpiOctConst:
+    case vpiHexConst:
+    case vpiDecConst:
+    case vpiIntConst:
+    case vpiUIntConst: {
+      std::variant<std::monostate, T2, T3> v = parseNumber<T1, T2, T3>(typespec, sv, constType);
+      if (std::holds_alternative<T2>(v)) {
+        value = std::get<T2>(v);
+      } else if (std::holds_alternative<T3>(v)) {
+        value = std::get<T3>(v);
+      }
+    } break;
+
+    default: break;
+  }
+
+  return value;
+}
+
+std::string ExprEval::parseBinary(const Expr *expr) const {
+  const Typespec *const typespec = getTypespec(expr);
+  if (typespec == nullptr) return "";
+  if (typespec->getUhdmType() == UhdmType::EnumTypespec) return "";
+
+  int32_t constType = 0;
+  std::string_view sv;
+
+  if (const Constant *const constant = any_cast<Constant>(expr)) {
+    constType = constant->getConstType();
+    sv = constant->getDecompile();
+  } else if (const Variable *const variable = any_cast<Variable>(expr)) {
+    constType = vpiUIntConst;
+    sv = variable->getDecompile();
+  }
+
+  if (sv.empty()) return "";
+
+  std::string value;
+  switch (typespec->getUhdmType()) {
+    case UhdmType::LogicTypespec: {
+      std::string v;
+      if (formatBinary(any_cast<Constant>(expr), &v)) {
+        value = v;
+      }
+    } break;
+
+    default: break;
+  }
+
+  return value;
+}
+
+ExprEval::value_t ExprEval::promote(const value_t &value, UhdmType targetType, bool isUnsigned) const {
+  cast_op castOp;
+  if ((targetType == UhdmType::LogicTypespec) || (targetType == UhdmType::IntegerTypespec)) {
+    return castOp.operator()<std::string>(value);
+  }
+
+  if (targetType == UhdmType::ShortRealTypespec) {
+    return castOp.operator()<float>(value);
+  }
+
+  if (targetType == UhdmType::RealTypespec) {
+    return castOp.operator()<double>(value);
+  }
+
+  if (std::holds_alternative<nvalue_t>(value)) {
+    return std::visit(
+        [&](auto &&arg) -> value_t {
+          switch (targetType) {
+            case UhdmType::ByteTypespec:
+              return isUnsigned ? nvalue_t(static_cast<uint8_t>(arg)) : nvalue_t(static_cast<int8_t>(arg));
+
+            case UhdmType::ShortIntTypespec:
+              return isUnsigned ? nvalue_t(static_cast<uint16_t>(arg)) : nvalue_t(static_cast<int16_t>(arg));
+
+            case UhdmType::IntTypespec:
+              return isUnsigned ? nvalue_t(static_cast<uint32_t>(arg)) : nvalue_t(static_cast<int32_t>(arg));
+
+            case UhdmType::LongIntTypespec:
+              return isUnsigned ? nvalue_t(static_cast<uint64_t>(arg)) : nvalue_t(static_cast<int64_t>(arg));
+
+            default: return value;
+          }
+        },
+        std::get<nvalue_t>(value));
+  } else if (std::holds_alternative<rvalue_t>(value)) {
+    double dv = castOp.operator()<double>(value);
+
+    switch (targetType) {
+      case UhdmType::ByteTypespec:
+        return isUnsigned ? nvalue_t(static_cast<uint8_t>(dv)) : nvalue_t(static_cast<int8_t>(dv));
+
+      case UhdmType::ShortIntTypespec:
+        return isUnsigned ? nvalue_t(static_cast<uint16_t>(dv)) : nvalue_t(static_cast<int16_t>(dv));
+
+      case UhdmType::IntTypespec:
+        return isUnsigned ? nvalue_t(static_cast<uint32_t>(dv)) : nvalue_t(static_cast<int32_t>(dv));
+
+      case UhdmType::LongIntTypespec:
+        return isUnsigned ? nvalue_t(static_cast<uint64_t>(dv)) : nvalue_t(static_cast<int64_t>(dv));
+
+      default: return value;
+    }
+  }
+
+  return value;
+}
+
+inline UhdmType ExprEval::promoted(UhdmType type0, value_t &value0, UhdmType type1, value_t &value1) const {
+  rank_op rank;
+  is_unsigned_op isUnsigned;
+  const UhdmType resultType = (rank(type0) > rank(type1)) ? type0 : type1;
+  const bool isUnsignedResult = isUnsigned(value0) || isUnsigned(value1);
+  value0 = promote(value0, resultType, isUnsignedResult);
+  value1 = promote(value1, resultType, isUnsignedResult);
+  return resultType;
+}
+
+ExprEval::value_t ExprEval::parse(const Expr *expr) const {
+  const Typespec *const typespec = getTypespec(expr);
+  if (typespec == nullptr) return value_t();
+  if (typespec->getUhdmType() == UhdmType::EnumTypespec) return value_t();
+
+  int32_t constType = 0;
+  std::string_view sv;
+  size_t size = 0;
+
+  if (const Constant *const constant = any_cast<Constant>(expr)) {
+    constType = constant->getConstType();
+    sv = constant->getDecompile();
+    size = constant->getSize();
+  } else if (const Variable *const variable = any_cast<Variable>(expr)) {
+    constType = vpiUIntConst;
+    sv = variable->getDecompile();
+    size = variable->getSize();
+  }
+
+  if (sv.empty()) return value_t();
+
+  value_t value;
+  switch (typespec->getUhdmType()) {
+    case UhdmType::ByteTypespec: {
+      std::variant<std::monostate, int8_t, uint8_t> v =
+          parseNumber<ByteTypespec, int8_t, uint8_t>(static_cast<const ByteTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int8_t>(v)) {
+        value = nvalue_t(std::get<int8_t>(v));
+      } else if (std::holds_alternative<uint8_t>(v)) {
+        value = nvalue_t(std::get<uint8_t>(v));
+      }
+    } break;
+
+    case UhdmType::ShortIntTypespec: {
+      std::variant<std::monostate, int16_t, uint16_t> v = parseNumber<ShortIntTypespec, int16_t, uint16_t>(
+          static_cast<const ShortIntTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int16_t>(v)) {
+        value = nvalue_t(std::get<int16_t>(v));
+      } else if (std::holds_alternative<uint16_t>(v)) {
+        value = nvalue_t(std::get<uint16_t>(v));
+      }
+    } break;
+
+    case UhdmType::IntTypespec: {
+      std::variant<std::monostate, int32_t, uint32_t> v =
+          parseNumber<IntTypespec, int32_t, uint32_t>(static_cast<const IntTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int32_t>(v)) {
+        value = nvalue_t(std::get<int32_t>(v));
+      } else if (std::holds_alternative<uint32_t>(v)) {
+        value = nvalue_t(std::get<uint32_t>(v));
+      }
+    } break;
+
+    case UhdmType::IntegerTypespec: {
+      std::variant<std::monostate, int32_t, uint32_t, std::string> v = parseBinary<IntegerTypespec, int32_t, uint32_t>(
+          static_cast<const IntegerTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int32_t>(v)) {
+        value = nvalue_t(std::get<int32_t>(v));
+      } else if (std::holds_alternative<uint32_t>(v)) {
+        value = nvalue_t(std::get<uint32_t>(v));
+      } else if (std::holds_alternative<std::string>(v)) {
+        value = svalue_t(std::get<std::string>(v));
+      }
+    } break;
+
+    case UhdmType::TimeTypespec: {
+      std::variant<std::monostate, int64_t, uint64_t> v =
+          parseNumber<TimeTypespec, int64_t, uint64_t>(static_cast<const TimeTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int64_t>(v)) {
+        value = nvalue_t(std::get<int64_t>(v));
+      } else if (std::holds_alternative<uint64_t>(v)) {
+        value = nvalue_t(std::get<uint64_t>(v));
+      }
+    } break;
+    case UhdmType::LongIntTypespec: {
+      std::variant<std::monostate, int64_t, uint64_t> v = parseNumber<LongIntTypespec, int64_t, uint64_t>(
+          static_cast<const LongIntTypespec *>(typespec), sv, constType);
+      if (std::holds_alternative<int64_t>(v)) {
+        value = nvalue_t(std::get<int64_t>(v));
+      } else if (std::holds_alternative<uint64_t>(v)) {
+        value = nvalue_t(std::get<uint64_t>(v));
+      }
+    } break;
+
+    case UhdmType::LogicTypespec: {
+      if (size <= 32) {
+        std::variant<std::monostate, int32_t, uint32_t, std::string> v =
+            parseBinary<LogicTypespec, int32_t, uint32_t>(static_cast<const LogicTypespec *>(typespec), sv, constType);
+        if (std::holds_alternative<int32_t>(v)) {
+          value = nvalue_t(std::get<int32_t>(v));
+        } else if (std::holds_alternative<uint32_t>(v)) {
+          value = nvalue_t(std::get<uint32_t>(v));
+        } else if (std::holds_alternative<std::string>(v)) {
+          value = svalue_t(std::get<std::string>(v));
+        }
+      } else {
+        std::variant<std::monostate, int64_t, uint64_t, std::string> v =
+            parseBinary<LogicTypespec, int64_t, uint64_t>(static_cast<const LogicTypespec *>(typespec), sv, constType);
+        if (std::holds_alternative<int64_t>(v)) {
+          value = nvalue_t(std::get<int64_t>(v));
+        } else if (std::holds_alternative<uint64_t>(v)) {
+          value = nvalue_t(std::get<uint64_t>(v));
+        } else if (std::holds_alternative<std::string>(v)) {
+          value = svalue_t(std::get<std::string>(v));
+        }
+      }
+    } break;
+
+    case UhdmType::ShortRealTypespec: {
+      if (constType != vpiRealConst) break;
+      float v = 0;
+      if (NumUtils::parseFloat(sv, &v)) value = rvalue_t(v);
+    } break;
+
+    case UhdmType::RealTypespec: {
+      if (constType != vpiRealConst) break;
+      double v = 0;
+      if (NumUtils::parseDouble(sv, &v)) value = rvalue_t(v);
+    } break;
+
+    default: break;
+  }
+
+  return value;
+}
+
+bool ExprEval::getInt64(const Expr *expr, int64_t *result, bool strict /* = true */) const {
+  const value_t value = parse(expr);
+  if (std::holds_alternative<nvalue_t>(value)) {
+    const nvalue_t &nvalue = std::get<nvalue_t>(value);
+    if ((nvalue.index() % 2) == 0) {
+      std::visit([result](auto &&arg) { *result = arg; }, nvalue);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ExprEval::getUInt64(const Expr *expr, uint64_t *result, bool strict /* = true */) const {
+  const value_t value = parse(expr);
+  if (std::holds_alternative<nvalue_t>(value)) {
+    const nvalue_t &nvalue = std::get<nvalue_t>(value);
+    if ((nvalue.index() % 2) == 1) {
+      std::visit([result](auto &&arg) { *result = arg; }, nvalue);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ExprEval::getDouble(const Expr *expr, long double *result, bool strict /* = true */) const {
+  const value_t value = parse(expr);
+  if (std::holds_alternative<rvalue_t>(value)) {
+    const rvalue_t &rvalue = std::get<rvalue_t>(value);
+    std::visit([result](auto &&arg) { *result = arg; }, rvalue);
+    return true;
+  }
+  return false;
+}
+
+bool ExprEval::formatBinary(const Constant *constant, std::string *result) const {
+  if (constant == nullptr) return false;
+
+  const value_t value = parse(constant);
+  if (std::holds_alternative<std::monostate>(value)) {
+    return false;
+  } else if (std::holds_alternative<nvalue_t>(value)) {
+    const nvalue_t &nvalue = std::get<nvalue_t>(value);
+    if ((nvalue.index() % 2) == 0) {
+      int64_t v = 0;
+      std::visit([&v](auto &&arg) { v = arg; }, nvalue);
+      *result = NumUtils::toBinary(constant->getSize(), v);
+    } else {
+      uint64_t v = 0;
+      std::visit([&v](auto &&arg) { v = arg; }, nvalue);
+      *result = NumUtils::toBinary(constant->getSize(), v);
+    }
+  } else if (std::holds_alternative<rvalue_t>(value)) {
+    // Don't do the double precision math, leave it to client tools
+    return false;
+  } else if (std::holds_alternative<svalue_t>(value)) {
+    const svalue_t &svalue = std::get<svalue_t>(value);
+    *result = std::get<std::string>(svalue);
+
+    if (result->size() < constant->getSize()) {
+      *result = std::string(constant->getSize() - result->size(), '0') + *result;
+    }
+
+    // if (sv.size() > 32) {
+    //   return result;
+    // }
+    // uint64_t res = 0;
+    // for (uint32_t i = 0; i < sv.size(); i++) {
+    //   res += (sv[i] << ((sv.size() - (i + 1)) * 8));
+    // }
+    // result = NumUtils::toBinary(c->getSize(), res);
+  }
+  return true;
+}
+
+template <typename T>
+bool ExprEval::format(T value, int32_t constType, int32_t size, std::string *result) {
+  switch (constType) {
+    case vpiBinaryConst: {
+      *result = NumUtils::toBinary(size, value);
+    } break;
+
+    case vpiHexConst: {
+      std::ostringstream oss;
+      oss << std::hex << std::bitset<sizeof(T) * 8>(value);
+      *result = oss.str();
+    } break;
+
+    case vpiOctConst: {
+      std::ostringstream oss;
+      oss << std::oct << std::bitset<sizeof(T) * 8>(value);
+      *result = oss.str();
+    } break;
+
+    case vpiRealConst: {
+      std::ostringstream oss;
+      if constexpr (sizeof(value) == sizeof(float)) {
+        oss << std::setprecision(std::numeric_limits<float>::digits10 + 1) << value;
+      } else if constexpr (sizeof(value) == sizeof(double)) {
+        oss << std::setprecision(std::numeric_limits<double>::digits10 + 1) << value;
+      }
+      *result = oss.str();
+    } break;
+
+    default: {
+      if constexpr (sizeof(T) == sizeof(char)) {
+        *result = StrCat(static_cast<int32_t>(value));
+      } else {
+        *result = StrCat(value);
+      }
+    } break;
+  }
+  return true;
+}
+
+template <typename T>
+Constant *ExprEval::createConstant(T value, Serializer &serializer, UhdmType uhdmType, int32_t constType,
+                                   int32_t size) const {
+  Constant *const oconstant = serializer.make<Constant>();
+
+  std::string result;
+  Typespec *otypespec = nullptr;
+  if (uhdmType == UhdmType::LogicTypespec) {
+    format(value, vpiBinaryConst, size, &result);
+    oconstant->setValue(result);
+    oconstant->setDecompile(result);
+    oconstant->setSize(result.length());
+    oconstant->setConstType(vpiBinaryConst);
+
+    LogicTypespec *const it = serializer.make<LogicTypespec>();
+    it->setSigned(std::is_signed<T>());
+    otypespec = it;
+  } else if (uhdmType == UhdmType::IntegerTypespec) {
+    format(value, vpiBinaryConst, size, &result);
+    oconstant->setValue(result);
+    oconstant->setDecompile(result);
+    oconstant->setSize(result.length());
+    oconstant->setConstType(vpiBinaryConst);
+
+    IntegerTypespec *const it = serializer.make<IntegerTypespec>();
+    it->setSigned(std::is_signed<T>());
+    otypespec = it;
+  } else if constexpr (std::is_integral<T>()) {
+    if constexpr (sizeof(T) == 1) {
+      format(value, vpiIntConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(8);
+      oconstant->setConstType(constType);
+
+      ByteTypespec *const it = serializer.make<ByteTypespec>();
+      it->setSigned(std::is_signed<T>());
+      otypespec = it;
+    } else if constexpr (sizeof(T) == 2) {
+      format(value, vpiIntConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(16);
+      oconstant->setConstType(constType);
+
+      ShortIntTypespec *const it = serializer.make<ShortIntTypespec>();
+      it->setSigned(std::is_signed<T>());
+      otypespec = it;
+    } else if constexpr (sizeof(T) == 4) {
+      format(value, vpiIntConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(32);
+      oconstant->setConstType(constType);
+
+      IntTypespec *const it = serializer.make<IntTypespec>();
+      it->setSigned(std::is_signed<T>());
+      otypespec = it;
+    } else if constexpr (sizeof(T) == 8) {
+      format(value, vpiIntConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(64);
+      oconstant->setConstType(constType);
+
+      LongIntTypespec *const lit = serializer.make<LongIntTypespec>();
+      lit->setSigned(std::is_signed<T>());
+      otypespec = lit;
+    }
+  } else if constexpr (std::is_floating_point<T>()) {
+    if constexpr (sizeof(T) == 4) {
+      format(value, vpiRealConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(32);
+      oconstant->setConstType(constType);
+
+      ShortRealTypespec *const it = serializer.make<ShortRealTypespec>();
+      otypespec = it;
+    } else if constexpr (sizeof(T) == 8) {
+      format(value, vpiRealConst, size, &result);
+      oconstant->setValue(result);
+      oconstant->setDecompile(result);
+      oconstant->setSize(64);
+      oconstant->setConstType(constType);
+
+      RealTypespec *const it = serializer.make<RealTypespec>();
+      otypespec = it;
+    }
+    // } else if constexpr (std::is_same_v<
+    //                          std::remove_cv_t<std::remove_reference_t<T>>,
+    //                          std::string>) {
+    //   oconstant->setValue(value);
+    //   oconstant->setDecompile(value);
+    //   oconstant->setSize(64);
+    //   oconstant->setConstType(constType);
+    //
+    //   LongIntTypespec *const lit = serializer->make<LongIntTypespec>();
+    //   lit->setSigned(true);
+    //   otypespec = lit;
+  }
+
+  RefTypespec *const rt = serializer.make<RefTypespec>();
+  rt->setActual(otypespec);
+  oconstant->setTypespec(rt);
+  return oconstant;
+}
+
+bool ExprEval::getArraySizes(const Typespec *ts, const Any *pany, uint64_t &elemWidth, uint64_t &arrLength) {
+  elemWidth = 1;
+  arrLength = 1;
+
+  if (ts == nullptr) return false;
+
+  const Typespec *curTs = ts;
+  while (curTs) {
+    const RangeCollection *ranges = nullptr;
+    if (const ArrayTypespec *const arrTs = any_cast<const ArrayTypespec>(curTs)) {
+      ranges = arrTs->getRanges();
+    } else if (const LogicTypespec *const logicTs = any_cast<const LogicTypespec>(curTs)) {
+      ranges = logicTs->getRanges();
+    }
+    if (ranges == nullptr) break;
+
+    for (const Range *range : *ranges) {
+      Expr *leftR = nullptr;
+      if (!reduceExpr(range->getLeftExpr(), pany, &leftR, true)) return false;
+
+      Expr *rightR = nullptr;
+      if (!reduceExpr(range->getRightExpr(), pany, &rightR, true)) return false;
+
+      const Constant *const lc = any_cast<const Constant>(leftR);
+      const Constant *const rc = any_cast<const Constant>(rightR);
+      if ((lc == nullptr) || (rc == nullptr)) return false;
+
+      const int64_t lval = std::stoll(std::string(lc->getDecompile()));
+      const int64_t rval = std::stoll(std::string(rc->getDecompile()));
+
+      if ((curTs->getUhdmType() == UhdmType::BitTypespec) || (curTs->getUhdmType() == UhdmType::LogicTypespec)) {
+        elemWidth *= (lval >= rval) ? (lval - rval + 1) : (rval - lval + 1);
+      } else if (curTs->getUhdmType() == UhdmType::ArrayTypespec) {
+        arrLength *= (lval >= rval) ? (lval - rval + 1) : (rval - lval + 1);
+      }
+    }
+
+    curTs = getElemTypespec(curTs);
+  }
+
+  return true;
+}
+
+bool ExprEval::buildCastConstant(const value_t &value, const Typespec *targetTs, Serializer &serializer, Expr **rexpr) {
+  cast_op castOp;
+  switch (targetTs->getUhdmType()) {
+    case UhdmType::RealTypespec: {
+      double r = castOp.operator()<double>(value);
+      *rexpr = createConstant<double>(r, serializer, UhdmType::RealTypespec, vpiRealConst, 64);
+      return true;
+    }
+
+    case UhdmType::ShortRealTypespec: {
+      float r = static_cast<float>(castOp.operator()<double>(value));
+      *rexpr = createConstant<float>(r, serializer, UhdmType::ShortRealTypespec, vpiRealConst, 32);
+      return true;
+    }
+
+    case UhdmType::IntTypespec:
+    case UhdmType::IntegerTypespec: {
+      int32_t i = castOp.operator()<int32_t>(value);
+      *rexpr = createConstant<int32_t>(i, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+      return true;
+    }
+
+    case UhdmType::LongIntTypespec: {
+      int64_t i = castOp.operator()<int64_t>(value);
+      *rexpr = createConstant<int64_t>(i, serializer, UhdmType::LongIntTypespec, vpiIntConst, 64);
+      return true;
+    }
+
+    default: return false;
+  }
+}
+
+bool ExprEval::reduceCastOp(const Operation *op, const Any *pany, Expr **rexpr) {
+  auto operands = op->getOperands();
+  if (!operands || operands->size() != 1) return false;
+
+  // target type comes from op->getTypespec()
+  const Typespec *targetTs = nullptr;
+  if (const RefTypespec *rt = op->getTypespec()) targetTs = rt->getActual();
+  if (!targetTs) return false;
+
+  Expr *srcExpr = nullptr;
+  if (!reduceExpr(any_cast<Expr>((*operands)[0]), pany, &srcExpr, true)) return false;
+
+  Constant *carg = any_cast<Constant>(srcExpr);
+  if (!carg) return false;
+
+  value_t value = parse(carg);
+  if (std::holds_alternative<std::monostate>(value)) return false;
+
+  Serializer &serializer = *op->getSerializer();
+  return buildCastConstant(value, targetTs, serializer, rexpr);
+}
+
+template <typename F>
+bool ExprEval::reduceUnaryOp(const Expr *iexpr, const Any *pany, F op, Expr **rexpr) {
+  if (iexpr == nullptr) return false;
+
+  Expr *expr = nullptr;
+  if (!reduceExpr(iexpr, pany, &expr, true)) return false;
+
+  const value_t value = parse(expr);
+  if (std::holds_alternative<std::monostate>(value)) return false;
+
+  const Constant *const iconstant = any_cast<Constant>(expr);
+  const Typespec *const itypespec = getTypespec(iconstant);
+  const int32_t iconstType = iconstant->getConstType();
+  const int32_t isize = iconstant->getSize();
+
+  Serializer &serializer = *expr->getSerializer();
+  Constant *oconstant = nullptr;
+
+  if (std::holds_alternative<nvalue_t>(value)) {
+    const nvalue_t &nvalue = std::get<nvalue_t>(value);
+    switch (nvalue.index()) {
+      case 0: {
+        const int8_t result = op(std::get<int8_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 1: {
+        const uint8_t result = op(std::get<uint8_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 2: {
+        const int16_t result = op(std::get<int16_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 3: {
+        const uint16_t result = op(std::get<uint16_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 4: {
+        const int32_t result = op(std::get<int32_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 5: {
+        const uint32_t result = op(std::get<uint32_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 6: {
+        const int64_t result = op(std::get<int64_t>(nvalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 7: {
+        const uint64_t result = op(std::get<uint64_t>(nvalue));
+
+        if (itypespec->getUhdmType() == UhdmType::TimeTypespec) {
+          oconstant = serializer.make<Constant>();
+          oconstant->setSize(isize);
+          oconstant->setConstType(vpiTimeConst);
+
+          std::string sresult;
+          if (format(result, vpiTimeConst, isize, &sresult)) {
+            oconstant->setValue(sresult);
+            oconstant->setDecompile(sresult);
+          }
+
+          RefTypespec *const rt = serializer.make<RefTypespec>();
+          oconstant->setTypespec(rt);
+
+          TimeTypespec *const it = serializer.make<TimeTypespec>();
+          rt->setActual(it);
+        } else {
+          oconstant =
+              createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+        }
+      } break;
+
+      default: break;
+    }
+  } else if (std::holds_alternative<rvalue_t>(value)) {
+    const rvalue_t &svalue = std::get<rvalue_t>(value);
+    switch (svalue.index()) {
+      case 0: {
+        const float result = op(std::get<float>(svalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      case 1: {
+        const double result = op(std::get<double>(svalue));
+        oconstant =
+            createConstant(result, serializer, itypespec->getUhdmType(), iconstType, op.boolean_result ? 1 : isize);
+      } break;
+
+      default: break;
+    }
+  } else if (std::holds_alternative<svalue_t>(value)) {
+    const svalue_t &svalue = std::get<svalue_t>(value);
+    const std::string &sresult = std::get<std::string>(svalue);
+    const std::string result = op(std::string_view(sresult));
+
+    oconstant = serializer.make<Constant>();
+    oconstant->setValue(result);
+    oconstant->setDecompile(result);
+    oconstant->setSize(isize);
+    oconstant->setConstType(iconstType);
+
+    RefTypespec *const rt = serializer.make<RefTypespec>();
+    oconstant->setTypespec(rt);
+    if (itypespec->getUhdmType() == UhdmType::LogicTypespec) {
+      LogicTypespec *const lts = serializer.make<LogicTypespec>();
+      rt->setActual(lts);
+      lts->setSigned(getSigned(iconstant->getTypespec()->getActual()));
+    } else if (itypespec->getUhdmType() == UhdmType::IntegerTypespec) {
+      IntegerTypespec *const its = serializer.make<IntegerTypespec>();
+      rt->setActual(its);
+      its->setSigned(getSigned(iconstant->getTypespec()->getActual()));
+    }
+  }
+
+  *rexpr = oconstant;
+  return (oconstant != nullptr);
+}
+
+template <typename F>
+bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, F op, Expr **rexpr) {
+  if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
+
+  Expr *expr0 = nullptr;
+  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
+
+  Expr *expr1 = nullptr;
+  if (!reduceExpr(iexpr1, pany, &expr1, true)) return false;
+
+  value_t value0 = parse(expr0);
+  if (std::holds_alternative<std::monostate>(value0)) return false;
+
+  value_t value1 = parse(expr1);
+  if (std::holds_alternative<std::monostate>(value1)) return false;
+
+  const Constant *const iconstant0 = any_cast<Constant>(expr0);
+  const Typespec *const itypespec0 = getTypespec(iconstant0);
+  const Constant *const iconstant1 = any_cast<Constant>(expr1);
+  const Typespec *const itypespec1 = getTypespec(iconstant1);
+
+  UhdmType rtype = promoted(itypespec0->getUhdmType(), value0, itypespec1->getUhdmType(), value1);
+
+  Serializer *const serializer = iexpr0->getSerializer();
+  Constant *oconstant = nullptr;
+  Typespec *otypespec = nullptr;
+
+  if (std::holds_alternative<nvalue_t>(value0) && std::holds_alternative<nvalue_t>(value1)) {
+    const nvalue_t &nvalue0 = std::get<nvalue_t>(value0);
+    const nvalue_t &nvalue1 = std::get<nvalue_t>(value1);
+
+    switch (std::max(nvalue0.index(), nvalue1.index())) {
+      case 0:
+      case 1: {
+        const bool signed0 = (nvalue0.index() % 2) == 0;
+        const bool signed1 = (nvalue1.index() % 2) == 0;
+
+        int64_t iarg0 = 0, iarg1 = 0;
+        uint64_t uarg0 = 0, uarg1 = 0;
+
+        if (signed0) {
+          std::visit([&iarg0](auto &&arg) { iarg0 = arg; }, nvalue0);
+        } else {
+          std::visit([&uarg0](auto &&arg) { uarg0 = arg; }, nvalue0);
+        }
+
+        if (signed1) {
+          std::visit([&iarg1](auto &&arg) { iarg1 = arg; }, nvalue1);
+        } else {
+          std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
+        }
+
+        oconstant = serializer->make<Constant>();
+        oconstant->setSize(8);
+
+        ByteTypespec *const it = serializer->make<ByteTypespec>();
+        otypespec = it;
+
+        if (signed0 && signed1) {
+          // Both operands are signed -> result is signed
+          const int8_t iresult = static_cast<int32_t>(op(iarg0, iarg1));
+          const std::string result = std::to_string(iresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiIntConst);
+          it->setSigned(true);
+        } else if (signed0 && !signed1) {
+          // Op0 is signed, Op1 is unsigned -> result is unsinged
+          const uint8_t uresult = op(iarg0, uarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        } else if (!signed0 && signed1) {
+          // Op0 is unsigned, Op1 is signed -> result is unsigned
+          const uint8_t uresult = op(uarg0, iarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        } else {
+          // Both operands are unsigned -> result is unsigned
+          const uint8_t uresult = op(uarg0, uarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        }
+      } break;
+
+      case 2:
+      case 3: {
+        const bool signed0 = (nvalue0.index() % 2) == 0;
+        const bool signed1 = (nvalue1.index() % 2) == 0;
+
+        int16_t iarg0 = 0, iarg1 = 0;
+        uint16_t uarg0 = 0, uarg1 = 0;
+
+        if (signed0) {
+          std::visit([&iarg0](auto &&arg) { iarg0 = arg; }, nvalue0);
+        } else {
+          std::visit([&uarg0](auto &&arg) { uarg0 = arg; }, nvalue0);
+        }
+
+        if (signed1) {
+          std::visit([&iarg1](auto &&arg) { iarg1 = arg; }, nvalue1);
+        } else {
+          std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
+        }
+
+        oconstant = serializer->make<Constant>();
+        oconstant->setSize(16);
+
+        ShortIntTypespec *const it = serializer->make<ShortIntTypespec>();
+        otypespec = it;
+
+        if (signed0 && signed1) {
+          // Both operands are signed -> result is signed
+          const int16_t iresult = op(iarg0, iarg1);
+          const std::string result = std::to_string(iresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiIntConst);
+          it->setSigned(true);
+        } else if (signed0 && !signed1) {
+          // Op0 is signed, Op1 is unsigned -> result is unsinged
+          const uint16_t uresult = op(iarg0, uarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        } else if (!signed0 && signed1) {
+          // Op0 is unsigned, Op1 is signed -> result is unsigned
+          const uint16_t uresult = op(uarg0, iarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        } else {
+          // Both operands are unsigned -> result is unsigned
+          const uint16_t uresult = op(uarg0, uarg1);
+          const std::string result = std::to_string(uresult);
+          oconstant->setValue(result);
+          oconstant->setDecompile(result);
+          oconstant->setConstType(vpiUIntConst);
+          it->setSigned(false);
+        }
+      } break;
+
+      case 4:
+      case 5: {
+        const bool signed0 = (nvalue0.index() % 2) == 0;
+        const bool signed1 = (nvalue1.index() % 2) == 0;
+
+        int32_t iarg0 = 0, iarg1 = 0;
+        uint32_t uarg0 = 0, uarg1 = 0;
+
+        if (signed0) {
+          std::visit([&iarg0](auto &&arg) { iarg0 = arg; }, nvalue0);
+        } else {
+          std::visit([&uarg0](auto &&arg) { uarg0 = arg; }, nvalue0);
+        }
+
+        if (signed1) {
+          std::visit([&iarg1](auto &&arg) { iarg1 = arg; }, nvalue1);
+        } else {
+          std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
+        }
+        std::string sresult;
+        if (isFourState(itypespec0)) {
+          oconstant = serializer->make<Constant>();
+          const int32_t isize = std::max(iconstant0->getSize(), iconstant1->getSize());
+          if (itypespec0->getUhdmType() == UhdmType::IntegerTypespec) {
+            IntegerTypespec *const it = serializer->make<IntegerTypespec>();
+            otypespec = it;
+
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int32_t iresult = op(iarg0, iarg1);
+              format(iresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(true);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint32_t uresult = op(iarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint32_t uresult = op(uarg0, iarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint32_t uresult = op(uarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            }
+          } else {
+            LogicTypespec *const it = serializer->make<LogicTypespec>();
+            otypespec = it;
+
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int32_t iresult = op(iarg0, iarg1);
+              format(iresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(true);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint32_t uresult = op(iarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint32_t uresult = op(uarg0, iarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint32_t uresult = op(uarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            }
+          }
+          oconstant->setDecompile(sresult);
+          oconstant->setValue(sresult);
+          oconstant->setSize(sresult.length());
+          oconstant->setConstType(vpiBinaryConst);
+
+        } else {
+          oconstant = serializer->make<Constant>();
+          oconstant->setSize(32);
+
+          IntTypespec *const it = serializer->make<IntTypespec>();
+          otypespec = it;
+
+          if (signed0 && signed1) {
+            // Both operands are signed -> result is signed
+            const int32_t iresult = op(iarg0, iarg1);
+            const std::string result = std::to_string(iresult);
+            oconstant->setValue(result);
+            oconstant->setDecompile(result);
+            oconstant->setConstType(vpiIntConst);
+            it->setSigned(true);
+          } else if (signed0 && !signed1) {
+            // Op0 is signed, Op1 is unsigned -> result is unsinged
+            const uint32_t uresult = op(iarg0, uarg1);
+            const std::string result = std::to_string(uresult);
+            oconstant->setValue(result);
+            oconstant->setDecompile(result);
+            oconstant->setConstType(vpiUIntConst);
+            it->setSigned(false);
+          } else if (!signed0 && signed1) {
+            // Op0 is unsigned, Op1 is signed -> result is unsigned
+            const uint32_t uresult = op(uarg0, iarg1);
+            const std::string result = std::to_string(uresult);
+            oconstant->setValue(result);
+            oconstant->setDecompile(result);
+            oconstant->setConstType(vpiUIntConst);
+            it->setSigned(false);
+          } else {
+            // Both operands are unsigned -> result is unsigned
+            const uint32_t uresult = op(uarg0, uarg1);
+            const std::string result = std::to_string(uresult);
+            oconstant->setValue(result);
+            oconstant->setDecompile(result);
+            oconstant->setConstType(vpiUIntConst);
+            it->setSigned(false);
+          }
+        }
+
+      } break;
+
+      case 6:
+      case 7: {
+        const bool signed0 = (nvalue0.index() % 2) == 0;
+        const bool signed1 = (nvalue1.index() % 2) == 0;
+
+        int64_t iarg0 = 0, iarg1 = 0;
+        uint64_t uarg0 = 0, uarg1 = 0;
+
+        if (signed0) {
+          std::visit([&iarg0](auto &&arg) { iarg0 = arg; }, nvalue0);
+        } else {
+          std::visit([&uarg0](auto &&arg) { uarg0 = arg; }, nvalue0);
+        }
+
+        if (signed1) {
+          std::visit([&iarg1](auto &&arg) { iarg1 = arg; }, nvalue1);
+        } else {
+          std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
+        }
+        std::string sresult;
+        if (isFourState(itypespec0)) {
+          oconstant = serializer->make<Constant>();
+          const int32_t isize = std::max(iconstant0->getSize(), iconstant1->getSize());
+          if (rtype == UhdmType::IntegerTypespec) {
+            IntegerTypespec *const it = serializer->make<IntegerTypespec>();
+            otypespec = it;
+
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int64_t iresult = op(iarg0, iarg1);
+              format(iresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(true);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint64_t uresult = op(iarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint64_t uresult = op(uarg0, iarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint64_t uresult = op(uarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            }
+          } else {
+            LogicTypespec *const it = serializer->make<LogicTypespec>();
+            otypespec = it;
+
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int64_t iresult = op(iarg0, iarg1);
+              format(iresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(true);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint64_t uresult = op(iarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint64_t uresult = op(uarg0, iarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint64_t uresult = op(uarg0, uarg1);
+              format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
+              it->setSigned(false);
+            }
+          }
+          oconstant->setDecompile(sresult);
+          oconstant->setValue(sresult);
+          oconstant->setSize(sresult.length());
+          oconstant->setConstType(vpiBinaryConst);
+
+        } else {
+          oconstant = serializer->make<Constant>();
+          oconstant->setSize(64);
+          if (rtype == UhdmType::LongIntTypespec) {
+            LongIntTypespec *const it = serializer->make<LongIntTypespec>();
+            otypespec = it;
+
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int64_t iresult = op(iarg0, iarg1);
+              const std::string result = std::to_string(iresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiIntConst);
+              it->setSigned(true);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint64_t uresult = op(iarg0, uarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiUIntConst);
+              it->setSigned(false);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint64_t uresult = op(uarg0, iarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiUIntConst);
+              it->setSigned(false);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint64_t uresult = op(uarg0, uarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiUIntConst);
+              it->setSigned(false);
+            }
+          } else if (rtype == UhdmType::TimeTypespec) {
+            TimeTypespec *const it = serializer->make<TimeTypespec>();
+            otypespec = it;
+            if (signed0 && signed1) {
+              // Both operands are signed -> result is signed
+              const int64_t iresult = op(iarg0, iarg1);
+              const std::string result = std::to_string(iresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiTimeConst);
+            } else if (signed0 && !signed1) {
+              // Op0 is signed, Op1 is unsigned -> result is unsinged
+              const uint64_t uresult = op(iarg0, uarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiTimeConst);
+            } else if (!signed0 && signed1) {
+              // Op0 is unsigned, Op1 is signed -> result is unsigned
+              const uint64_t uresult = op(uarg0, iarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiTimeConst);
+            } else {
+              // Both operands are unsigned -> result is unsigned
+              const uint64_t uresult = op(uarg0, uarg1);
+              const std::string result = std::to_string(uresult);
+              oconstant->setValue(result);
+              oconstant->setDecompile(result);
+              oconstant->setConstType(vpiTimeConst);
+            }
+          }
+        }
+      } break;
+
+      default: break;
+    }
+  } else if (std::holds_alternative<rvalue_t>(value0) && std::holds_alternative<rvalue_t>(value1)) {
+    const rvalue_t &rvalue0 = std::get<rvalue_t>(value0);
+    const rvalue_t &rvalue1 = std::get<rvalue_t>(value1);
+    switch (std::max(rvalue0.index(), rvalue1.index())) {
+      case 0: {
+        float v0 = std::get<float>(rvalue0);
+        float v1 = std::get<float>(rvalue1);
+        const float result = op(v0, v1);
+        std::string sresult;
+        format(result, vpiRealConst, 32, &sresult);
+        oconstant = serializer->make<Constant>();
+        oconstant->setValue(sresult);
+        oconstant->setDecompile(sresult);
+        oconstant->setSize(32);
+        oconstant->setConstType(vpiRealConst);
+
+        ShortRealTypespec *const it = serializer->make<ShortRealTypespec>();
+        otypespec = it;
+      } break;
+
+      case 1: {
+        double v0 = std::get<double>(rvalue0);
+        double v1 = std::get<double>(rvalue1);
+        const double result = op(v0, v1);
+        std::string sresult;
+        format(result, vpiRealConst, 64, &sresult);
+        oconstant = serializer->make<Constant>();
+        oconstant->setValue(sresult);
+        oconstant->setDecompile(sresult);
+        oconstant->setSize(32);
+        oconstant->setConstType(vpiRealConst);
+
+        RealTypespec *const it = serializer->make<RealTypespec>();
+        otypespec = it;
+      } break;
+
+      default: break;
+    }
+  } else if (std::holds_alternative<svalue_t>(value0) && std::holds_alternative<svalue_t>(value1)) {
+    const svalue_t &svalue0 = std::get<svalue_t>(value0);
+    const svalue_t &svalue1 = std::get<svalue_t>(value1);
+    std::string v0 = std::get<std::string>(svalue0);
+    std::string v1 = std::get<std::string>(svalue1);
+    const std::string result = op(v0, v1);
+    oconstant = serializer->make<Constant>();
+    oconstant->setValue(result);
+    oconstant->setDecompile(result);
+    oconstant->setSize(32);
+    oconstant->setConstType(vpiBinaryConst);
+    if (rtype == UhdmType::LogicTypespec) {
+      LogicTypespec *const lts = serializer->make<LogicTypespec>();
+      lts->setSigned(getSigned(iconstant0->getTypespec()->getActual()));
+      otypespec = lts;
+    } else if (rtype == UhdmType::IntegerTypespec) {
+      IntegerTypespec *const its = serializer->make<IntegerTypespec>();
+      its->setSigned(getSigned(iconstant0->getTypespec()->getActual()));
+      otypespec = its;
+    }
+  }
+
+  if ((oconstant != nullptr) && (otypespec != nullptr)) {
+    RefTypespec *const rt = serializer->make<RefTypespec>();
+    rt->setActual(otypespec);
+    oconstant->setTypespec(rt);
+    *rexpr = oconstant;
+    return true;
+  }
+
+  return false;
+}
+
+bool ExprEval::reduceConcatOp(const AnyCollection &operands, const Any *pany, Expr **rexpr) {
+  if (operands.empty()) return false;
+
+  std::string value;
+  binary_concat_op f;
+  for (const Any *op : operands) {
+    Expr *expr = nullptr;
+    if (!reduceExpr(any_cast<Expr>(op), pany, &expr, true)) {
+      return false;
+    }
+
+    value = f(value, parseBinary(expr));
+  }
+
+  Serializer *const serializer = pany->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setSize(value.length());
+  oconstant->setValue(value);
+  oconstant->setDecompile(value);
+  oconstant->setConstType(vpiBinaryConst);
+
+  // if (value.length() >= 32) {
+  //   LongIntTypespec *const lit = serializer->make<LongIntTypespec>();
+  //   otypespec = lit;
+  // } else {
+  //   IntTypespec *const it = serializer->make<IntTypespec>();
+  //   otypespec = it;
+  // }
+
+  RefTypespec *const rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *const lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceReplicationOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
+  if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
+
+  Expr *expr0 = nullptr;
+  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
+
+  Expr *expr1 = nullptr;
+  if (!reduceExpr(iexpr1, pany, &expr1, true)) return false;
+
+  const Constant *const constant = any_cast<Constant>(expr0);
+  const std::string_view sv = constant->getDecompile();
+  const int64_t value0 = std::stoi(std::string(sv));
+
+  binary_replicate_op f;
+  const std::string value = f(value0, parseBinary(expr1));
+
+  Serializer *const serializer = pany->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setSize(value.length());
+  oconstant->setValue(value);
+  oconstant->setDecompile(value);
+  oconstant->setConstType(vpiBinaryConst);
+
+  RefTypespec *const rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *const lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceUnaryReplicationOp(const Expr *iexpr, const Any *pany, Expr **rexpr) {
+  if (iexpr == nullptr) return false;
+
+  Expr *expr = nullptr;
+  if (!reduceExpr(iexpr, pany, &expr, true)) return false;
+
+  const Constant *const constant = any_cast<Constant>(expr);
+  if (constant == nullptr) return false;
+
+  const std::string_view value = constant->getDecompile();
+  const size_t size = constant->getSize();
+
+  unary_replicate_extend_op f;
+  const std::string result = f(size, value);
+
+  Serializer *const serializer = iexpr->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setSize(result.length());
+  oconstant->setValue(result);
+  oconstant->setDecompile(result);
+  oconstant->setConstType(vpiBinaryConst);
+
+  RefTypespec *const rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *const lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceConditionalOp(const Expr *iexpr0, const Expr *iexpr1, const Expr *iexpr2, const Any *pany,
+                                   Expr **rexpr) {
+  if ((iexpr0 == nullptr) || (iexpr1 == nullptr) || (iexpr2 == nullptr)) return false;
+
+  Expr *expr0 = nullptr;
+  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
+
+  const Constant *const condConst = any_cast<Constant>(expr0);
+  if (condConst == nullptr) return false;
+
+  std::string_view condSv = condConst->getDecompile();
+  const int64_t condValue = std::stoll(std::string(condSv));
+
+  const Expr *const selectedExpr = (condValue != 0) ? iexpr1 : iexpr2;
+
+  Expr *rexprSel = nullptr;
+  if (!reduceExpr(selectedExpr, pany, &rexprSel, true)) return false;
+
+  const Constant *const valueConst = any_cast<Constant>(rexprSel);
+  if (valueConst == nullptr) return false;
+
+  std::string_view value = valueConst->getDecompile();
+
+  Serializer *const serializer = pany->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setSize(value.size());
+  oconstant->setValue(value);
+  oconstant->setDecompile(value);
+  oconstant->setConstType(vpiBinaryConst);
+
+  RefTypespec *const rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *const lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceCaseEqOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
+  if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
+
+  Expr *expr0 = nullptr;
+  Expr *expr1 = nullptr;
+
+  if (!reduceExpr(iexpr0, pany, &expr0, true) || !reduceExpr(iexpr1, pany, &expr1, true)) return false;
+
+  const std::string a = parseBinary(expr0);
+  const std::string b = parseBinary(expr1);
+  const std::string value = binary_case_eq_op()(a, b);
+
+  Serializer *const serializer = pany->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setValue(value);
+  oconstant->setDecompile(value);
+  oconstant->setConstType(vpiBinaryConst);
+  oconstant->setSize(1);
+
+  RefTypespec *const rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *const lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceCaseNeqOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
+  if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
+
+  Expr *expr0 = nullptr;
+  Expr *expr1 = nullptr;
+
+  if (!reduceExpr(iexpr0, pany, &expr0, true) || !reduceExpr(iexpr1, pany, &expr1, true)) return false;
+
+  const std::string a = parseBinary(expr0);
+  const std::string b = parseBinary(expr1);
+
+  binary_case_neq_op f;
+  std::string value = f(a, b);
+
+  Serializer *const serializer = pany->getSerializer();
+  Constant *const oconstant = serializer->make<Constant>();
+  oconstant->setValue(value);
+  oconstant->setDecompile(value);
+  oconstant->setConstType(vpiBinaryConst);
+  oconstant->setSize(1);
+
+  RefTypespec *rt = serializer->make<RefTypespec>();
+  oconstant->setTypespec(rt);
+
+  LogicTypespec *lt = serializer->make<LogicTypespec>();
+  lt->setSigned(false);
+  rt->setActual(lt);
+
+  *rexpr = oconstant;
+  return true;
+}
+
+bool ExprEval::reduceTaggedPattern(const TaggedPattern *tp, const Any *pany, std::vector<const Any *> *result) {
+  if ((tp == nullptr) || (pany == nullptr)) return false;
+
+  Serializer *const serializer = pany->getSerializer();
+
+  const RefTypespec *const rt = tp->getTypespec();
+  if (rt == nullptr) return false;
+
+  uint64_t elemWidth = 1;
+  uint64_t arrLength = 1;
+  if (!getArraySizes(rt->getActual(), pany, elemWidth, arrLength)) {
+    return false;
+  }
+
+  const Expr *const valueExpr = tp->getPattern<Expr>();
+
+  Expr *reducedValue = nullptr;
+  if (!reduceExpr(valueExpr, pany, &reducedValue, true)) {
+    return false;
+  }
+
+  std::string elemBits(reducedValue->getDecompile());
+  if (elemBits.size() < elemWidth) {
+    elemBits = std::string(elemWidth - elemBits.size(), '0') + elemBits;
+  }
+
+  result->clear();
+  result->reserve(arrLength);
+
+  Typespec *const typespec = const_cast<Typespec *>(rt->getActual());
+  for (size_t i = 0; i < arrLength; ++i) {
+    Constant *c = serializer->make<Constant>();
+    c->setSize(elemWidth);
+    c->setValue(elemBits);
+    c->setDecompile(elemBits);
+    c->setConstType(vpiBinaryConst);
+
+    RefTypespec *const crt = serializer->make<RefTypespec>();
+    crt->setActual(typespec);
+    crt->setParent(c);
+    c->setTypespec(crt);
+    result->emplace_back(c);
+  }
+
+  return true;
+}
+
+bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr **rexpr, bool muteError) {
+  for (auto t : m_skipOperationTypes) {
+    if (operation->getOpType() == t) {
+      *rexpr = const_cast<Operation *>(operation);
+      return true;
+    }
+  }
+
+  AnyCollection *const operandsCollection = operation->getOperands();
+  if (operandsCollection == nullptr) {
+    *rexpr = const_cast<Operation *>(operation);
+    return true;
+  }
+
+  const AnyCollection &operands = *operandsCollection;
+  for (const Any *operand : operands) {
+    const UhdmType operandType = operand->getUhdmType();
+    if (operandType == UhdmType::RefObj) {
+      const RefObj *const ro = static_cast<const RefObj *>(operand);
+      if ((ro->getName() == "default") && ro->getStructMember()) continue;
+
+      Expr *ero = nullptr;
+      if (!reduceExpr(ro, pany, &ero, true)) {
+        return false;
+      }
+
+      const value_t value = parse(ero);
+      if (std::holds_alternative<std::monostate>(value)) {
+        return false;
+      }
+    } else if (operandType != UhdmType::Constant) {
+      return false;
+    } else if (operandType == UhdmType::Variable) {
+      if (getTypespec<EnumTypespec>(operand) != nullptr) {
+        return false;
+      }
+    }
+  }
+
+  bool succeeded = true;
+  Serializer &serializer = *operation->getSerializer();
+
+  const int32_t opType = operation->getOpType();
+  if (operands.size() == 1) {
+    switch (opType) {
+      case vpiPostIncOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_postinc_op(), rexpr);
+      } break;
+
+      case vpiPostDecOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_postdec_op(), rexpr);
+      } break;
+
+      case vpiPreDecOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_predec_op(), rexpr);
+      } break;
+
+      case vpiPreIncOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_preinc_op(), rexpr);
+      } break;
+
+      case vpiPlusOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, identity(), rexpr);
+      } break;
+
+      case vpiMinusOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_negate(), rexpr);
+      } break;
+
+      case vpiBitNegOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_bit_not(), rexpr);
+      } break;
+
+      case vpiNotOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_logical_not(), rexpr);
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiInsideOp: {
+        Expr *op0 = nullptr;
+        if (!reduceExpr(any_cast<Expr>(operands[0]), pany, &op0, muteError)) {
+          succeeded = false;
+          break;
+        }
+
+        int64_t val0 = 0;
+        if (!getInt64(op0, &val0)) {
+          succeeded = false;
+          break;
+        }
+
+        for (uint32_t i = 1, ni = operands.size(); (i < ni) && succeeded; ++i) {
+          Expr *opi = nullptr;
+          if (!reduceExpr(any_cast<Expr>(operands[i]), pany, &opi, muteError)) {
+            succeeded = false;
+            break;
+          }
+
+          int64_t vali = 0;
+          if (getInt64(opi, &vali) && (vali == val0)) {
+            Constant *const c = serializer.make<Constant>();
+            c->setValue("1");
+            c->setDecompile("1");
+            c->setSize(64);
+            c->setConstType(vpiUIntConst);
+            *rexpr = c;
+            break;
+          } else {
+            succeeded = false;
+          }
+        }
+      } break;
+
+      case vpiUnaryAndOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_and_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiUnaryNandOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_nand_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiUnaryOrOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_or_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiUnaryNorOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_nor_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiUnaryXorOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_xor_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiUnaryXNorOp: {
+        succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_xnor_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiCastOp: {
+        succeeded = reduceCastOp(operation, pany, rexpr);
+      } break;
+
+      case vpiMultiConcatOp: {
+        succeeded = reduceUnaryReplicationOp(any_cast<Expr>(operands[0]), pany, rexpr);
+      } break;
+
+      default: break;
+    }
+  } else if (operands.size() == 2) {
+    switch (opType) {
+      case vpiArithRShiftOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_arith_rshift_op(), rexpr);
+      } break;
+
+      case vpiRShiftOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_logical_rshift_op(), rexpr);
+      } break;
+
+      case vpiEqOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_equal(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiNeqOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_not_equal(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiGtOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_greater(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiGeOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_greater_equal(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiLtOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_less(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiLeOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_less_equal(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiCaseEqOp: {
+        succeeded = reduceCaseEqOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiCaseNeqOp: {
+        succeeded = reduceCaseNeqOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiArithLShiftOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_arith_lshift_op(), rexpr);
+      } break;
+
+      case vpiLShiftOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_logical_lshift_op(), rexpr);
+      } break;
+
+      case vpiAddOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_plus(), rexpr);
+      } break;
+
+      case vpiBitOrOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_bit_or(), rexpr);
+      } break;
+
+      case vpiBitXorOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_bit_xor(), rexpr);
+      } break;
+
+      case vpiBitXNorOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_xnor_op(), rexpr);
+      } break;
+
+      case vpiBitAndOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_bit_and(), rexpr);
+      } break;
+
+      case vpiImplyOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_imply_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiNonOverlapImplyOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_non_overlap_imply_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiOverlapImplyOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_overlap_imply_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiLogOrOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_logical_or_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiLogAndOp: {
+        succeeded = reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany,
+                                   binary_logical_and_op(), rexpr);
+
+        if (succeeded && (*rexpr != nullptr)) {
+          Constant *const c = any_cast<Constant>(*rexpr);
+          c->setValue(c->getDecompile());
+
+          LogicTypespec *const lts = serializer.make<LogicTypespec>();
+          lts->setSigned(getSigned(c->getTypespec()->getActual()));
+          c->getTypespec()->setActual(lts, true);
+          c->setSize(1);
+        }
+      } break;
+
+      case vpiSubOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_minus(), rexpr);
+      } break;
+
+      case vpiMultOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_multiplies(), rexpr);
+      } break;
+
+      case vpiUnaryNandOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_nand_op(), rexpr);
+      } break;
+
+      case vpiUnaryNorOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_nor_op(), rexpr);
+      } break;
+
+      case vpiUnaryXNorOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_xnor_op(), rexpr);
+      } break;
+
+      case vpiModOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_modulus_op(), rexpr);
+      } break;
+
+      case vpiPowerOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_power_op(), rexpr);
+      } break;
+
+      case vpiDivOp: {
+        succeeded =
+            reduceBinaryOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, binary_divides(), rexpr);
+      } break;
+
+      case vpiConcatOp: {
+        succeeded = reduceConcatOp(operands, pany, rexpr);
+      } break;
+
+      case vpiMultiConcatOp: {
+        succeeded = reduceReplicationOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]), pany, rexpr);
+      } break;
+
+      default: break;
+    }
+
+  } else if (operands.size() == 3) {
+    switch (opType) {
+      case vpiConditionOp: {
+        succeeded = reduceConditionalOp(any_cast<Expr>(operands[0]), any_cast<Expr>(operands[1]),
+                                        any_cast<Expr>(operands[2]), pany, rexpr);
+      } break;
+
+      case vpiConcatOp: {
+        succeeded = reduceConcatOp(operands, pany, rexpr);
+      } break;
+
+      default: {
+        succeeded = false;
+      } break;
+    }
+  } else {
+    switch (opType) {
+      case vpiConcatOp: {
+        succeeded = reduceConcatOp(operands, pany, rexpr);
+      } break;
+
+      case vpiMultiAssignmentPatternOp:
+      case vpiAssignmentPatternOp: {
+        // Don't reduce these ops
+        succeeded = false;
+      } break;
+
+      default: {
+        succeeded = false;
+      } break;
+    }
+  }
+  succeeded = succeeded && (*rexpr != nullptr);
+  return succeeded;
+}
+
+bool ExprEval::reduceMathSysFunc(const SysFuncCall *call, const Any *pany, Expr **rexpr, bool muteError) {
+  if (call->getArguments() == nullptr) return false;
+
+  cast_op castOp;
+  std::vector<double> args;
+  for (const Any *arg : *call->getArguments()) {
+    Constant *carg = nullptr;
+    if (const Expr *argExpr = any_cast<Expr>(arg)) {
+      Expr *rarg = nullptr;
+      if (reduceExpr(argExpr, pany, &rarg, muteError)) {
+        carg = any_cast<Constant>(rarg);
+      }
+    }
+
+    if (carg == nullptr) return false;
+
+    const value_t value = parse(carg);
+    if (std::holds_alternative<std::monostate>(value)) return false;
+
+    args.emplace_back(castOp.operator()<double>(value));
+  }
+
+  auto makeReal = [&](double v) -> bool {
+    *rexpr = createConstant(v, *call->getSerializer(), UhdmType::RealTypespec, vpiRealConst, 0);
+    return (*rexpr != nullptr);
+  };
+
+  std::string_view name = call->getName();
+
+  if (args.size() == 1) {
+    const double a = args[0];
+
+    if (name == "$sin") return makeReal(std::sin(a));
+    if (name == "$cos") return makeReal(std::cos(a));
+    if (name == "$tan") return makeReal(std::tan(a));
+    if (name == "$asin") return makeReal(std::asin(a));
+    if (name == "$acos") return makeReal(std::acos(a));
+    if (name == "$atan") return makeReal(std::atan(a));
+
+    if (name == "$sinh") return makeReal(std::sinh(a));
+    if (name == "$cosh") return makeReal(std::cosh(a));
+    if (name == "$tanh") return makeReal(std::tanh(a));
+    if (name == "$asinh") return makeReal(std::asinh(a));
+    if (name == "$acosh") return makeReal(std::acosh(a));
+    if (name == "$atanh") return makeReal(std::atanh(a));
+
+    if (name == "$ln") return makeReal(std::log(a));
+    if (name == "$log10") return makeReal(std::log10(a));
+    if (name == "$exp") return makeReal(std::exp(a));
+    if (name == "$sqrt") return makeReal(std::sqrt(a));
+
+    if (name == "$floor") return makeReal(std::floor(a));
+    if (name == "$ceil") return makeReal(std::ceil(a));
+    if (name == "$clog2") return makeReal(std::ceil(std::log2(a)));
+  }
+
+  if (args.size() == 2) {
+    const double a = args[0];
+    const double b = args[1];
+
+    if (name == "$pow") return makeReal(std::pow(a, b));
+    if (name == "$atan2") return makeReal(std::atan2(a, b));
+    if (name == "$hypot") return makeReal(std::hypot(a, b));
+  }
+
+  return false;
+}
+
+bool ExprEval::reduceConvSysFunc(const SysFuncCall *call, const Any *pany, Expr **rexpr, bool muteError) {
+  const std::string_view name = call->getName();
+  const AnyCollection *args = call->getArguments();
+  if (!args || args->empty()) return false;
+
+  Serializer &serializer = *call->getSerializer();
+  cast_op castOp;
+
+  /*======================================================
+   * $cast : TWO arguments
+   *   arg[0] -> target type
+   *   arg[1] -> source value
+   *======================================================*/
+  if (name == "$cast") {
+    if (args->size() != 2) return false;
+
+    const Expr *targetExpr = any_cast<Expr>((*args)[0]);
+    if (!targetExpr) return false;
+
+    const Typespec *targetTs = getTypespec(targetExpr);
+    if (!targetTs) return false;
+
+    Expr *srcExpr = nullptr;
+    if (!reduceExpr(any_cast<Expr>((*args)[1]), pany, &srcExpr, muteError)) {
+      return false;
+    }
+
+    Constant *carg = any_cast<Constant>(srcExpr);
+    if (carg == nullptr) return false;
+
+    value_t value = parse(carg);
+    if (std::holds_alternative<std::monostate>(value)) return false;
+    return buildCastConstant(value, targetTs, serializer, rexpr);
+  }
+
+  Expr *arg = nullptr;
+  if (!reduceExpr(any_cast<Expr>((*args)[0]), pany, &arg, muteError)) {
+    return false;
+  }
+
+  Constant *const carg = any_cast<Constant>(arg);
+  if (carg == nullptr) return false;
+
+  value_t value = parse(carg);
+  if (std::holds_alternative<std::monostate>(value)) return false;
+
+  if (name == "$itor") {
+    double r = castOp.operator()<double>(value);
+    *rexpr = createConstant<double>(r, serializer, UhdmType::RealTypespec, vpiRealConst, 64);
+    return true;
+  }
+
+  if (name == "$rtoi") {
+    double r = castOp.operator()<double>(value);
+    int32_t i = static_cast<int32_t>(r);
+    *rexpr = createConstant<int32_t>(i, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if ((name == "$signed") || (name == "$unsigned")) {
+    Constant *const carg = any_cast<Constant>((*args)[0]);
+    if (carg == nullptr) return false;
+
+    value_t value = parse(carg);
+    if (std::holds_alternative<std::monostate>(value)) return false;
+
+    Serializer &serializer = *call->getSerializer();
+    const Typespec *const inTs = getTypespec(carg);
+    if (inTs == nullptr) return false;
+
+    UhdmType inType = inTs->getUhdmType();
+    int32_t size = carg->getSize();
+
+    cast_op castOp;
+
+    switch (inType) {
+      case UhdmType::IntTypespec: {
+        int32_t i = castOp.operator()<int32_t>(value);
+        if (name == "$unsigned") {
+          *rexpr = createConstant<uint32_t>(static_cast<uint32_t>(i), serializer, inType, vpiIntConst, size);
+        } else {
+          *rexpr = createConstant<int32_t>(i, serializer, inType, vpiIntConst, size);
+        }
+        return true;
+      }
+
+      case UhdmType::LongIntTypespec: {
+        int64_t i = castOp.operator()<int64_t>(value);
+        if (name == "$unsigned") {
+          *rexpr = createConstant<uint64_t>(static_cast<uint64_t>(i), serializer, inType, vpiIntConst, size);
+        } else {
+          *rexpr = createConstant<int64_t>(i, serializer, inType, vpiIntConst, size);
+        }
+        return true;
+      }
+
+      case UhdmType::ShortIntTypespec: {
+        int16_t i = castOp.operator()<int16_t>(value);
+        if (name == "$unsigned") {
+          *rexpr = createConstant<uint16_t>(static_cast<uint16_t>(i), serializer, inType, vpiIntConst, size);
+        } else {
+          *rexpr = createConstant<int16_t>(i, serializer, inType, vpiIntConst, size);
+        }
+        return true;
+      }
+
+      case UhdmType::ByteTypespec: {
+        int8_t i = castOp.operator()<int8_t>(value);
+        if (name == "$unsigned") {
+          *rexpr = createConstant<uint8_t>(static_cast<uint8_t>(i), serializer, inType, vpiIntConst, size);
+        } else {
+          *rexpr = createConstant<int8_t>(i, serializer, inType, vpiIntConst, size);
+        }
+        return true;
+      }
+
+      case UhdmType::LogicTypespec:
+      case UhdmType::BitTypespec: {
+        if (name == "$unsigned") {
+          uint64_t u = castOp.operator()<uint64_t>(value);
+          *rexpr = createConstant<uint64_t>(u, serializer, inType, vpiBinaryConst, size);
+        } else {
+          int64_t i = castOp.operator()<int64_t>(value);
+          *rexpr = createConstant<int64_t>(i, serializer, inType, vpiBinaryConst, size);
+        }
+        return true;
+      }
+
+      default: return false;
+    }
+  }
+
+  if (name == "$realtobits") {
+    double r = castOp.operator()<double>(value);
+    uint64_t bits;
+    std::memcpy(&bits, &r, sizeof(bits));
+    *rexpr = createConstant<uint64_t>(bits, serializer, UhdmType::LongIntTypespec, vpiIntConst, 64);
+    return true;
+  }
+
+  if (name == "$bitstoreal") {
+    uint64_t bits = castOp.operator()<uint64_t>(value);
+    double r;
+    std::memcpy(&r, &bits, sizeof(r));
+    *rexpr = createConstant<double>(r, serializer, UhdmType::RealTypespec, vpiRealConst, 64);
+    return true;
+  }
+
+  if (name == "$shortrealtobits") {
+    float r = static_cast<float>(castOp.operator()<double>(value));
+    uint32_t bits;
+    std::memcpy(&bits, &r, sizeof(bits));
+    *rexpr = createConstant<uint32_t>(bits, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$bitstoshortreal") {
+    uint32_t bits = static_cast<uint32_t>(castOp.operator()<uint64_t>(value));
+    float r;
+    std::memcpy(&r, &bits, sizeof(r));
+    *rexpr = createConstant<float>(r, serializer, UhdmType::ShortRealTypespec, vpiRealConst, 32);
+    return true;
+  }
+
+  return false;
+}
+
+static void appendRange(std::string &out, const Range *r) {
+  const auto *l = any_cast<Constant>(r->getLeftExpr());
+  const auto *rgt = any_cast<Constant>(r->getRightExpr());
+
+  out += " [";
+  out += l ? std::string(l->getDecompile()) : "?";
+  out += ":";
+  out += rgt ? std::string(rgt->getDecompile()) : "?";
+  out += "]";
+}
+
+bool ExprEval::reduceDataQuerySysFunc(const SysFuncCall *call, const Any *pexpr, Expr **rexpr, bool muteError) {
+  const std::string_view name = call->getName();
+  const AnyCollection *args = call->getArguments();
+  if (!args || args->empty()) return false;
+
+  // Reduce argument expression
+  Expr *argExpr = nullptr;
+  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+
+  const Typespec *ts = getTypespec(argExpr);
+  if (!ts) return false;
+
+  Serializer &serializer = *call->getSerializer();
+
+  if (name == "$bits") {
+    uint64_t bits = 0;
+
+    if (!getWordSize(argExpr, call, &bits)) return false;
+
+    *rexpr = createConstant<uint32_t>(static_cast<uint32_t>(bits), serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$isunbounded") {
+    auto isUnboundedArray = [&](const Typespec *ts) -> bool {
+      const Typespec *cur = ts;
+      while (cur) {
+        if (auto *arr = any_cast<const ArrayTypespec *>(cur)) {
+          int32_t at = arr->getArrayType();
+          if (at == vpiDynamicArray || at == vpiQueueArray || at == vpiAssocArray) return true;
+
+          if (auto *rt = arr->getElemTypespec())
+            cur = rt->getActual();
+          else
+            break;
+          continue;
+        }
+        break;
+      }
+      return false;
+    };
+    bool unbounded = isUnboundedArray(ts);
+    *rexpr = createConstant<int32_t>(unbounded ? 1 : 0, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$typename") {
+    std::string result;
+
+    const Typespec *cur = ts;
+
+    switch (cur->getUhdmType()) {
+      case UhdmType::IntTypespec: result = "int"; break;
+      case UhdmType::ByteTypespec: result = "byte"; break;
+      case UhdmType::ShortIntTypespec: result = "shortint"; break;
+      case UhdmType::LongIntTypespec: result = "longint"; break;
+      case UhdmType::IntegerTypespec: result = "integer"; break;
+      case UhdmType::LogicTypespec: result = "logic"; break;
+      case UhdmType::BitTypespec: result = "bit"; break;
+      case UhdmType::StringTypespec: result = "string"; break;
+      default: return false;
+    }
+
+    if (auto *lt = any_cast<const LogicTypespec *>(cur)) {
+      if (auto *ranges = lt->getRanges()) {
+        for (const Range *r : *ranges) {
+          appendRange(result, r);
+        }
+      }
+    }
+
+    while (auto *arr = any_cast<const ArrayTypespec *>(cur)) {
+      if (auto *ranges = arr->getRanges()) {
+        for (const Range *r : *ranges) {
+          appendRange(result, r);
+        }
+      }
+
+      const RefTypespec *rt = arr->getElemTypespec();
+      if (!rt) break;
+      cur = rt->getActual();
+    }
+
+    auto *c = serializer.make<Constant>();
+    c->setValue(result);
+    c->setDecompile(result);
+    c->setConstType(vpiStringConst);
+    c->setSize(static_cast<uint32_t>(result.size() * 8));
+
+    auto *sts = serializer.make<StringTypespec>();
+    auto *rt = serializer.make<RefTypespec>();
+    rt->setActual(sts);
+    c->setTypespec(rt);
+
+    *rexpr = c;
+    return true;
+  }
+
+  return false;
+}
+
+struct ExprEval::DimInfo final {
+  int64_t left;
+  int64_t right;
+  bool isPacked;
+};
+
+bool ExprEval::collectDimensions(const Typespec *ts, const Any *pexpr, std::vector<DimInfo> &dims) {
+  const Typespec *cur = ts;
+
+  /*------------- Unpacked (outer → inner) -------------*/
+  while (auto *arr = any_cast<const ArrayTypespec *>(cur)) {
+    if (auto *ranges = arr->getRanges()) {
+      for (auto *r : *ranges) {
+        Expr *l = nullptr;
+        Expr *h = nullptr;
+
+        if (!reduceExpr(r->getLeftExpr(), pexpr, &l, true)) return false;
+        if (!reduceExpr(r->getRightExpr(), pexpr, &h, true)) return false;
+
+        auto *lc = any_cast<const Constant *>(l);
+        auto *rc = any_cast<const Constant *>(h);
+        if (!lc || !rc) return false;
+
+        dims.push_back(
+            {std::stoll(std::string(lc->getDecompile())), std::stoll(std::string(rc->getDecompile())), false});
+      }
+    }
+
+    auto *rt = arr->getElemTypespec();
+    if (!rt) break;
+    cur = rt->getActual();
+  }
+
+  /*------------- Packed (inner → outer) -------------*/
+  if (auto *logic = any_cast<const LogicTypespec *>(cur)) {
+    if (auto *ranges = logic->getRanges()) {
+      for (auto *r : *ranges) {
+        Expr *l = nullptr;
+        Expr *h = nullptr;
+        if (!reduceExpr(r->getLeftExpr(), pexpr, &l, true)) return false;
+        if (!reduceExpr(r->getRightExpr(), pexpr, &h, true)) return false;
+
+        auto *lc = any_cast<const Constant *>(l);
+        auto *rc = any_cast<const Constant *>(h);
+        if (!lc || !rc) return false;
+
+        dims.push_back(
+            {std::stoll(std::string(lc->getDecompile())), std::stoll(std::string(rc->getDecompile())), true});
+      }
+    }
+  }
+
+  return true;
+}
+
+static int64_t rangeSize(int32_t l, int32_t r) {
+  return (l >= r) ? (int64_t(l) - int64_t(r) + 1) : (int64_t(r) - int64_t(l) + 1);
+}
+
+bool ExprEval::reduceArrayQuerySysFunc(const SysFuncCall *call, const Any *pexpr, Expr **rexpr, bool muteError) {
+  const std::string_view name = call->getName();
+  const AnyCollection *args = call->getArguments();
+  if (!args || args->empty()) return false;
+
+  Expr *argExpr = nullptr;
+  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+
+  const Typespec *ts = getTypespec(argExpr);
+  if (!ts) return false;
+
+  Serializer &serializer = *call->getSerializer();
+
+  if (name == "$dimensions") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    *rexpr = createConstant<uint32_t>(dims.size(), serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$unpacked_dimensions") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    uint32_t count = 0;
+    for (auto &d : dims)
+      if (!d.isPacked) count++;
+
+    *rexpr = createConstant<uint32_t>(count, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  auto getDimIndex = [&](int64_t &idx, std::vector<DimInfo> &dims) -> bool {
+    if (args->size() < 2) return false;
+
+    Expr *dimExpr = nullptr;
+    if (!reduceExpr(any_cast<Expr>((*args)[1]), pexpr, &dimExpr, muteError)) return false;
+
+    auto *c = any_cast<const Constant *>(dimExpr);
+    if (!c) return false;
+
+    idx = std::stoll(std::string(c->getDecompile())) - 1;
+    return idx >= 0 && idx < (int64_t)dims.size();
+  };
+
+  if (name == "$size") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    int32_t sz = rangeSize(dims[idx].left, dims[idx].right);
+
+    *rexpr = createConstant<int32_t>(sz, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$left") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    *rexpr = createConstant<int32_t>(dims[idx].left, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$right") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    *rexpr = createConstant<int32_t>(dims[idx].right, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$low") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    *rexpr = createConstant<int32_t>(std::min(dims[idx].left, dims[idx].right), serializer, UhdmType::IntTypespec,
+                                     vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$high") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    *rexpr = createConstant<int32_t>(std::max(dims[idx].left, dims[idx].right), serializer, UhdmType::IntTypespec,
+                                     vpiIntConst, 32);
+    return true;
+  }
+
+  if (name == "$increment") {
+    std::vector<DimInfo> dims;
+    if (!collectDimensions(ts, pexpr, dims)) return false;
+
+    int64_t idx;
+    if (!getDimIndex(idx, dims)) return false;
+
+    int32_t inc = (dims[idx].left <= dims[idx].right) ? 1 : -1;
+
+    *rexpr = createConstant<int32_t>(inc, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  return false;
+}
+bool ExprEval::reduceBitVectorSysFunc(const SysFuncCall *call, const Any *pexpr, Expr **rexpr, bool muteError) {
+  const std::string_view name = call->getName();
+  const AnyCollection *args = call->getArguments();
+  if (!args || args->empty()) return false;
+
+  // Reduce argument
+  Expr *argExpr = nullptr;
+  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+
+  auto *c = any_cast<const Constant *>(argExpr);
+  if (!c) return false;
+
+  const Typespec *ts = getTypespec(argExpr);
+  if (!ts) return false;
+
+  if (auto *rt = any_cast<const RefTypespec *>(ts)) ts = rt->getActual();
+
+  Serializer &serializer = *call->getSerializer();
+
+  uint64_t width = 0;
+  if (!getWordSize(argExpr, pexpr, &width)) return false;
+
+  std::string bits = std::string(c->getDecompile());
+  if (bits.size() < width) bits = std::string(width - bits.size(), '0') + bits;
+
+  if (name == "$countones") {
+    uint32_t cnt = 0;
+    for (char b : bits)
+      if (b == '1') cnt++;
+
+    *rexpr = createConstant<uint32_t>(cnt, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  // --------------------------------------------------
+  // $countbits(expr, mask)
+  // mask is string of chars: "01xz"
+  // --------------------------------------------------
+  if (name == "$countbits") {
+    if (args->size() < 2) return false;
+
+    Expr *maskExpr = nullptr;
+    if (!reduceExpr(any_cast<Expr>((*args)[1]), pexpr, &maskExpr, muteError)) return false;
+
+    auto *maskC = any_cast<const Constant *>(maskExpr);
+    if (!maskC) return false;
+
+    std::string mask = std::string(maskC->getDecompile());
+
+    uint32_t cnt = 0;
+    for (char b : bits)
+      if (mask.find(b) != std::string::npos) cnt++;
+
+    *rexpr = createConstant<uint32_t>(cnt, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  // --------------------------------------------------
+  // $onehot
+  // exactly one bit == 1, no x/z allowed
+  // --------------------------------------------------
+  if (name == "$onehot") {
+    int32_t ones = 0;
+    bool bad = false;
+
+    for (char b : bits) {
+      if (b == 'x' || b == 'z') {
+        bad = true;
+        break;
+      }
+      if (b == '1') ones++;
+    }
+
+    uint32_t ok = (!bad && ones == 1) ? 1 : 0;
+
+    *rexpr = createConstant<uint32_t>(ok, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  // --------------------------------------------------
+  // $onehot0
+  // zero or one bits == 1, no x/z allowed
+  // --------------------------------------------------
+  if (name == "$onehot0") {
+    int32_t ones = 0;
+    bool bad = false;
+
+    for (char b : bits) {
+      if (b == 'x' || b == 'z') {
+        bad = true;
+        break;
+      }
+      if (b == '1') ones++;
+    }
+
+    uint32_t ok = (!bad && (ones == 0 || ones == 1)) ? 1 : 0;
+
+    *rexpr = createConstant<uint32_t>(ok, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  // --------------------------------------------------
+  // $isunknown
+  // any bit is x or z
+  // --------------------------------------------------
+  if (name == "$isunknown") {
+    bool hasXZ = false;
+    for (char b : bits) {
+      if (b == 'x' || b == 'z') {
+        hasXZ = true;
         break;
       }
     }
-    if (isSeparator) {
-      result.emplace_back(str.data() + start, end - start);
-      start = end = end + sepSize;
-      i = i + sepSize - 1;
-    } else {
-      ++end;
+
+    *rexpr = createConstant<uint32_t>(hasXZ ? 1 : 0, serializer, UhdmType::IntTypespec, vpiIntConst, 32);
+    return true;
+  }
+
+  return false;
+}
+
+bool ExprEval::reduceSysFuncCall(const SysFuncCall *call, const Any *pany, Expr **rexpr, bool muteError) {
+  const std::string_view name = call->getName();
+  if (isConvSysFunc(name)) {
+    return reduceConvSysFunc(call, pany, rexpr, muteError);
+  } else if (isDataQuerySysFunc(name)) {
+    return reduceDataQuerySysFunc(call, pany, rexpr, muteError);
+  } else if (isArrayQuerySysFunc(name)) {
+    return reduceArrayQuerySysFunc(call, pany, rexpr, muteError);
+  } else if (isBitVectorSysFunc(name)) {
+    return reduceBitVectorSysFunc(call, pany, rexpr, muteError);
+  } else if (isMathSysFunc(name)) {
+    return reduceMathSysFunc(call, pany, rexpr, muteError);
+  }
+  return *rexpr != nullptr;
+}
+
+bool ExprEval::reduceFuncCall(const FuncCall *call, const Any *pany, Expr **rexpr, bool muteError) {
+  Serializer &serializer = *call->getSerializer();
+
+  const std::string_view name = call->getName();
+  std::vector<Any *> *const args = call->getArguments();
+  const Function *actual_func = nullptr;
+  if (const TaskFunc *const func = getTaskFunc(name, nullptr, pany)) {
+    actual_func = any_cast<Function>(func);
+  }
+  if (actual_func == nullptr) {
+    if (!muteError && !m_muteError) {
+      const std::string errMsg(name);
+      serializer.getErrorHandler()(ErrorType::UHDM_UNDEFINED_USER_FUNCTION, errMsg, call, nullptr);
+    }
+    return false;
+  }
+  bool invalidValue = false;
+  if (Expr *const tmp = evalFunc(actual_func, args, invalidValue, nullptr, (Any *)pany, muteError)) {
+    if (!invalidValue) *rexpr = tmp;
+  }
+
+  return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceRefObj(const RefObj *ro, const Any *pany, Expr **rexpr, bool muteError) {
+  const std::string_view name = ro->getName();
+  if (Any *const any = getValue(name, nullptr, pany, muteError)) {
+    *rexpr = any_cast<Expr>(any);
+  }
+
+  return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTypespec, Any **rany, bool muteError) {
+  bool invalidValue = false;
+  Serializer &s = *hp->getSerializer();
+  std::string baseObject;
+  if (!hp->getPathElems()->empty()) {
+    Any *firstElem = hp->getPathElems()->at(0);
+    baseObject = firstElem->getName();
+  }
+  const Any *object = getObject(baseObject, nullptr, pany, muteError);
+  if (object) {
+    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
+      object = passign->getRhs();
     }
   }
-  result.emplace_back(str.data() + start, end - start);
+  if (object == nullptr) {
+    object = getValue(baseObject, nullptr, pany, muteError);
+  }
+  if (object == nullptr) return false;
+
+  // Substitution
+  if (const ParamAssign *const pass = any_cast<ParamAssign>(object)) {
+    const Expr *rhs = pass->getRhs<Expr>();
+    Expr *r = nullptr;
+    if ((invalidValue = !reduceExpr(rhs, pany, &r, muteError))) {
+      object = r;
+    }
+  } else if (const BitSelect *const bts = any_cast<BitSelect>(object)) {
+    Expr *r = nullptr;
+    if ((invalidValue = !reduceExpr(bts, pany, &r, muteError))) {
+      object = r;
+    }
+  } else if (const RefObj *const ref = any_cast<RefObj>(object)) {
+    Expr *r = nullptr;
+    if ((invalidValue = !reduceExpr(ref, pany, &r, muteError))) {
+      object = r;
+    }
+  } else if (const Constant *cons = any_cast<Constant>(object)) {
+    Elaborator elaborator(&s);
+    object = elaborator.clone<>(cons, nullptr);
+    cons = any_cast<Constant>(object);
+    if (cons->getTypespec() == nullptr) {
+      RefTypespec *rt = elaborator.clone<>(hp->getTypespec(), const_cast<Any *>(object));
+      const_cast<Constant *>(cons)->setTypespec(rt);
+    }
+  } else if (const Operation *oper = any_cast<Operation>(object)) {
+    if (returnTypespec) {
+      if (const RefTypespec *const rt = oper->getTypespec()) {
+        object = rt->getActual();
+      }
+    }
+  }
+
+  std::vector<std::string> the_path;
+  for (auto elem : *hp->getPathElems()) {
+    std::string_view elemName = elem->getName();
+    elemName = rtrim_until(elemName, '[');
+    the_path.emplace_back(elemName);
+    if (elem->getUhdmType() == UhdmType::BitSelect) {
+      BitSelect *select = (BitSelect *)elem;
+      Expr *bexpr = nullptr;
+      invalidValue = !reduceExpr(select->getIndex(), pany, &bexpr, muteError);
+      uint64_t baseIndex = 0;
+      if (getUInt64(bexpr, &baseIndex)) {
+        the_path.emplace_back("[" + std::to_string(baseIndex) + "]");
+      }
+    }
+  }
+
+  if (const Any *const any =
+          hierarchicalSelector(the_path, 0, object, invalidValue, nullptr, pany, returnTypespec, muteError)) {
+    *rany = const_cast<Any *>(any);
+  }
+
+  return (*rany != nullptr);
+}
+
+bool ExprEval::reduceBitSelect(const BitSelect *bs, const Any *pany, Expr **rexpr, bool muteError) {
+  bool succeeded = false;
+  Expr *result = nullptr;
+  Serializer &serializer = *bs->getSerializer();
+
+  const std::string_view name = bs->getName();
+  const Expr *const index = bs->getIndex();
+
+  Expr *rindex = nullptr;
+  if (!reduceExpr(index, pany, &rindex, muteError)) return false;
+
+  uint64_t index_val = 0;
+  if (!getUInt64(rindex, &index_val)) return false;
+
+  const Any *object = getObject(name, nullptr, pany, muteError);
+  if (object != nullptr) {
+    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
+      object = passign->getRhs();
+    }
+  }
+  if (object == nullptr) {
+    object = getValue(name, nullptr, pany, muteError);
+  }
+  if (object && (object != result)) {
+    Expr *robject = nullptr;
+    if (reduceExpr(any_cast<Expr>(object), pany, &robject, muteError)) {
+      object = robject;
+    }
+    UhdmType otype = object->getUhdmType();
+    if (otype == UhdmType::Variable) {
+      // PackedArrayVar *array = (PackedArrayVar *)object;
+      // AnyCollection *elems = array->getElements();
+      // if (elems && index_val < elems->size()) {
+      //   Any *elem = elems->at(index_val);
+      //   if (elem->getUhdmType() == UhdmType::EnumVar ||
+      //       elem->getUhdmType() == UhdmType::StructVar ||
+      //       elem->getUhdmType() == UhdmType::UnionVar ||
+      //       elem->getUhdmType() == UhdmType::LogicVar) {
+      //   } else {
+      //     result = elems->at(index_val);
+      //   }
+      // }
+    } else if (otype == UhdmType::ArrayExpr) {
+      ArrayExpr *array = (ArrayExpr *)object;
+      ExprCollection *elems = array->getExprs();
+      if (index_val < elems->size()) {
+        result = elems->at(index_val);
+      }
+    } else if (otype == UhdmType::Operation) {
+      Operation *op = (Operation *)object;
+      int32_t opType = op->getOpType();
+      if (opType == vpiAssignmentPatternOp) {
+        AnyCollection *ops = op->getOperands();
+        if (ops && (index_val < ops->size())) {
+          result = any_cast<Expr>(ops->at(index_val));
+          if ((result != nullptr) && (result->getUhdmType() == UhdmType::Operation)) {
+            if (const RefTypespec *oprt = op->getTypespec()) {
+              if (const ArrayTypespec *atps = oprt->getActual<ArrayTypespec>()) {
+                if (const RefTypespec *ert = atps->getElemTypespec()) {
+                  if (const Typespec *ertts = ert->getActual()) {
+                    Elaborator elaborator(&serializer, false, muteError);
+                    RefTypespec *celrt = elaborator.clone<>(ert, const_cast<Expr *>(result));
+                    celrt->setActual(const_cast<Typespec *>(ertts));
+                    ((Operation *)result)->setTypespec(celrt);
+                  }
+                }
+              }
+            }
+          }
+        } else if (ops) {
+          bool defaultTaggedPattern = false;
+          for (auto op : *ops) {
+            if (op->getUhdmType() == UhdmType::TaggedPattern) {
+              TaggedPattern *tp = (TaggedPattern *)op;
+              if (const RefTypespec *rt = tp->getTypespec()) {
+                if (const Typespec *tps = rt->getActual()) {
+                  if (tps->getName() == "default") {
+                    defaultTaggedPattern = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          if (!defaultTaggedPattern) succeeded = false;
+        } else {
+          succeeded = false;
+        }
+      } else if (opType == vpiConcatOp) {
+        AnyCollection *ops = op->getOperands();
+        if (ops && (index_val < ops->size())) {
+          result = any_cast<Expr>(ops->at(index_val));
+        } else {
+          succeeded = false;
+        }
+      } else if (opType == vpiConditionOp) {
+        Expr *exp = nullptr;
+        if (reduceExpr(op, pany, &exp, muteError)) {
+          return false;
+        }
+        UhdmType otype = exp->getUhdmType();
+        if (otype == UhdmType::Operation) {
+          Operation *op = (Operation *)exp;
+          int32_t opType = op->getOpType();
+          if (opType == vpiAssignmentPatternOp) {
+            AnyCollection *ops = op->getOperands();
+            if (ops && (index_val < ops->size())) {
+              object = ops->at(index_val);
+            } else {
+              succeeded = false;
+            }
+          } else if (opType == vpiConcatOp) {
+            AnyCollection *ops = op->getOperands();
+            if (ops && (index_val < ops->size())) {
+              object = ops->at(index_val);
+            } else {
+              succeeded = false;
+            }
+          }
+        }
+        if (object != nullptr) result = const_cast<Expr *>(any_cast<Expr>(object));
+      } else if (opType == vpiMultiConcatOp) {
+        Expr *c = nullptr;
+        if (reduceOperation(op, pany, &c, muteError)) {
+          if ((c != nullptr) && (c->getUhdmType() == UhdmType::Constant))
+            succeeded = reduceConstant((Constant *)c, static_cast<uint32_t>(index_val), pany, &result, muteError);
+        }
+      }
+    } else if (otype == UhdmType::Constant) {
+      succeeded = reduceConstant((Constant *)object, static_cast<uint32_t>(index_val), pany, &result, muteError);
+    }
+  }
+
+  succeeded = result != nullptr;
+  *rexpr = const_cast<Expr *>(result);
+  return succeeded;
+}
+
+bool ExprEval::reduceConstant(const Constant *constant, uint32_t index, const Any *pany, Expr **rexpr, bool muteError) {
+  Serializer &serializer = *constant->getSerializer();
+
+  const Typespec *const ts = getTypespec(constant);
+  const RangeCollection *const rc = getRanges(ts);
+  if ((rc == nullptr) || rc->empty()) return false;
+
+  const Range *const r = rc->back();
+
+  Expr *llimit = nullptr;
+  if (!reduceExpr(r->getLeftExpr(), pany, &llimit, muteError)) return false;
+
+  Expr *rlimit = nullptr;
+  if (!reduceExpr(r->getRightExpr(), pany, &rlimit, muteError)) return false;
+
+  uint64_t lr = 0;
+  uint64_t rr = 0;
+  if (!getUInt64(llimit, &lr) || !getUInt64(rlimit, &rr)) return false;
+
+  std::string binary;
+  if (!formatBinary(constant, &binary)) return false;
+
+  uint64_t wordSize = 0;
+  if (!getWordSize(constant, pany, &wordSize)) return false;
+
+  Constant *const result = serializer.make<Constant>();
+  result->setSize(static_cast<int32_t>(wordSize));
+  result->setFile(constant->getFile());
+  result->setStartLine(constant->getStartLine());
+  result->setStartColumn(constant->getStartColumn());
+  result->setEndLine(constant->getEndLine());
+  result->setEndColumn(constant->getStartColumn() + 1);
+
+  if (index < binary.size()) {
+    // TODO: If Range does not start at 0
+    if (lr >= rr) {
+      index = static_cast<uint32_t>(binary.size() - ((index + 1) * wordSize));
+    }
+    std::string v;
+    for (uint32_t i = 0; i < wordSize; i++) {
+      if ((index + i) < binary.size()) {
+        char bitv = binary[index + i];
+        v += std::to_string(bitv - '0');
+      }
+    }
+    if (v.size() > UHDM_MAX_BIT_WIDTH) {
+      v = "0";
+    }
+    result->setValue(v);
+    result->setDecompile(std::to_string(wordSize) + "'b" + v);
+    result->setConstType(vpiBinaryConst);
+  } else {
+    result->setValue("0");
+    result->setDecompile("1'b0");
+    result->setConstType(vpiBinaryConst);
+  }
+
+  *rexpr = result;
+  return (result != nullptr);
+}
+
+bool ExprEval::reducePartSelect(const PartSelect *ps, const Any *pany, Expr **rexpr, bool muteError) {
+  const Expr *result = nullptr;
+  Serializer &serializer = *ps->getSerializer();
+
+  std::string_view name = ps->getName();
+  if (name.empty()) name = ps->getDefName();
+  const Any *object = getObject(name, nullptr, pany, muteError);
+  if (object) {
+    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
+      object = passign->getRhs();
+    }
+  }
+  if (object == nullptr) {
+    object = getValue(name, nullptr, pany, muteError);
+  }
+  if (object && (object->getUhdmType() == UhdmType::Constant)) {
+    Constant *co = (Constant *)object;
+
+    Expr *lexpr = nullptr;
+    if (!reduceExpr(ps->getLeftExpr(), pany, &lexpr, muteError)) return false;
+
+    std::string binary;
+    if (!formatBinary(co, &binary)) return false;
+
+    int64_t lvalue = 0;
+    if (!getInt64(lexpr, &lvalue)) return false;
+
+    Expr *rexpr = nullptr;
+    if (!reduceExpr(ps->getRightExpr(), pany, &rexpr, muteError)) return false;
+
+    int64_t rvalue = 0;
+    if (!getInt64(rexpr, &rvalue)) return false;
+
+    std::reverse(binary.begin(), binary.end());
+    std::string sub;
+    if ((rvalue > (int64_t)binary.size()) || (lvalue > (int64_t)binary.size())) {
+      sub = "0";
+    } else {
+      sub = (lvalue > rvalue) ? binary.substr(rvalue, lvalue - rvalue + 1) : binary.substr(lvalue, rvalue - lvalue + 1);
+    }
+    std::reverse(sub.begin(), sub.end());
+
+    Constant *const c = serializer.make<Constant>();
+    c->setValue(sub);
+    c->setDecompile(sub);
+    c->setSize(static_cast<int32_t>(sub.size()));
+    c->setConstType(vpiBinaryConst);
+    result = c;
+  }
+
+  *rexpr = const_cast<Expr *>(result);
+  return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceIndexedPartSelect(const IndexedPartSelect *ips, const Any *pany, Expr **rexpr, bool muteError) {
+  std::string_view name = ips->getName();
+  if (name.empty()) name = ips->getDefName();
+
+  const Any *object = getObject(name, nullptr, pany, muteError);
+  if (object) {
+    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
+      object = passign->getRhs();
+    }
+  }
+  if (object == nullptr) {
+    object = getValue(name, nullptr, pany, muteError);
+  }
+
+  if (object == nullptr) return false;
+  if (object->getUhdmType() != UhdmType::Constant) return false;
+
+  Expr *bexpr = nullptr;
+  if (!reduceExpr(ips->getBaseExpr(), pany, &bexpr, muteError)) return false;
+
+  Expr *oexpr = nullptr;
+  if (!reduceExpr(ips->getWidthExpr(), pany, &oexpr, muteError)) return false;
+
+  int64_t base = 0;
+  if (!getInt64(bexpr, &base)) return false;
+
+  int64_t offset = 0;
+  if (!getInt64(oexpr, &offset)) return false;
+
+  std::string binary;
+  if (!formatBinary(static_cast<const Constant *>(object), &binary)) return false;
+
+  std::string sub;
+  const uint32_t N = static_cast<uint32_t>(binary.size());
+  if (ips->getIndexedPartSelectType() == vpiPosIndexed) {
+    uint32_t start = N - base - offset;
+    if (start > N) start = 0;
+    if (start + offset > N) offset = N - start;
+    sub = binary.substr(start, offset);
+  } else {
+    int32_t start = static_cast<int32_t>(N - base - 1);
+    if (start < 0) start = 0;
+    if ((uint32_t)start + offset > N) offset = N - start;
+    sub = binary.substr(start, offset);
+  }
+
+  Serializer &serializer = *ips->getSerializer();
+  Constant *const result = serializer.make<Constant>();
+  result->setValue(sub);
+  result->setDecompile(sub);
+  result->setSize(static_cast<int32_t>(sub.size()));
+  result->setConstType(vpiBinaryConst);
+
+  *rexpr = result;
+  return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexpr, bool muteError) {
+  const std::string_view name = vs->getName();
+  const Any *object = getObject(name, nullptr, pany, muteError);
+  if (object) {
+    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
+      object = passign->getRhs();
+    }
+  }
+  if (object == nullptr) {
+    object = getValue(name, nullptr, pany, muteError);
+  }
+  if (object == nullptr) return false;
+
+  for (auto index : *vs->getIndexes()) {
+    Expr *rindex = nullptr;
+    if (!reduceExpr((Expr *)index, pany, &rindex, muteError)) {
+      return false;
+    }
+
+    uint64_t index_val = 0;
+    if (!getUInt64(rindex, &index_val)) return false;
+
+    if (const Operation *const operation = any_cast<Operation>(object)) {
+      int32_t opType = operation->getOpType();
+      if (opType == vpiAssignmentPatternOp) {
+        AnyCollection *ops = operation->getOperands();
+        if (ops && (index_val < ops->size())) {
+          object = ops->at(index_val);
+        } else {
+          object = nullptr;
+        }
+      } else if (opType == vpiConcatOp) {
+        AnyCollection *ops = operation->getOperands();
+        if (ops && (index_val < ops->size())) {
+          object = ops->at(index_val);
+        } else {
+          object = nullptr;
+        }
+      } else if (opType == vpiConditionOp) {
+        Expr *exp = nullptr;
+        if (reduceExpr(any_cast<Expr>(object), pany, &exp, muteError)) {
+          return false;
+        }
+        UhdmType otype = exp->getUhdmType();
+        if (otype == UhdmType::Operation) {
+          Operation *op = (Operation *)exp;
+          int32_t opType = operation->getOpType();
+          if (opType == vpiAssignmentPatternOp) {
+            AnyCollection *ops = op->getOperands();
+            if (ops && (index_val < ops->size())) {
+              object = ops->at(index_val);
+            } else {
+              object = nullptr;
+            }
+          } else if (opType == vpiConcatOp) {
+            AnyCollection *ops = operation->getOperands();
+            if (ops && (index_val < ops->size())) {
+              object = ops->at(index_val);
+            } else {
+              object = nullptr;
+            }
+          }
+        }
+      } else {
+        object = nullptr;
+      }
+    } else {
+      object = nullptr;
+    }
+    if (object == nullptr) return false;
+  }
+  *rexpr = any_cast<Expr>(const_cast<Any *>(object));
+  return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceExpr(const Expr *expr, const Any *pany, Expr **rexpr, bool muteError) {
+  if ((expr == nullptr) || (pany == nullptr)) return false;
+
+  bool succeeded = false;
+  Expr *result = nullptr;
+  switch (expr->getUhdmType()) {
+    case UhdmType::Constant: {
+      result = const_cast<Expr *>(expr);
+      succeeded = true;
+    } break;
+
+    case UhdmType::Operation: {
+      succeeded = reduceOperation(static_cast<const Operation *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::SysFuncCall: {
+      succeeded = reduceSysFuncCall(static_cast<const SysFuncCall *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::FuncCall: {
+      succeeded = reduceFuncCall(static_cast<const FuncCall *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::RefObj: {
+      succeeded = reduceRefObj(static_cast<const RefObj *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::HierPath: {
+      Any *rany = nullptr;
+      if ((succeeded = reduceHierPath(static_cast<const HierPath *>(expr), pany, false, &rany, muteError))) {
+        result = any_cast<Expr>(rany);
+      }
+    } break;
+
+    case UhdmType::BitSelect: {
+      succeeded = reduceBitSelect(static_cast<const BitSelect *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::PartSelect: {
+      succeeded = reducePartSelect(static_cast<const PartSelect *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::IndexedPartSelect: {
+      succeeded = reduceIndexedPartSelect(static_cast<const IndexedPartSelect *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::VarSelect: {
+      succeeded = reduceVarSelect(static_cast<const VarSelect *>(expr), pany, &result, muteError);
+    } break;
+
+    default: {
+      succeeded = false;
+    } break;
+  }
+
+  if (succeeded && (result != nullptr) && (result->getUhdmType() == UhdmType::RefObj)) {
+    Expr *rexpr2 = nullptr;
+    if (reduceExpr(static_cast<RefObj *>(result), pany, &rexpr2, muteError)) {
+      result = rexpr2;
+    } else {
+      result = nullptr;
+      succeeded = false;
+    }
+  }
+
+  *rexpr = result;
+  return succeeded;
+}
+
+bool ExprEval::getWordSize(const Expr *exp, const Any *pany, uint64_t *wordSize) const {
+  if (exp == nullptr) return false;
+
+  const Typespec *typespec = getTypespec(exp);
+  if (typespec == nullptr) return false;
+
+  if (typespec->getUhdmType() == UhdmType::ArrayTypespec) {
+    typespec = getElemTypespec(static_cast<const ArrayTypespec *>(typespec));
+  }
+
+  switch (typespec->getUhdmType()) {
+    case UhdmType::LongIntTypespec: {
+      *wordSize = 64;
+    } break;
+
+    case UhdmType::ShortIntTypespec: {
+      *wordSize = 16;
+    } break;
+
+    case UhdmType::IntTypespec: {
+      *wordSize = 32;
+    } break;
+
+    case UhdmType::ByteTypespec: {
+      *wordSize = 8;
+    } break;
+
+    case UhdmType::IntegerTypespec: {
+      *wordSize = 32;
+    } break;
+
+    case UhdmType::LogicTypespec: {
+      const LogicTypespec *const lt = static_cast<const LogicTypespec *>(typespec);
+      return getBitCount(lt, pany, true, wordSize);
+    } break;
+
+    case UhdmType::BitTypespec: {
+      const BitTypespec *const bt = static_cast<const BitTypespec *>(typespec);
+      *wordSize = 1;
+
+      if (const RangeCollection *const ranges = bt->getRanges()) {
+        if (ranges->size() > 1) {
+          const Range *const r = ranges->back();
+
+          Expr *le = nullptr;
+          Expr *re = nullptr;
+          ExprEval ee(m_provider);
+          if (ee.reduceExpr(r->getLeftExpr(), r, &le, false) && ee.reduceExpr(r->getRightExpr(), r, &re, false)) {
+            uint64_t lr = 0;
+            uint64_t rr = 0;
+            if (getUInt64(le, &lr) && getUInt64(re, &rr)) {
+              *wordSize = ((lr > rr) ? (lr - rr) : (rr - lr)) + 1;
+            }
+          }
+        }
+      }
+    } break;
+
+    default: {
+      *wordSize = 1;
+    } break;
+  }
+
+  if (*wordSize == 0) *wordSize = 1;
+  return true;
+}
+
+bool ExprEval::getBitCount(const Any *any, const Any *pany, bool allRanges, uint64_t *bits,
+                           bool muteError /* = false */) const {
+  if (any == nullptr) return 0;
+
+  bool result = true;
+  RangeCollection *ranges = nullptr;
+  switch (any->getUhdmType()) {
+    case UhdmType::ArrayTypespec: {
+      const ArrayTypespec *const at = static_cast<const ArrayTypespec *>(any);
+      ranges = at->getRanges();
+      if (!allRanges) {
+        *bits = 1;
+      } else if (const RefTypespec *rt = at->getElemTypespec()) {
+        result = getBitCount(rt->getActual(), pany, allRanges, bits, muteError);
+      } else {
+        result = false;
+      }
+    } break;
+
+    case UhdmType::BitTypespec: {
+      const BitTypespec *const bt = static_cast<const BitTypespec *>(any);
+      ranges = bt->getRanges();
+      *bits = 1;
+    } break;
+
+    case UhdmType::ByteTypespec: {
+      *bits = 8;
+    } break;
+
+    case UhdmType::ShortIntTypespec: {
+      *bits = 16;
+    } break;
+
+    case UhdmType::IntTypespec:
+    case UhdmType::IntegerTypespec:
+    case UhdmType::ShortRealTypespec: {
+      *bits = 32;
+    } break;
+
+    case UhdmType::LongIntTypespec:
+    case UhdmType::RealTypespec: {
+      *bits = 64;
+    } break;
+
+    case UhdmType::LogicTypespec: {
+      const LogicTypespec *const lt = static_cast<const LogicTypespec *>(any);
+      ranges = lt->getRanges();
+      *bits = 1;
+    } break;
+
+    case UhdmType::StringTypespec: {
+      *bits = 0;
+      result = false;
+    } break;
+
+    case UhdmType::UnsupportedTypespec: {
+      const UnsupportedTypespec *const ut = static_cast<const UnsupportedTypespec *>(any);
+      ranges = ut->getRanges();
+      *bits = 1;
+      result = false;
+    } break;
+
+    case UhdmType::Net: {
+      *bits = 1;
+      if (const Typespec *const t = uhdm::getTypespec(any)) {
+        result = getBitCount(t, pany, allRanges, bits, muteError);
+      } else {
+        result = false;
+      }
+    } break;
+
+    case UhdmType::Variable: {
+      const Variable *const v = static_cast<const Variable *>(any);
+      result = getBitCount(v->getTypespec(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::EnumTypespec: {
+      const EnumTypespec *const et = static_cast<const EnumTypespec *>(any);
+      result = getBitCount(et->getBaseTypespec(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::StructTypespec: {
+      const StructTypespec *const st = static_cast<const StructTypespec *>(any);
+      *bits = 0;
+      if (const TypespecMemberCollection *members = st->getMembers()) {
+        for (const TypespecMember *member : *members) {
+          uint64_t mbits = 0;
+          if (getBitCount(member->getTypespec(), pany, allRanges, &mbits, muteError)) {
+            *bits += mbits;
+          } else {
+            result = false;
+          }
+        }
+      } else {
+        result = false;
+      }
+    } break;
+
+    case UhdmType::UnionTypespec: {
+      const UnionTypespec *const ut = static_cast<const UnionTypespec *>(any);
+      *bits = 0;
+      if (const TypespecMemberCollection *members = ut->getMembers()) {
+        for (const TypespecMember *member : *members) {
+          uint64_t mbits = 0;
+          if (getBitCount(member->getTypespec(), pany, allRanges, &mbits, muteError)) {
+            *bits = std::max(*bits, mbits);
+          } else {
+            result = false;
+          }
+        }
+      } else {
+        result = false;
+      }
+    } break;
+
+    case UhdmType::Constant: {
+      const Constant *const c = static_cast<const Constant *>(any);
+      *bits = c->getSize();
+    } break;
+
+    case UhdmType::EnumConst: {
+      const EnumConst *const ec = static_cast<const EnumConst *>(any);
+      *bits = ec->getSize();
+    } break;
+
+    case UhdmType::HierPath: {
+      const HierPath *const hp = static_cast<const HierPath *>(any);
+      ExprEval ee(m_provider);
+      Any *rany = nullptr;
+      result = ee.reduceHierPath(hp, pany, true, &rany, true) && getBitCount(rany, pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::RefObj: {
+      const RefObj *const ro = static_cast<const RefObj *>(any);
+      result = getBitCount(ro->getActual(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::RefTypespec: {
+      const RefTypespec *const rt = static_cast<const RefTypespec *>(any);
+      result = getBitCount(rt->getActual(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::Operation: {
+      const Operation *const o = static_cast<const Operation *>(any);
+      if (o->getOpType() == vpiConcatOp) {
+        if (const AnyCollection *const operands = o->getOperands()) {
+          for (const Any *operand : *operands) {
+            uint64_t opbits = 0;
+            if (getBitCount(operand, pany, allRanges, &opbits, muteError)) {
+              bits += opbits;
+            } else {
+              result = false;
+              break;
+            }
+          }
+        } else {
+          result = false;
+        }
+      } else {
+        result = false;
+      }
+    } break;
+
+    case UhdmType::TypespecMember: {
+      const TypespecMember *const tm = static_cast<const TypespecMember *>(any);
+      result = getBitCount(tm->getTypespec(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::IODecl: {
+      const IODecl *const iod = static_cast<const IODecl *>(any);
+      result = getBitCount(iod->getTypespec(), pany, allRanges, bits, muteError);
+    } break;
+
+    case UhdmType::BitSelect: {
+      *bits = 1;
+    } break;
+
+    case UhdmType::PartSelect: {
+      const PartSelect *const ps = static_cast<const PartSelect *>(any);
+      const Expr *const lexpr = ps->getLeftExpr();
+      const Expr *const rexpr = ps->getRightExpr();
+
+      Expr *rlexpr = nullptr;
+      Expr *rrexpr = nullptr;
+      ExprEval ee(m_provider);
+      if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+        int64_t lv = 0;
+        int64_t rv = 0;
+        bool blv = getInt64(rlexpr, &lv);
+        bool brv = getInt64(rrexpr, &rv);
+
+        uint64_t ulv = 0;
+        uint64_t urv = 0;
+        if (!blv && (blv = getUInt64(rlexpr, &ulv))) lv = static_cast<int64_t>(ulv);
+        if (!brv && (brv = getUInt64(rrexpr, &urv))) rv = static_cast<int64_t>(urv);
+
+        if (blv && brv) {
+          *bits = ((lv > rv) ? (lv - rv) : (rv - lv)) + 1;
+        } else {
+          result = false;
+        }
+      } else {
+        result = false;
+      }
+    } break;
+
+    default: {
+      result = false;
+    } break;
+  }
+
+  if ((ranges != nullptr) && !ranges->empty()) {
+    if (allRanges) {
+      for (const Range *r : *ranges) {
+        const Expr *const lexpr = r->getLeftExpr();
+        const Expr *const rexpr = r->getRightExpr();
+
+        Expr *rlexpr = nullptr;
+        Expr *rrexpr = nullptr;
+        ExprEval ee(m_provider);
+        if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+          int64_t lv = 0;
+          int64_t rv = 0;
+          bool blv = getInt64(rlexpr, &lv);
+          bool brv = getInt64(rrexpr, &rv);
+
+          uint64_t ulv = 0;
+          uint64_t urv = 0;
+          if (!blv && (blv = getUInt64(rlexpr, &ulv))) lv = static_cast<int64_t>(ulv);
+          if (!brv && (brv = getUInt64(rrexpr, &urv))) rv = static_cast<int64_t>(urv);
+
+          if (blv && brv) {
+            *bits *= (((lv > rv) ? (lv - rv) : (rv - lv)) + 1);
+          } else {
+            result = false;
+            break;
+          }
+        } else {
+          result = false;
+          break;
+        }
+      }
+    } else {
+      const Range *const r = ranges->back();
+      const Expr *const lexpr = r->getLeftExpr();
+      const Expr *const rexpr = r->getRightExpr();
+
+      Expr *rlexpr = nullptr;
+      Expr *rrexpr = nullptr;
+      ExprEval ee(m_provider);
+      if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+        int64_t lv = 0;
+        int64_t rv = 0;
+        bool blv = getInt64(rlexpr, &lv);
+        bool brv = getInt64(rrexpr, &rv);
+
+        uint64_t ulv = 0;
+        uint64_t urv = 0;
+        if (!blv && (blv = getUInt64(rlexpr, &ulv))) lv = static_cast<int64_t>(ulv);
+        if (!brv && (brv = getUInt64(rrexpr, &urv))) rv = static_cast<int64_t>(urv);
+
+        if (blv && brv) {
+          *bits *= (((lv > rv) ? (lv - rv) : (rv - lv)) + 1);
+        } else {
+          result = false;
+        }
+      } else {
+        result = false;
+      }
+    }
+  }
   return result;
 }
 
-Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pexpr, bool muteError,
-                        const Any *checkLoop) {
-  Any *result = nullptr;
-  if ((inst == nullptr) && (pexpr == nullptr)) {
+const TaskFunc *ExprEval::getTaskFunc(std::string_view name, const Any *pany, const Any *inst) {
+  if (m_provider != nullptr) {
+    if (const TaskFunc *const result = m_provider->getTaskFunc(name, inst, pany)) {
+      return result;
+    }
+  }
+  if (inst == nullptr) {
     return nullptr;
   }
-  Serializer *tmps = nullptr;
-  if (inst)
-    tmps = inst->getSerializer();
-  else
-    tmps = pexpr->getSerializer();
-  Serializer &s = *tmps;
   const Any *root = inst;
   const Any *tmp = inst;
   while (tmp) {
@@ -254,7 +5703,7 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pexpr
   std::string_view the_name = name;
   const Any *the_instance = inst;
   if (m_design && (name.find("::") != std::string::npos)) {
-    std::vector<std::string_view> res = tokenizeMulti(name, "::");
+    std::vector<std::string_view> res = tokenize(name, "::");
     if (res.size() > 1) {
       const std::string_view packName = res[0];
       const std::string_view varName = res[1];
@@ -271,88 +5720,34 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pexpr
       the_instance = pack;
     }
   }
-
   while (the_instance) {
-    ParamAssignCollection *ParamAssigns = nullptr;
-    TypespecCollection *Typespecs = nullptr;
+    TaskFuncCollection *task_funcs = nullptr;
     if (the_instance->getUhdmType() == UhdmType::GenScopeArray) {
     } else if (the_instance->getUhdmType() == UhdmType::Design) {
-      ParamAssigns = ((Design *)the_instance)->getParamAssigns();
-      Typespecs = ((Design *)the_instance)->getTypespecs();
-    } else if (const Scope *spe = any_cast<Scope>(the_instance)) {
-      ParamAssigns = spe->getParamAssigns();
-      Typespecs = spe->getTypespecs();
+      task_funcs = ((Design *)the_instance)->getTaskFuncs();
+    } else if (const Instance *inst = any_cast<Instance>(the_instance)) {
+      task_funcs = inst->getTaskFuncs();
     }
-    if (ParamAssigns) {
-      for (auto p : *ParamAssigns) {
-        if (p->getLhs() && (p->getLhs()->getName() == the_name)) {
-          result = (Any *)p->getRhs();
-          break;
+
+    if (task_funcs) {
+      for (TaskFunc *tf : *task_funcs) {
+        if (tf->getName() == the_name) {
+          return tf;
         }
       }
     }
-    if ((result == nullptr) && (Typespecs != nullptr)) {
-      for (auto p : *Typespecs) {
-        if (p->getUhdmType() == UhdmType::EnumTypespec) {
-          EnumTypespec *e = (EnumTypespec *)p;
-          for (auto c : *e->getEnumConsts()) {
-            if (c->getName() == the_name) {
-              Constant *cc = s.make<Constant>();
-              cc->setValue(c->getValue());
-              cc->setSize(c->getSize());
-              result = cc;
-              break;
-            }
-          }
-        }
-      }
-    }
-    if (result && (result->getUhdmType() == UhdmType::Operation)) {
-      Operation *op = (Operation *)result;
-      if (const RefTypespec *rt = op->getTypespec()) {
-        ExprEval eval;
-        if (Expr *res = eval.flattenPatternAssignments(s, rt->getActual(), (Expr *)result)) {
-          if (res->getUhdmType() == UhdmType::Operation) {
-            ((Operation *)result)->setOperands(((Operation *)res)->getOperands());
-          }
-        }
-      }
-    }
-    if (result) break;
 
     the_instance = the_instance->getParent();
   }
 
-  if (result) {
-    UhdmType resultType = result->getUhdmType();
-    if (resultType == UhdmType::Constant) {
-    } else if (resultType == UhdmType::RefObj) {
-      if (result->getName() != name) {
-        if (Any *rval = getValue(result->getName(), inst, pexpr, muteError)) {
-          result = rval;
-        }
-      }
-    } else if ((resultType == UhdmType::Operation) || (resultType == UhdmType::HierPath) ||
-               (resultType == UhdmType::BitSelect) || (resultType == UhdmType::SysFuncCall)) {
-      bool invalidValue = false;
-      if (checkLoop && (result == checkLoop)) {
-        return nullptr;
-      }
-      if (Any *rval = reduceExpr(result, invalidValue, inst, pexpr, muteError)) {
-        result = rval;
-      }
-    }
-  }
-  if ((result == nullptr) && getValueFunctor) {
-    result = getValueFunctor(name, inst, pexpr);
-  }
-  return result;
+  return nullptr;
 }
 
-Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexpr, bool muteError) {
-  Any *result = nullptr;
-  while (pexpr) {
-    if (const Scope *spe = any_cast<Scope>(pexpr)) {
+const Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pany, bool muteError) {
+  const Any *result = nullptr;
+  const Any *scope = pany;
+  while (scope) {
+    if (const Scope *spe = any_cast<Scope>(scope)) {
       if (spe->getVariables()) {
         for (auto o : *spe->getVariables()) {
           if (o->getName() == name) {
@@ -363,7 +5758,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
       }
     }
     if (result) break;
-    if (const TaskFunc *s = any_cast<TaskFunc>(pexpr)) {
+    if (const TaskFunc *s = any_cast<TaskFunc>(scope)) {
       if (s->getIODecls()) {
         for (auto o : *s->getIODecls()) {
           if (o->getName() == name) {
@@ -383,8 +5778,8 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
       }
     }
     if (result) break;
-    if (pexpr->getUhdmType() == UhdmType::ForeachStmt) {
-      ForeachStmt *for_stmt = (ForeachStmt *)pexpr;
+    if (scope->getUhdmType() == UhdmType::ForeachStmt) {
+      ForeachStmt *for_stmt = (ForeachStmt *)scope;
       if (AnyCollection *loopvars = for_stmt->getLoopVars()) {
         for (auto var : *loopvars) {
           if (var->getName() == name) {
@@ -394,8 +5789,8 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
         }
       }
     }
-    if (pexpr->getUhdmType() == UhdmType::ClassDefn) {
-      const ClassDefn *defn = (ClassDefn *)pexpr;
+    if (scope->getUhdmType() == UhdmType::ClassDefn) {
+      const ClassDefn *defn = (ClassDefn *)scope;
       while (defn) {
         if (defn->getVariables()) {
           for (Variable *member : *defn->getVariables()) {
@@ -419,7 +5814,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
       }
     }
     if (result) break;
-    pexpr = pexpr->getParent();
+    scope = scope->getParent();
   }
   if (result == nullptr) {
     while (inst) {
@@ -484,7 +5879,7 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
       }
       if ((result == nullptr) || (result && (result->getUhdmType() != UhdmType::Constant) &&
                                   (result->getUhdmType() != UhdmType::ParamAssign))) {
-        if (Any *tmpresult = getValue(name, inst, pexpr, muteError)) {
+        if (Any *tmpresult = getValue(name, inst, pany, muteError)) {
           result = tmpresult;
         }
       }
@@ -502,107 +5897,668 @@ Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any *pexp
   if (result && (result->getUhdmType() == UhdmType::RefObj)) {
     RefObj *ref = (RefObj *)result;
     const std::string_view refname = ref->getName();
-    if (refname != name) result = getObject(refname, inst, pexpr, muteError);
+    if (refname != name) result = getObject(refname, inst, pany, muteError);
     if (result) {
-      if (ParamAssign *passign = any_cast<ParamAssign>(result)) {
+      if (const ParamAssign *const passign = any_cast<ParamAssign>(result)) {
         result = passign->getRhs();
       }
     }
   }
-  if ((result == nullptr) && getObjectFunctor) {
-    return getObjectFunctor(name, inst, pexpr);
+  if ((result == nullptr) && (m_provider != nullptr)) {
+    return m_provider->getObject(name, inst, pany);
   }
   return result;
 }
 
-long double ExprEval::get_double(bool &invalidValue, const Expr *Expr) {
-  long double result = 0;
-  if (const Constant *c = any_cast<Constant>(Expr)) {
-    int32_t type = c->getConstType();
-    std::string_view sv = c->getValue();
-    switch (type) {
-      case vpiRealConst: {
-        sv.remove_prefix(std::string_view("REAL:").length());
-        invalidValue = NumUtils::parseLongDouble(sv, &result) == nullptr;
-        break;
+// ======================= Deprecated Functions ===============================
+
+void ExprEval::resize(Expr *resizedExp, int32_t size) {
+  ExprEval eval(m_provider);
+  Constant *c = (Constant *)resizedExp;
+  int64_t val = 0;
+  if (eval.getInt64(c, &val) && (val == 1)) {
+    uint64_t mask = NumUtils::getMask(size);
+    c->setValue(std::to_string(mask));
+    c->setDecompile(std::to_string(mask));
+    c->setConstType(vpiUIntConst);
+  }
+}
+
+Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pany, bool muteError, const Any *checkLoop) {
+  if ((inst == nullptr) && (pany == nullptr)) {
+    return nullptr;
+  }
+  Any *result = nullptr;
+  Serializer *tmps = nullptr;
+  if (inst)
+    tmps = inst->getSerializer();
+  else
+    tmps = pany->getSerializer();
+  Serializer &s = *tmps;
+  const Any *root = inst;
+  const Any *tmp = inst;
+  while (tmp) {
+    root = tmp;
+    tmp = tmp->getParent();
+  }
+  const Design *des = any_cast<Design>(root);
+  if (des) m_design = des;
+  std::string_view the_name = name;
+  const Any *the_instance = inst;
+  if (m_design && (name.find("::") != std::string::npos)) {
+    std::vector<std::string_view> res = tokenize(name, "::");
+    if (res.size() > 1) {
+      const std::string_view packName = res[0];
+      const std::string_view varName = res[1];
+      the_name = varName;
+      Package *pack = nullptr;
+      if (m_design->getTopPackages()) {
+        for (auto p : *m_design->getTopPackages()) {
+          if (p->getName() == packName) {
+            pack = p;
+            break;
+          }
+        }
       }
-      default: {
-        result = static_cast<long double>(get_value(invalidValue, Expr));
-        break;
+      the_instance = pack;
+    }
+  }
+
+  while (the_instance) {
+    ParamAssignCollection *ParamAssigns = nullptr;
+    TypespecCollection *Typespecs = nullptr;
+    if (the_instance->getUhdmType() == UhdmType::GenScopeArray) {
+    } else if (the_instance->getUhdmType() == UhdmType::Design) {
+      ParamAssigns = ((Design *)the_instance)->getParamAssigns();
+      Typespecs = ((Design *)the_instance)->getTypespecs();
+    } else if (const Scope *spe = any_cast<Scope>(the_instance)) {
+      ParamAssigns = spe->getParamAssigns();
+      Typespecs = spe->getTypespecs();
+    }
+    if (ParamAssigns) {
+      for (auto p : *ParamAssigns) {
+        if (p->getLhs() && (p->getLhs()->getName() == the_name)) {
+          result = (Any *)p->getRhs();
+          break;
+        }
       }
     }
-  } else {
-    invalidValue = true;
+    if ((result == nullptr) && (Typespecs != nullptr)) {
+      for (auto p : *Typespecs) {
+        if (p->getUhdmType() == UhdmType::EnumTypespec) {
+          EnumTypespec *e = (EnumTypespec *)p;
+          for (auto c : *e->getEnumConsts()) {
+            if (c->getName() == the_name) {
+              Constant *cc = s.make<Constant>();
+              cc->setValue(c->getValue());
+              cc->setSize(c->getSize());
+              result = cc;
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (result && (result->getUhdmType() == UhdmType::Operation)) {
+      Operation *op = (Operation *)result;
+      if (const RefTypespec *rt = op->getTypespec()) {
+        ExprEval eval(m_provider);
+        if (Expr *res = eval.flattenPatternAssignments(s, rt->getActual(), (Expr *)result)) {
+          if (res->getUhdmType() == UhdmType::Operation) {
+            ((Operation *)result)->setOperands(((Operation *)res)->getOperands());
+          }
+        }
+      }
+    }
+    if (result) break;
+
+    the_instance = the_instance->getParent();
+  }
+
+  if (result) {
+    UhdmType resultType = result->getUhdmType();
+    if (resultType == UhdmType::Constant) {
+    } else if (resultType == UhdmType::RefObj) {
+      if (result->getName() != name) {
+        if (Any *rval = getValue(result->getName(), inst, pany, muteError)) {
+          result = rval;
+        }
+      }
+    } else if ((resultType == UhdmType::Operation) || (resultType == UhdmType::HierPath) ||
+               (resultType == UhdmType::BitSelect) || (resultType == UhdmType::SysFuncCall)) {
+      if (checkLoop && (result == checkLoop)) {
+        return nullptr;
+      }
+      Expr *rval = nullptr;
+      if (reduceExpr(any_cast<Expr>(result), pany, &rval, muteError)) result = rval;
+    }
+  }
+  if ((result == nullptr) && (m_provider != nullptr)) {
+    result = m_provider->getValue(name, inst, pany);
   }
   return result;
 }
 
-uint64_t ExprEval::getValue(const Expr *Expr) {
-  uint64_t result = 0;
-  if (Expr && Expr->getUhdmType() == UhdmType::Constant) {
-    Constant *c = (Constant *)Expr;
-    std::string_view sv = c->getValue();
-    int32_t type = c->getConstType();
-    switch (type) {
-      case vpiBinaryConst: {
-        sv.remove_prefix(std::string_view("BIN:").length());
-        if (NumUtils::parseBinary(sv, &result) == nullptr) {
-          result = 0;
+const Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path, uint32_t level, const Any *object,
+                                          bool &invalidValue, const Any *inst, const Any *pany, bool returnTypespec,
+                                          bool muteError) {
+  if (object == nullptr) return nullptr;
+  Serializer &s = (object) ? *object->getSerializer() : *inst->getSerializer();
+  if (level >= select_path.size()) {
+    if (returnTypespec) {
+      if (const Typespec *const tp = any_cast<Typespec>(object)) {
+        return tp;
+      } else if (const Expr *ep = any_cast<Expr>(object)) {
+        if (const RefTypespec *const rt = ep->getTypespec()) {
+          return rt->getActual();
         }
-        break;
-      }
-      case vpiDecConst: {
-        sv.remove_prefix(std::string_view("DEC:").length());
-        if (NumUtils::parseIntLenient(sv, &result) == nullptr) {
-          result = 0;
+      } else if (const IODecl *id = any_cast<IODecl>(object)) {
+        if (const RefTypespec *const rt = id->getTypespec()) {
+          return rt->getActual();
         }
-        break;
       }
-      case vpiHexConst: {
-        sv.remove_prefix(std::string_view("HEX:").length());
-        if (NumUtils::parseHex(sv, &result) == nullptr) {
-          result = 0;
+      return nullptr;
+    }
+    return (Expr *)object;
+  }
+  std::string elemName = select_path[level];
+  bool lastElem = (level == select_path.size() - 1);
+  if (const Variable *const var = any_cast<Variable>(object)) {
+    if (const RefTypespec *rt = var->getTypespec()) {
+      if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
+        for (TypespecMember *member : *stpt->getMembers()) {
+          if (member->getName() == elemName) {
+            if (returnTypespec) {
+              if (RefTypespec *mrt = member->getTypespec()) {
+                Any *res = mrt->getActual();
+                if (lastElem) {
+                  return res;
+                } else {
+                  return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec,
+                                              muteError);
+                }
+              }
+            } else {
+              return member->getDefaultValue();
+            }
+          }
         }
-        break;
-      }
-      case vpiOctConst: {
-        sv.remove_prefix(std::string_view("OCT:").length());
-        if (NumUtils::parseOctal(sv, &result) == nullptr) {
-          result = 0;
+      } else if (const ClassTypespec *ctps = rt->getActual<ClassTypespec>()) {
+        const ClassDefn *defn = ctps->getClassDefn();
+        while (defn) {
+          if (defn->getVariables()) {
+            for (Variable *member : *defn->getVariables()) {
+              if (member->getName() == elemName) {
+                if (returnTypespec) {
+                  if (RefTypespec *mrt = member->getTypespec()) {
+                    return mrt->getActual();
+                  }
+                } else {
+                  return member;
+                }
+              }
+            }
+          }
+          const ClassDefn *base_defn = nullptr;
+          if (const Extends *ext = defn->getExtends()) {
+            if (const RefTypespec *rt = ext->getClassTypespec()) {
+              if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
+                base_defn = tp->getClassDefn();
+              }
+            }
+          }
+          defn = base_defn;
         }
-        break;
-      }
-      case vpiIntConst: {
-        sv.remove_prefix(std::string_view("INT:").length());
-        if (NumUtils::parseIntLenient(sv, &result) == nullptr) {
-          result = 0;
+      } else if (returnTypespec) {
+        if (const RefTypespec *const rt = var->getTypespec()) {
+          if (const ArrayTypespec *const at = rt->getActual<ArrayTypespec>()) {
+            if (lastElem) {
+              return at;
+            } else {
+              return hierarchicalSelector(select_path, level + 1, at, invalidValue, inst, pany, returnTypespec,
+                                          muteError);
+            }
+          }
         }
-        break;
       }
-      case vpiUIntConst: {
-        sv.remove_prefix(std::string_view("UINT:").length());
-        if (NumUtils::parseUint64(sv, &result) == nullptr) {
-          result = 0;
-        }
-        break;
-      }
-      default: {
-        if (sv.find("UINT:") == 0) {
-          sv.remove_prefix(std::string_view("UINT:").length());
-          if (NumUtils::parseUint64(sv, &result) == nullptr) {
-            result = 0;
+    }
+  } else if (const StructTypespec *const stpt = any_cast<StructTypespec>(object)) {
+    for (TypespecMember *member : *stpt->getMembers()) {
+      if (member->getName() == elemName) {
+        Any *res = nullptr;
+        if (returnTypespec) {
+          if (RefTypespec *mrt = member->getTypespec()) {
+            Any *res = mrt->getActual();
+            if (lastElem) {
+              return res;
+            } else {
+              return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec,
+                                          muteError);
+            }
           }
         } else {
-          sv.remove_prefix(std::string_view("INT:").length());
-          if (NumUtils::parseIntLenient(sv, &result) == nullptr) {
-            result = 0;
+          res = member->getDefaultValue();
+        }
+        if (lastElem) {
+          return res;
+        } else {
+          return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec, muteError);
+        }
+      }
+    }
+  } else if (const IODecl *const decl = any_cast<IODecl>(object)) {
+    if (const Variable *exp = decl->getExpr<Variable>()) {
+      if (const RefTypespec *const rt = exp->getTypespec()) {
+        if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
+          for (TypespecMember *member : *stpt->getMembers()) {
+            if (member->getName() == elemName) {
+              if (returnTypespec) {
+                if (RefTypespec *mrt = member->getTypespec()) {
+                  Any *res = mrt->getActual();
+                  if (lastElem) {
+                    return res;
+                  } else {
+                    return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec,
+                                                muteError);
+                  }
+                }
+              } else {
+                return member->getDefaultValue();
+              }
+            }
           }
         }
-        break;
+      }
+    }
+    if (returnTypespec) {
+      if (const RefTypespec *rt = decl->getTypespec()) {
+        if (const Typespec *tps = rt->getActual()) {
+          UhdmType ttps = tps->getUhdmType();
+          if (ttps == UhdmType::StructTypespec) {
+            StructTypespec *stpt = (StructTypespec *)tps;
+            for (TypespecMember *member : *stpt->getMembers()) {
+              if (member->getName() == elemName) {
+                if (RefTypespec *mrt = member->getTypespec()) {
+                  Any *res = mrt->getActual();
+                  if (lastElem) {
+                    return res;
+                  } else {
+                    return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec,
+                                                muteError);
+                  }
+                }
+              }
+            }
+          } else if (ttps == UhdmType::ClassTypespec) {
+            ClassTypespec *stpt = (ClassTypespec *)tps;
+            const ClassDefn *defn = stpt->getClassDefn();
+            while (defn) {
+              if (defn->getVariables()) {
+                for (Variable *member : *defn->getVariables()) {
+                  if (member->getName() == elemName) {
+                    if (RefTypespec *mrt = member->getTypespec()) {
+                      return mrt->getActual();
+                    }
+                  }
+                }
+              }
+              const ClassDefn *base_defn = nullptr;
+              if (const Extends *ext = defn->getExtends()) {
+                if (const RefTypespec *rt = ext->getClassTypespec()) {
+                  if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
+                    base_defn = tp->getClassDefn();
+                  }
+                }
+              }
+              defn = base_defn;
+            }
+          }
+        }
+      }
+    }
+  } else if (const Net *const nt = any_cast<Net>(object)) {
+    TypespecMemberCollection *members = nullptr;
+    if (const StructTypespec *sts = uhdm::getTypespec<StructTypespec>(nt)) {
+      members = sts->getMembers();
+    } else if (const UnionTypespec *uts = uhdm::getTypespec<UnionTypespec>(nt)) {
+      members = uts->getMembers();
+    }
+    if (members) {
+      for (TypespecMember *member : *members) {
+        if (member->getName() == elemName) {
+          if (returnTypespec) {
+            if (RefTypespec *mrt = member->getTypespec()) {
+              Any *res = mrt->getActual();
+              if (lastElem) {
+                return res;
+              } else {
+                return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pany, returnTypespec,
+                                            muteError);
+              }
+            }
+          } else {
+            return member->getDefaultValue();
+          }
+        }
+      }
+    }
+  } else if (const Constant *cons = any_cast<Constant>(object)) {
+    if (const RefTypespec *rt = cons->getTypespec()) {
+      if (const Typespec *ts = rt->getActual()) {
+        UhdmType ttps = ts->getUhdmType();
+        if (ttps == UhdmType::StructTypespec) {
+          StructTypespec *stpt = (StructTypespec *)ts;
+          uint64_t from = 0;
+          uint64_t width = 0;
+          for (TypespecMember *member : *stpt->getMembers()) {
+            if (member->getName() == elemName) {
+              if (!getBitCount(member, pany, true, &width)) {
+                width = 0;
+                invalidValue = true;
+              }
+              if (cons->getSize() <= 64) {
+                uint64_t iv = 0;
+                invalidValue = !getUInt64(cons, &iv);
+
+                uint64_t mask = 0;
+                for (uint64_t i = from; i < uint64_t(from + width); i++) {
+                  mask |= ((uint64_t)1 << i);
+                }
+                uint64_t res = iv & mask;
+                res = res >> (from);
+                if (Constant *const c = const_cast<Constant *>(cons)) {
+                  c->setValue(std::to_string(res));
+                  c->setSize(static_cast<int32_t>(width));
+                  c->setConstType(vpiUIntConst);
+                }
+                return cons;
+              } else {
+                std::string_view val = cons->getValue();
+                int32_t ctype = cons->getConstType();
+                if (ctype == vpiHexConst) {
+                  std::string bin = NumUtils::hexToBin(val);
+                  std::string res = bin.substr(from, width);
+                  if (Constant *const c = const_cast<Constant *>(cons)) {
+                    c->setValue(res);
+                    c->setSize(static_cast<int32_t>(width));
+                    c->setConstType(vpiBinaryConst);
+                  }
+                  return cons;
+                } else if (ctype == vpiBinaryConst) {
+                  std::string_view res = val.substr(from, width);
+                  if (Constant *const c = const_cast<Constant *>(cons)) {
+                    c->setValue(std::string(res));
+                    c->setSize(static_cast<int32_t>(width));
+                    c->setConstType(vpiBinaryConst);
+                  }
+                  return cons;
+                }
+              }
+            } else {
+              uint64_t mwidth = 0;
+              if (getBitCount(member, pany, true, &mwidth)) {
+                from += mwidth;
+              }
+            }
+          }
+        }
       }
     }
   }
-  return result;
+
+  int32_t selectIndex = -1;
+  if (elemName.find('[') != std::string::npos) {
+    std::string_view indexName = ltrim_until(elemName, '[');
+    indexName = rtrim_until(indexName, ']');
+    if (!NumUtils::parseInt32(indexName, &selectIndex)) {
+      selectIndex = -1;
+    }
+    elemName.clear();
+    if (const Operation *oper = any_cast<Operation>(object)) {
+      int32_t opType = oper->getOpType();
+      if (opType == vpiAssignmentPatternOp) {
+        AnyCollection *operands = oper->getOperands();
+        int32_t sInd = 0;
+        for (auto operand : *operands) {
+          if ((selectIndex >= 0) && (sInd == selectIndex)) {
+            return hierarchicalSelector(select_path, level + 1, operand, invalidValue, inst, pany, returnTypespec,
+                                        muteError);
+          }
+          sInd++;
+        }
+      }
+    } else if (const LogicTypespec *ltps = any_cast<LogicTypespec>(object)) {
+      RangeCollection *ranges = ltps->getRanges();
+      if (ranges && (ranges->size() >= 2)) {
+        LogicTypespec *tmp = s.make<LogicTypespec>();
+        RangeCollection *tmpR = s.makeCollection<Range>();
+        for (uint32_t i = 1; i < ranges->size(); i++) {
+          tmpR->emplace_back(ranges->at(i));
+        }
+        tmp->setRanges(tmpR);
+        return tmp;
+      }
+    } else if (const ArrayTypespec *ltps = any_cast<ArrayTypespec>(object)) {
+      if (const RefTypespec *rt = ltps->getElemTypespec()) {
+        return (Typespec *)rt->getActual();
+      }
+    } else if (const Constant *const c = any_cast<Constant>(object)) {
+      Expr *tmp = nullptr;
+      if (reduceConstant(c, selectIndex, pany, &tmp, muteError)) {
+        if (returnTypespec) {
+          if (RefTypespec *rt = tmp->getTypespec()) {
+            return rt->getActual();
+          }
+          return nullptr;
+        }
+        return tmp;
+      }
+      return object;
+    }
+  } else if (level == 0) {
+    return hierarchicalSelector(select_path, level + 1, object, invalidValue, inst, pany, returnTypespec, muteError);
+  }
+
+  if (const Operation *oper = any_cast<Operation>(object)) {
+    int32_t opType = oper->getOpType();
+
+    if (opType == vpiAssignmentPatternOp) {
+      AnyCollection *operands = oper->getOperands();
+      Any *defaultPattern = nullptr;
+      int32_t sInd = 0;
+
+      int32_t bIndex = -1;
+      if (inst) {
+        /*
+        Any *baseP = nullptr;
+        AnyCollection *parameters = nullptr;
+        if (inst->getUhdmType() == UhdmType::GenScopeArray) {
+        } else if (inst->getUhdmType() == UhdmType::Design) {
+          parameters = ((Design *)inst)->Parameters();
+        } else if (any_cast<scope *>(inst)) {
+          parameters = ((scope *)inst)->Parameters();
+        }
+        if (parameters) {
+          for (auto p : *parameters) {
+            if (p->getName() == select_path[0]) {
+              baseP = p;
+              break;
+            }
+          }
+        }
+        */
+        if (const Any *baseP = getObject(select_path[0], inst, pany, muteError)) {
+          const Typespec *tps = nullptr;
+          if (const Parameter *const p = any_cast<Parameter>(baseP)) {
+            if (const RefTypespec *rt = p->getTypespec()) {
+              tps = rt->getActual();
+            }
+          } else if (const Operation *const op = any_cast<Operation>(baseP)) {
+            if (const RefTypespec *rt = op->getTypespec()) {
+              tps = rt->getActual();
+            }
+          }
+
+          if (tps && (tps->getUhdmType() == UhdmType::ArrayTypespec)) {
+            ArrayTypespec *tmp = (ArrayTypespec *)tps;
+            if (const RefTypespec *rt = tmp->getElemTypespec()) {
+              tps = rt->getActual();
+            }
+          }
+          if (tps && (tps->getUhdmType() == UhdmType::StructTypespec)) {
+            StructTypespec *sts = (StructTypespec *)tps;
+            if (TypespecMemberCollection *members = sts->getMembers()) {
+              uint32_t i = 0;
+              for (TypespecMember *member : *members) {
+                if (member->getName() == elemName) {
+                  bIndex = i;
+                  break;
+                }
+                i++;
+              }
+            }
+          }
+        }
+      }
+      if (inst) {
+        const Any *tmpInstance = inst;
+        while ((bIndex == -1) && tmpInstance) {
+          ParamAssignCollection *ParamAssigns = nullptr;
+          if (tmpInstance->getUhdmType() == UhdmType::GenScopeArray) {
+          } else if (tmpInstance->getUhdmType() == UhdmType::Design) {
+            ParamAssigns = ((Design *)tmpInstance)->getParamAssigns();
+          } else if (const Scope *spe = any_cast<Scope>(tmpInstance)) {
+            ParamAssigns = spe->getParamAssigns();
+          }
+          if (ParamAssigns) {
+            for (ParamAssign *param : *ParamAssigns) {
+              if (param && param->getLhs()) {
+                const std::string_view param_name = param->getLhs()->getName();
+                if (param_name == select_path[0]) {
+                  if (const Parameter *p = any_cast<Parameter>(param->getLhs())) {
+                    if (const RefTypespec *rt = p->getTypespec()) {
+                      if (const Typespec *tps = rt->getActual()) {
+                        if (tps->getUhdmType() == UhdmType::ArrayTypespec) {
+                          if (const RefTypespec *ert = ((ArrayTypespec *)tps)->getElemTypespec()) {
+                            tps = ert->getActual();
+                          }
+                        }
+                        if (tps && (tps->getUhdmType() == UhdmType::StructTypespec)) {
+                          StructTypespec *sts = (StructTypespec *)tps;
+                          if (TypespecMemberCollection *members = sts->getMembers()) {
+                            uint32_t i = 0;
+                            for (TypespecMember *member : *members) {
+                              if (member->getName() == elemName) {
+                                bIndex = i;
+                                break;
+                              }
+                              i++;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          tmpInstance = tmpInstance->getParent();
+        }
+      }
+      for (auto operand : *operands) {
+        UhdmType operandType = operand->getUhdmType();
+        if (operandType == UhdmType::TaggedPattern) {
+          TaggedPattern *tpatt = (TaggedPattern *)operand;
+          const Typespec *tps = nullptr;
+          if (const RefTypespec *rt = tpatt->getTypespec()) {
+            tps = rt->getActual();
+          }
+          if (tps->getName() == "default") {
+            defaultPattern = (Any *)tpatt->getPattern();
+          }
+          if (!elemName.empty() && (tps->getName() == elemName)) {
+            const Any *patt = tpatt->getPattern();
+            UhdmType pattType = patt->getUhdmType();
+            if (pattType == UhdmType::Constant) {
+              const Any *ex = nullptr;
+              Expr *expr = nullptr;
+              invalidValue = !reduceExpr((Expr *)patt, pany, &expr, muteError);
+              ex = expr;
+              if (level < select_path.size()) {
+                ex = hierarchicalSelector(select_path, level + 1, ex, invalidValue, inst, pany, returnTypespec);
+              }
+              if (returnTypespec) {
+                if (const Typespec *tp = any_cast<Typespec>(ex)) {
+                  return tp;
+                } else if (const Expr *ep = any_cast<Expr>(ex)) {
+                  if (const RefTypespec *rt = ep->getTypespec()) {
+                    return rt->getActual();
+                  }
+                } else if (const IODecl *id = any_cast<IODecl>(ex)) {
+                  if (const RefTypespec *rt = id->getTypespec()) {
+                    return rt->getActual();
+                  }
+                } else if (const Typespec *tp = any_cast<Typespec>(object)) {
+                  return tp;
+                } else if (const Expr *ep = any_cast<Expr>(object)) {
+                  if (const RefTypespec *const rt = ep->getTypespec()) {
+                    return rt->getActual();
+                  }
+                } else if (const IODecl *id = any_cast<IODecl>(object)) {
+                  if (const RefTypespec *const rt = id->getTypespec()) {
+                    return rt->getActual();
+                  }
+                }
+                return nullptr;
+              }
+              return ex;
+            } else if (pattType == UhdmType::Operation) {
+              return hierarchicalSelector(select_path, level + 1, (Expr *)patt, invalidValue, inst, pany,
+                                          returnTypespec);
+            }
+          }
+        } else if (operandType == UhdmType::Constant) {
+          if ((bIndex >= 0) && (bIndex == sInd)) {
+            return hierarchicalSelector(select_path, level + 1, (Expr *)operand, invalidValue, inst, pany,
+                                        returnTypespec);
+          }
+        }
+        sInd++;
+      }
+      if (defaultPattern) {
+        if (Expr *ex = any_cast<Expr>(defaultPattern)) {
+          invalidValue = !reduceExpr(ex, pany, &ex, muteError);
+          if (returnTypespec) {
+            if (Typespec *tp = any_cast<Typespec>(ex)) {
+              return tp;
+            } else if (Expr *ep = any_cast<Expr>(ex)) {
+              if (const RefTypespec *const rt = ep->getTypespec()) {
+                return rt->getActual();
+              }
+            } else if (const IODecl *const id = any_cast<IODecl>(ex)) {
+              if (const RefTypespec *const rt = id->getTypespec()) {
+                return rt->getActual();
+              }
+            } else if (const Typespec *const tp = any_cast<Typespec>(object)) {
+              return tp;
+            } else if (const Expr *const ep = any_cast<Expr>(object)) {
+              if (const RefTypespec *const rt = ep->getTypespec()) {
+                return rt->getActual();
+              }
+            } else if (const IODecl *const id = any_cast<IODecl>(object)) {
+              if (const RefTypespec *rt = id->getTypespec()) {
+                return rt->getActual();
+              }
+            }
+            return nullptr;
+          }
+          return ex;
+        }
+      }
+    }
+  }
+  return nullptr;
 }
 
 void ExprEval::recursiveFlattening(Serializer &s, AnyCollection *flattened, const AnyCollection *ordered,
@@ -660,13 +6616,14 @@ void ExprEval::recursiveFlattening(Serializer &s, AnyCollection *flattened, cons
                       RangeCollection *ranges = molds->getRanges();
                       if (!ranges->empty()) {
                         Range *r = ranges->front();
-                        uint64_t from = getValue(r->getLeftExpr());
-                        uint64_t to = getValue(r->getRightExpr());
-                        if (from > to) {
-                          std::swap(from, to);
-                        }
-                        for (uint64_t i = from; i <= to; i++) {
-                          sops->emplace_back((Any *)patt);
+                        uint64_t from = 0;
+                        uint64_t to = 0;
+
+                        if (getUInt64(r->getLeftExpr(), &from) && getUInt64(r->getRightExpr(), &to)) {
+                          if (from > to) std::swap(from, to);
+                          for (uint64_t i = from; i <= to; ++i) {
+                            sops->emplace_back((Any *)patt);
+                          }
                         }
                         // TODO: Multidimension
                       }
@@ -840,22 +6797,27 @@ Expr *ExprEval::flattenPatternAssignments(Serializer &s, const Typespec *tps, Ex
         if (patt->getUhdmType() == UhdmType::Constant) {
           Constant *c = (Constant *)patt;
           if (c->getSize() == -1) {
-            bool invalidValue = false;
-            uint64_t uval = get_uvalue(invalidValue, c);
-            if (uval == 1) {
-              uint64_t size = ExprEval::size(fieldTypes[index], invalidValue, nullptr, exp, true, true);
-              uint64_t mask = NumUtils::getMask(size);
+            uint64_t uval = 0;
+            if (getUInt64(c, &uval) && (uval == 1)) {
+              uint64_t sz = 0;
+              if (!getBitCount(fieldTypes[index], exp, true, &sz)) {
+                sz = 0;
+              }
+              uint64_t mask = NumUtils::getMask(sz);
               uval = mask;
-              c->setValue("UINT:" + std::to_string(uval));
+              c->setValue(std::to_string(uval));
               c->setDecompile(std::to_string(uval));
               c->setConstType(vpiUIntConst);
-              c->setSize(static_cast<int32_t>(size));
+              c->setSize(static_cast<int32_t>(sz));
             } else if (uval == 0) {
-              uint64_t size = ExprEval::size(fieldTypes[index], invalidValue, nullptr, exp, true, true);
-              c->setValue("UINT:" + std::to_string(uval));
+              uint64_t sz = 0;
+              if (!getBitCount(fieldTypes[index], exp, true, &sz)) {
+                sz = 0;
+              }
+              c->setValue(std::to_string(uval));
               c->setDecompile(std::to_string(uval));
               c->setConstType(vpiUIntConst);
-              c->setSize(static_cast<int32_t>(size));
+              c->setSize(static_cast<int32_t>(sz));
             }
           }
         } else if (patt->getUhdmType() == UhdmType::Operation) {
@@ -883,3014 +6845,10 @@ Expr *ExprEval::flattenPatternAssignments(Serializer &s, const Typespec *tps, Ex
   return result;
 }
 
-uint64_t ExprEval::size(const Any *ts, bool &invalidValue, const Any *inst, const Any *pexpr, bool full,
-                        bool muteError) {
-  if (ts == nullptr) return 0;
-  uint64_t bits = 0;
-  RangeCollection *ranges = nullptr;
-  UhdmType ttps = ts->getUhdmType();
-  if (ttps == UhdmType::RefTypespec) {
-    RefTypespec *rtps = (RefTypespec *)ts;
-    ts = rtps->getActual();
-    ttps = ts->getUhdmType();
-  }
-  switch (ttps) {
-    case UhdmType::HierPath: {
-      ts = decodeHierPath((HierPath *)ts, invalidValue, inst, nullptr, true);
-      if (ts)
-        bits = size(ts, invalidValue, inst, pexpr, full);
-      else
-        invalidValue = true;
-      break;
-    }
-    case UhdmType::ArrayTypespec: {
-      ArrayTypespec *lts = (ArrayTypespec *)ts;
-      ranges = lts->getRanges();
-      if (!full) {
-        bits = 1;
-      } else if (const RefTypespec *rt = lts->getElemTypespec()) {
-        bits = size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::ShortRealTypespec: {
-      bits = 32;
-      break;
-    }
-    case UhdmType::RealTypespec: {
-      bits = 32;
-      break;
-    }
-    case UhdmType::ByteTypespec: {
-      bits = 8;
-      break;
-    }
-    case UhdmType::ShortIntTypespec: {
-      bits = 16;
-      break;
-    }
-    case UhdmType::IntTypespec: {
-      IntTypespec *its = (IntTypespec *)ts;
-      bits = 32;
-      ranges = its->getRanges();
-      if (ranges) {
-        bits = 1;
-      }
-      break;
-    }
-    case UhdmType::LongIntTypespec: {
-      bits = 64;
-      break;
-    }
-    case UhdmType::IntegerTypespec: {
-      IntegerTypespec *itps = (IntegerTypespec *)ts;
-      std::string_view val = itps->getValue();
-      if (val.empty()) {
-        bits = 32;
-      } else if (val.find("UINT:") == 0) {
-        val.remove_prefix(std::string_view("UINT:").length());
-        if (NumUtils::parseUint64(val, &bits) == nullptr) {
-          bits = 32;
-        }
-      } else if (val.find("INT:") == 0) {
-        val.remove_prefix(std::string_view("INT:").length());
-        if (NumUtils::parseIntLenient(val, &bits) == nullptr) {
-          bits = 32;
-        }
-      }
-      break;
-    }
-    case UhdmType::BitTypespec: {
-      bits = 1;
-      BitTypespec *lts = (BitTypespec *)ts;
-      ranges = lts->getRanges();
-      break;
-    }
-    case UhdmType::LogicTypespec: {
-      bits = 1;
-      LogicTypespec *lts = (LogicTypespec *)ts;
-      ranges = lts->getRanges();
-      break;
-    }
-    case UhdmType::StringTypespec: {
-      bits = 0;
-      invalidValue = true;
-      break;
-    }
-    case UhdmType::UnsupportedTypespec: {
-      bits = 0;
-      invalidValue = true;
-      break;
-    }
-    case UhdmType::Net: {
-      bits = 1;
-      if (const LogicTypespec *const lt = uhdm::getTypespec<LogicTypespec>(ts)) {
-        bool tmpInvalidValue = false;
-        uint64_t tmpS = size(lt, tmpInvalidValue, inst, pexpr, full);
-        if (!tmpInvalidValue) {
-          bits = tmpS;
-        }
-      } else if (const StructTypespec *const st = uhdm::getTypespec<StructTypespec>(ts)) {
-        bits += size(st, invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::Variable: {
-      if (const RefTypespec *const rt = static_cast<const Variable *>(ts)->getTypespec()) {
-        if (const LogicTypespec *const lt = rt->getActual<LogicTypespec>()) {
-          bits = 1;
-          bool tmpInvalidValue = false;
-          uint64_t tmpS = size(lt, tmpInvalidValue, inst, pexpr, full);
-          if (tmpInvalidValue == false) {
-            bits = tmpS;
-          }
-        } else if (const BitTypespec *const bt = rt->getActual<BitTypespec>()) {
-          bits = size(bt, invalidValue, inst, pexpr, full);
-          ranges = bt->getRanges();
-        } else if (rt->getActual<ByteTypespec>() != nullptr) {
-          bits = 8;
-        } else if (const StructTypespec *const st = rt->getActual<StructTypespec>()) {
-          bits += size(st, invalidValue, inst, pexpr, full);
-        } else if (const ArrayTypespec *const at = rt->getActual<ArrayTypespec>()) {
-          bits += size(at, invalidValue, inst, pexpr, full);
-          ranges = at->getRanges();
-        } else if (const EnumTypespec *const et = rt->getActual<EnumTypespec>()) {
-          bits = size(et, invalidValue, inst, pexpr, full);
-        }
-      }
-      break;
-    }
-    case UhdmType::StructTypespec: {
-      StructTypespec *sts = (StructTypespec *)ts;
-      if (TypespecMemberCollection *members = sts->getMembers()) {
-        for (TypespecMember *member : *members) {
-          if (const RefTypespec *rt = member->getTypespec()) {
-            bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-          }
-        }
-      }
-      break;
-    }
-    case UhdmType::EnumTypespec: {
-      if (const RefTypespec *rt = ((const EnumTypespec *)ts)->getBaseTypespec()) {
-        bits = size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::UnionTypespec: {
-      UnionTypespec *sts = (UnionTypespec *)ts;
-      if (TypespecMemberCollection *members = sts->getMembers()) {
-        for (TypespecMember *member : *members) {
-          if (const RefTypespec *rt = member->getTypespec()) {
-            uint64_t max = size(rt->getActual(), invalidValue, inst, pexpr, full);
-            if (max > bits) bits = max;
-          }
-        }
-      }
-      break;
-    }
-    case UhdmType::Constant: {
-      Constant *c = (Constant *)ts;
-      bits = c->getSize();
-      break;
-    }
-    case UhdmType::EnumConst: {
-      EnumConst *c = (EnumConst *)ts;
-      bits = c->getSize();
-      break;
-    }
-    case UhdmType::RefObj: {
-      RefObj *ref = (RefObj *)ts;
-      const Any *act = ref->getActual();
-      if (act == nullptr) {
-        std::string_view name = ref->getName();
-        act = getObject(name, inst, pexpr, muteError);
-      }
-      if (act) {
-        bits = size(act, invalidValue, inst, pexpr, full);
-      } else {
-        invalidValue = true;
-      }
-      break;
-    }
-    case UhdmType::Operation: {
-      Operation *tsop = (Operation *)ts;
-      if (tsop->getOpType() == vpiConcatOp) {
-        if (auto ops = tsop->getOperands()) {
-          for (auto op : *ops) {
-            bits += size(op, invalidValue, inst, pexpr, full);
-          }
-        }
-      }
-      break;
-    }
-    case UhdmType::TypespecMember: {
-      if (const RefTypespec *rt = ((const TypespecMember *)ts)->getTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::IODecl: {
-      if (const RefTypespec *rt = ((const IODecl *)ts)->getTypespec()) {
-        bits += size(rt->getActual(), invalidValue, inst, pexpr, full);
-      }
-      break;
-    }
-    case UhdmType::BitSelect: {
-      bits = 1;
-      break;
-    }
-    case UhdmType::PartSelect: {
-      const PartSelect *sel = (PartSelect *)ts;
-      const Expr *lexpr = sel->getLeftExpr();
-      const Expr *rexpr = sel->getRightExpr();
-      int64_t lv = getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
-
-      int64_t rv = getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
-
-      if (lv > rv)
-        bits = ((lv - rv) + 1);
-      else
-        bits = ((rv - lv) + 1);
-      break;
-    }
-    default: invalidValue = true; break;
-  }
-
-  if (ranges && !ranges->empty()) {
-    if (!full) {
-      const Range *last_range = ranges->back();
-      const Expr *lexpr = last_range->getLeftExpr();
-      const Expr *rexpr = last_range->getRightExpr();
-      int64_t lv = getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
-
-      int64_t rv = getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
-
-      if (lv > rv)
-        bits = bits * (lv - rv + 1);
-      else
-        bits = bits * (rv - lv + 1);
-    } else {
-      for (const Range *ran : *ranges) {
-        const Expr *lexpr = ran->getLeftExpr();
-        const Expr *rexpr = ran->getRightExpr();
-        int64_t lv = getValue(reduceExpr(lexpr, invalidValue, inst, pexpr, muteError));
-
-        int64_t rv = getValue(reduceExpr(rexpr, invalidValue, inst, pexpr, muteError));
-
-        if (lv > rv)
-          bits = bits * (lv - rv + 1);
-        else
-          bits = bits * (rv - lv + 1);
-      }
-    }
-  }
-  return bits;
-}
-
-uint64_t ExprEval::size(const vpiHandle Typespec, bool &invalidValue, const vpiHandle inst, const vpiHandle pexpr,
-                        bool full, bool muteError) {
-  const Any *const vpiHandle_Typespec = (Any *)((UhdmHandle *)Typespec)->object;
-  const Any *const vpiHandle_inst = !inst ? nullptr : (Any *)((UhdmHandle *)inst)->object;
-  const Any *const vpiHandle_pexpr = !pexpr ? nullptr : (Any *)((UhdmHandle *)pexpr)->object;
-  return size(vpiHandle_Typespec, invalidValue, vpiHandle_inst, vpiHandle_pexpr, full, muteError);
-}
-
-static bool getStringVal(std::string &result, Expr *val) {
-  bool succeeded = false;
-  if (const Constant *hs0 = any_cast<Constant>(val)) {
-    s_vpi_value sval;
-    String2VpiValue(hs0->getValue(), &sval);
-    if ((sval.format == vpiStringVal) || (sval.format == vpiBinStrVal) ||
-        (sval.format == vpiHexStrVal) || (sval.format == vpiOctStrVal) ||
-        (sval.format == vpiDecStrVal)) {
-      result = sval.value.str;
-      succeeded = true;
-    }
-    VpiDestroyValue(sval);
-  }
-  return succeeded;
-}
-
-void resize(Expr *resizedExp, int32_t size) {
-  bool invalidValue = false;
-  ExprEval eval;
-  Constant *c = (Constant *)resizedExp;
-  int64_t val = eval.get_value(invalidValue, c);
-  if (val == 1) {
-    uint64_t mask = NumUtils::getMask(size);
-    c->setValue("UINT:" + std::to_string(mask));
-    c->setDecompile(std::to_string(mask));
-    c->setConstType(vpiUIntConst);
-  }
-}
-
-Expr *ExprEval::reduceCompOp(Operation *op, bool &invalidValue, const Any *inst, const Any *pexpr, bool muteError) {
-  Expr *result = op;
-  Serializer &s = *op->getSerializer();
-  AnyCollection &operands = *op->getOperands();
-  int32_t optype = op->getOpType();
-  std::string s0;
-  std::string s1;
-  Expr *reduc0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-  Expr *reduc1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-  if (invalidValue == true) {
-    return result;
-  }
-  if (reduc0 == nullptr || reduc1 == nullptr) {
-    return result;
-  }
-  int32_t size0 = reduc0->getSize();
-  int32_t size1 = reduc1->getSize();
-  if ((reduc0->getSize() == -1) && (reduc1->getSize() > 1)) {
-    resize(reduc0, size1);
-  } else if ((reduc1->getSize() == -1) && (reduc0->getSize() > 1)) {
-    resize(reduc1, size0);
-  }
-  bool arg0isString = getStringVal(s0, reduc0);
-  bool arg1isString = getStringVal(s1, reduc1);
-  bool invalidValueI = false;
-  bool invalidValueD = false;
-  bool invalidValueS = true;
-  uint64_t val = 0;
-
-  int64_t v0 = get_uvalue(invalidValueI, reduc0);
-  int64_t v1 = get_uvalue(invalidValueI, reduc1);
-  if ((invalidValue == false) && (invalidValueI == false)) {
-    switch (optype) {
-      case vpiEqOp: val = (v0 == v1); break;
-      case vpiNeqOp: val = (v0 != v1); break;
-      case vpiGtOp: val = (v0 > v1); break;
-      case vpiGeOp: val = (v0 >= v1); break;
-      case vpiLtOp: val = (v0 < v1); break;
-      case vpiLeOp: val = (v0 <= v1); break;
-      default: break;
-    }
-  } else {
-    invalidValueD = false;
-    long double ld0 = get_double(invalidValueD, reduc0);
-    long double ld1 = get_double(invalidValueD, reduc1);
-    if ((invalidValue == false) && (invalidValueD == false)) {
-      switch (optype) {
-        case vpiEqOp: val = (ld0 == ld1); break;
-        case vpiNeqOp: val = (ld0 != ld1); break;
-        case vpiGtOp: val = (ld0 > ld1); break;
-        case vpiGeOp: val = (ld0 >= ld1); break;
-        case vpiLtOp: val = (ld0 < ld1); break;
-        case vpiLeOp: val = (ld0 <= ld1); break;
-        default: break;
-      }
-    } else {
-      if (arg0isString && arg1isString) {
-        invalidValueS = false;
-        switch (optype) {
-          case vpiEqOp: val = (s0 == s1); break;
-          case vpiNeqOp: val = (s0 != s1); break;
-          default: break;
-        }
-      }
-    }
-  }
-
-  if (invalidValueI && invalidValueD && invalidValueS) {
-    invalidValue = true;
-  } else {
-    Constant *c = s.make<Constant>();
-    c->setValue("BIN:" + std::to_string(val));
-    c->setDecompile(std::to_string(val));
-    c->setSize(1);
-    c->setConstType(vpiBinaryConst);
-    result = c;
-  }
-  return result;
-}
-
-uint64_t ExprEval::getWordSize(const Expr *exp, const Any *inst, const Any *pexpr) {
-  uint64_t wordSize = 1;
-  bool invalidValue = false;
-  bool muteError = true;
-  if (exp == nullptr) {
-    return wordSize;
-  }
-  if (const RefTypespec *ctsrt = exp->getTypespec()) {
-    if (const Typespec *cts = ctsrt->getActual()) {
-      if (cts->getUhdmType() == UhdmType::ArrayTypespec) {
-        ArrayTypespec *atps = (ArrayTypespec *)cts;
-        if (const RefTypespec *etsro = atps->getElemTypespec()) {
-          cts = etsro->getActual();
-        }
-      }
-      if (cts->getUhdmType() == UhdmType::LongIntTypespec) {
-        wordSize = 64;
-      } else if (cts->getUhdmType() == UhdmType::ShortIntTypespec) {
-        wordSize = 16;
-      } else if (cts->getUhdmType() == UhdmType::ByteTypespec) {
-        wordSize = 8;
-      } else if (cts->getUhdmType() == UhdmType::IntTypespec) {
-        IntTypespec *icts = (IntTypespec *)cts;
-        std::string_view value = icts->getValue();
-        if (exp->getSize() > 32)
-          wordSize = 32;
-        else
-          wordSize = 1;
-        if (value.find("UINT:") == 0) {
-          value.remove_prefix(std::string_view("UINT:").length());
-          if (NumUtils::parseUint64(value, &wordSize) == nullptr) {
-            wordSize = 32;
-          }
-        } else if (value.find("INT:") == 0) {
-          value.remove_prefix(std::string_view("INT:").length());
-          if (NumUtils::parseIntLenient(value, &wordSize) == nullptr) {
-            wordSize = 32;
-          }
-        }
-      } else if (cts->getUhdmType() == UhdmType::IntegerTypespec) {
-        IntegerTypespec *icts = (IntegerTypespec *)cts;
-        std::string_view value = icts->getValue();
-        if (exp->getSize() > 32)
-          wordSize = 32;
-        else
-          wordSize = 1;
-        if (value.find("UINT:") == 0) {
-          value.remove_prefix(std::string_view("UINT:").length());
-          if (NumUtils::parseUint64(value, &wordSize) == nullptr) {
-            wordSize = 32;
-          }
-        } else if (value.find("INT:") == 0) {
-          value.remove_prefix(std::string_view("INT:").length());
-          if (NumUtils::parseIntLenient(value, &wordSize) == nullptr) {
-            wordSize = 32;
-          }
-        }
-      } else if (cts->getUhdmType() == UhdmType::LogicTypespec) {
-        LogicTypespec *icts = (LogicTypespec *)cts;
-        if (const RefTypespec *rt = icts->getElemTypespec()) {
-          wordSize = size(rt->getActual(), invalidValue, inst, pexpr, false, muteError);
-        }
-      } else if (cts->getUhdmType() == UhdmType::BitTypespec) {
-        BitTypespec *icts = (BitTypespec *)cts;
-        wordSize = 1;
-        if (RangeCollection *ranges = icts->getRanges()) {
-          if (icts->getRanges()->size() > 1) {
-            Range *r = ranges->at(ranges->size() - 1);
-            bool invalid = false;
-            uint16_t lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getLeftExpr(), invalidValue, inst, pexpr, muteError)));
-            uint16_t rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getRightExpr(), invalidValue, inst, pexpr, muteError)));
-            wordSize = (lr > rr) ? (lr - rr + 1) : (rr - lr + 1);
-          }
-        }
-      }
-    }
-  }
-  if (wordSize == 0) {
-    wordSize = 1;
-  }
-  return wordSize;
-}
-
-Expr *ExprEval::reduceBitSelect(Expr *op, uint32_t index_val, bool &invalidValue, const Any *inst, const Any *pexpr,
-                                bool muteError) {
-  Serializer &s = *op->getSerializer();
-  Expr *result = nullptr;
-  Expr *exp = reduceExpr(op, invalidValue, inst, pexpr, muteError);
-  if (exp && (exp->getUhdmType() == UhdmType::Constant)) {
-    Constant *cexp = (Constant *)exp;
-    std::string binary = toBinary(cexp);
-    uint64_t wordSize = getWordSize(cexp, inst, pexpr);
-    Constant *c = s.make<Constant>();
-    uint16_t lr = 0;
-    uint16_t rr = 0;
-    if (const RefTypespec *rt = exp->getTypespec()) {
-      if (const Typespec *tps = rt->getActual()) {
-        if (tps->getUhdmType() == UhdmType::LogicTypespec) {
-          LogicTypespec *lts = (LogicTypespec *)tps;
-          if (RangeCollection *ranges = lts->getRanges()) {
-            Range *r = ranges->at(ranges->size() - 1);
-            bool invalid = false;
-            lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getLeftExpr(), invalidValue, inst, pexpr, muteError)));
-            rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getRightExpr(), invalidValue, inst, pexpr, muteError)));
-          }
-        } else if (tps->getUhdmType() == UhdmType::IntTypespec) {
-          IntTypespec *lts = (IntTypespec *)tps;
-          if (RangeCollection *ranges = lts->getRanges()) {
-            Range *r = ranges->at(ranges->size() - 1);
-            bool invalid = false;
-            lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getLeftExpr(), invalidValue, inst, pexpr, muteError)));
-            rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getRightExpr(), invalidValue, inst, pexpr, muteError)));
-          }
-        } else if (tps->getUhdmType() == UhdmType::BitTypespec) {
-          BitTypespec *lts = (BitTypespec *)tps;
-          if (RangeCollection *ranges = lts->getRanges()) {
-            Range *r = ranges->at(ranges->size() - 1);
-            bool invalid = false;
-            lr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getLeftExpr(), invalidValue, inst, pexpr, muteError)));
-            rr = static_cast<uint16_t>(
-                get_value(invalid, reduceExpr(r->getRightExpr(), invalidValue, inst, pexpr, muteError)));
-          }
-        }
-      }
-    }
-    c->setSize(static_cast<int32_t>(wordSize));
-    if (index_val < binary.size()) {
-      // TODO: If Range does not start at 0
-      if (lr >= rr) {
-        index_val = static_cast<uint32_t>(binary.size() - ((index_val + 1) * wordSize));
-      }
-      std::string v;
-      for (uint32_t i = 0; i < wordSize; i++) {
-        if ((index_val + i) < binary.size()) {
-          char bitv = binary[index_val + i];
-          v += std::to_string(bitv - '0');
-        }
-      }
-      if (v.size() > UHDM_MAX_BIT_WIDTH) {
-        std::string fullPath;
-        if (const GenScopeArray *in = any_cast<GenScopeArray>(inst)) {
-          fullPath = in->getFullName();
-        } else if (inst && inst->getUhdmType() == UhdmType::Design) {
-          fullPath = inst->getName();
-        } else if (const Scope *spe = any_cast<Scope>(inst)) {
-          fullPath = spe->getFullName();
-        }
-        if (muteError == false && m_muteError == false) {
-          s.getErrorHandler()(ErrorType::UHDM_INTERNAL_ERROR_OUT_OF_BOUND, fullPath, op, nullptr);
-        }
-        v = "0";
-      }
-      c->setValue("BIN:" + v);
-      c->setDecompile(std::to_string(wordSize) + "'b" + v);
-      c->setConstType(vpiBinaryConst);
-    } else {
-      c->setValue("BIN:0");
-      c->setDecompile("1'b0");
-      c->setConstType(vpiBinaryConst);
-    }
-    c->setFile(op->getFile());
-    c->setStartLine(op->getStartLine());
-    c->setStartColumn(op->getStartColumn());
-    c->setEndLine(op->getEndLine());
-    c->setEndColumn(op->getStartColumn() + 1);
-    result = c;
-  }
-  return result;
-}
-
-int64_t ExprEval::get_value(bool &invalidValue, const Expr *Expr, bool strict) {
-  int64_t result = 0;
-  int32_t type = 0;
-  std::string_view sv;
-  if (const Constant *c = any_cast<Constant>(Expr)) {
-    type = c->getConstType();
-    sv = c->getValue();
-  } else if (const Variable *v = any_cast<Variable>(Expr)) {
-    if (uhdm::getTypespec<EnumTypespec>(v) != nullptr) {
-      type = vpiUIntConst;
-      sv = v->getValue();
-    }
-  } else {
-    invalidValue = true;
-  }
-  if (!invalidValue) {
-    switch (type) {
-      case vpiBinaryConst: {
-        if (Expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'b');
-          sv.remove_prefix(std::string_view("BIN:").length());
-          bool invalid = NumUtils::parseBinary(sv, &result) == nullptr;
-          if (strict) invalidValue = invalid;
-        }
-        break;
-      }
-      case vpiDecConst: {
-        sv.remove_prefix(std::string_view("DEC:").length());
-        invalidValue = NumUtils::parseInt64(sv, &result) == nullptr;
-        break;
-      }
-      case vpiHexConst: {
-        if (Expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'h');
-          sv.remove_prefix(std::string_view("HEX:").length());
-          invalidValue = NumUtils::parseHex(sv, &result) == nullptr;
-        }
-        break;
-      }
-      case vpiOctConst: {
-        if (Expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'o');
-          sv.remove_prefix(std::string_view("OCT:").length());
-          invalidValue = NumUtils::parseOctal(sv, &result) == nullptr;
-        }
-        break;
-      }
-      case vpiIntConst: {
-        sv.remove_prefix(std::string_view("INT:").length());
-        invalidValue = NumUtils::parseInt64(sv, &result) == nullptr;
-        break;
-      }
-      case vpiUIntConst: {
-        sv.remove_prefix(std::string_view("UINT:").length());
-        invalidValue = NumUtils::parseIntLenient(sv, &result) == nullptr;
-        break;
-      }
-      case vpiScalar: {
-        sv.remove_prefix(std::string_view("SCAL:").length());
-        invalidValue = NumUtils::parseBinary(sv, &result) == nullptr;
-        break;
-      }
-      case vpiStringConst: {
-        sv.remove_prefix(std::string_view("STRING:").length());
-        result = 0;
-        if (sv.size() > 32) {
-          invalidValue = true;
-          break;
-        }
-        for (uint32_t i = 0; i < sv.size(); i++) {
-          result += (sv[i] << ((sv.size() - (i + 1)) * 8));
-        }
-        break;
-      }
-      case vpiRealConst: {
-        // Don't do the double precision math, leave it to client tools
-        invalidValue = true;
-        break;
-      }
-      default: {
-        if (sv.find("UINT:") == 0) {
-          sv.remove_prefix(std::string_view("UINT:").length());
-          invalidValue = NumUtils::parseIntLenient(sv, &result) == nullptr;
-        } else if (sv.find("INT:") == 0) {
-          sv.remove_prefix(std::string_view("INT:").length());
-          invalidValue = NumUtils::parseInt64(sv, &result) == nullptr;
-        } else {
-          invalidValue = true;
-        }
-        break;
-      }
-    }
-  }
-  return result;
-}
-
-uint64_t ExprEval::get_uvalue(bool &invalidValue, const Expr *expr, bool strict) {
-  uint64_t result = 0;
-  int32_t type = 0;
-  std::string_view sv;
-  if (const Constant *c = any_cast<Constant>(expr)) {
-    type = c->getConstType();
-    sv = c->getValue();
-  } else if (const Variable *v = any_cast<Variable>(expr)) {
-    if (uhdm::getTypespec<EnumTypespec>(v) != nullptr) {
-      type = vpiUIntConst;
-      sv = v->getValue();
-    }
-  }
-  if (sv.empty()) {
-    invalidValue = true;
-    return result;
-  }
-  if (!invalidValue) {
-    switch (type) {
-      case vpiBinaryConst: {
-        if (expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'b');
-          sv.remove_prefix(std::string_view("BIN:").length());
-          bool invalid = NumUtils::parseBinary(sv, &result) == nullptr;
-          if (strict) invalidValue = invalid;
-        }
-        break;
-      }
-      case vpiDecConst: {
-        sv.remove_prefix(std::string_view("DEC:").length());
-        invalidValue = NumUtils::parseUint64(sv, &result) == nullptr;
-        break;
-      }
-      case vpiHexConst: {
-        if (expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'h');
-          sv.remove_prefix(std::string_view("HEX:").length());
-          invalidValue = NumUtils::parseHex(sv, &result) == nullptr;
-        }
-        break;
-      }
-      case vpiOctConst: {
-        if (expr->getSize() > 64) {
-          invalidValue = true;
-        } else {
-          sv = ltrim_until(sv, '\'');
-          sv = ltrim_until(sv, 's');
-          sv = ltrim_until(sv, 'o');
-          sv.remove_prefix(std::string_view("OCT:").length());
-          invalidValue = NumUtils::parseOctal(sv, &result) == nullptr;
-        }
-        break;
-      }
-      case vpiIntConst: {
-        sv.remove_prefix(std::string_view("INT:").length());
-        invalidValue = NumUtils::parseUint64(sv, &result) == nullptr;
-        break;
-      }
-      case vpiUIntConst: {
-        sv.remove_prefix(std::string_view("UINT:").length());
-        invalidValue = NumUtils::parseUint64(sv, &result) == nullptr;
-        break;
-      }
-      case vpiScalar: {
-        sv.remove_prefix(std::string_view("SCAL:").length());
-        invalidValue = NumUtils::parseBinary(sv, &result) == nullptr;
-        break;
-      }
-      case vpiStringConst: {
-        sv.remove_prefix(std::string_view("STRING:").length());
-        result = 0;
-        if (sv.size() > 64) {
-          invalidValue = true;
-          break;
-        }
-        for (uint32_t i = 0; i < sv.size(); i++) {
-          result += (sv[i] << ((sv.size() - (i + 1)) * 8));
-        }
-        break;
-      }
-      case vpiRealConst: {
-        // Don't do the double precision math, leave it to client tools
-        invalidValue = true;
-        break;
-      }
-      default: {
-        if (sv.find("UINT:") == 0) {
-          sv.remove_prefix(std::string_view("UINT:").length());
-          invalidValue = NumUtils::parseUint64(sv, &result) == nullptr;
-        } else if (sv.find("INT:") == 0) {
-          sv.remove_prefix(std::string_view("INT:").length());
-          invalidValue = NumUtils::parseIntLenient(sv, &result) == nullptr;
-        } else {
-          invalidValue = true;
-        }
-        break;
-      }
-    }
-  }
-  return result;
-}
-
-TaskFunc *ExprEval::getTaskFunc(std::string_view name, const Any *inst) {
-  if (getTaskFuncFunctor) {
-    if (TaskFunc *result = getTaskFuncFunctor(name, inst)) {
-      return result;
-    }
-  }
-  if (inst == nullptr) {
-    return nullptr;
-  }
-  const Any *root = inst;
-  const Any *tmp = inst;
-  while (tmp) {
-    root = tmp;
-    tmp = tmp->getParent();
-  }
-  const Design *des = any_cast<Design>(root);
-  if (des) m_design = des;
-  std::string_view the_name = name;
-  const Any *the_instance = inst;
-  if (m_design && (name.find("::") != std::string::npos)) {
-    std::vector<std::string_view> res = tokenizeMulti(name, "::");
-    if (res.size() > 1) {
-      const std::string_view packName = res[0];
-      const std::string_view varName = res[1];
-      the_name = varName;
-      Package *pack = nullptr;
-      if (m_design->getTopPackages()) {
-        for (auto p : *m_design->getTopPackages()) {
-          if (p->getName() == packName) {
-            pack = p;
-            break;
-          }
-        }
-      }
-      the_instance = pack;
-    }
-  }
-  while (the_instance) {
-    TaskFuncCollection *task_funcs = nullptr;
-    if (the_instance->getUhdmType() == UhdmType::GenScopeArray) {
-    } else if (the_instance->getUhdmType() == UhdmType::Design) {
-      task_funcs = ((Design *)the_instance)->getTaskFuncs();
-    } else if (const Instance *inst = any_cast<Instance>(the_instance)) {
-      task_funcs = inst->getTaskFuncs();
-    }
-
-    if (task_funcs) {
-      for (TaskFunc *tf : *task_funcs) {
-        if (tf->getName() == the_name) {
-          return tf;
-        }
-      }
-    }
-
-    the_instance = the_instance->getParent();
-  }
-
-  return nullptr;
-}
-
-Any *ExprEval::decodeHierPath(HierPath *path, bool &invalidValue, const Any *inst, const Any *pexpr,
-                              bool returnTypespec, bool muteError) {
-  Serializer &s = *path->getSerializer();
-  std::string baseObject;
-  if (!path->getPathElems()->empty()) {
-    Any *firstElem = path->getPathElems()->at(0);
-    baseObject = firstElem->getName();
-  }
-  Any *object = getObject(baseObject, inst, pexpr, muteError);
-  if (object) {
-    if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-      object = passign->getRhs();
-    }
-  }
-  if (object == nullptr) {
-    object = getValue(baseObject, inst, pexpr, muteError);
-  }
-  if (object) {
-    // Substitution
-    if (ParamAssign *pass = any_cast<ParamAssign>(object)) {
-      const Any *rhs = pass->getRhs();
-      object = reduceExpr(rhs, invalidValue, inst, pexpr, muteError);
-    } else if (BitSelect *bts = any_cast<BitSelect>(object)) {
-      object = reduceExpr(bts, invalidValue, inst, pexpr, muteError);
-    } else if (RefObj *ref = any_cast<RefObj>(object)) {
-      object = reduceExpr(ref, invalidValue, inst, pexpr, muteError);
-    } else if (Constant *cons = any_cast<Constant>(object)) {
-      Elaborator elaborator(&s);
-      object = elaborator.clone<>(cons, nullptr);
-      cons = any_cast<Constant>(object);
-      if (cons->getTypespec() == nullptr) {
-        RefTypespec *rt = elaborator.clone<>(path->getTypespec(), cons);
-        cons->setTypespec(rt);
-      }
-    } else if (Operation *oper = any_cast<Operation>(object)) {
-      if (returnTypespec) {
-        if (RefTypespec *rt = oper->getTypespec()) {
-          object = rt->getActual();
-        }
-      }
-    }
-
-    std::vector<std::string> the_path;
-    for (auto elem : *path->getPathElems()) {
-      std::string_view elemName = elem->getName();
-      elemName = rtrim_until(elemName, '[');
-      the_path.emplace_back(elemName);
-      if (elem->getUhdmType() == UhdmType::BitSelect) {
-        BitSelect *select = (BitSelect *)elem;
-        uint64_t baseIndex =
-            get_value(invalidValue, reduceExpr((Any *)select->getIndex(), invalidValue, inst, pexpr, muteError));
-        the_path.emplace_back("[" + std::to_string(baseIndex) + "]");
-      }
-    }
-
-    return (Expr *)hierarchicalSelector(the_path, 0, object, invalidValue, inst, pexpr, returnTypespec, muteError);
-  }
-  return nullptr;
-}
-
-Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path, uint32_t level, Any *object,
-                                    bool &invalidValue, const Any *inst, const Any *pexpr, bool returnTypespec,
-                                    bool muteError) {
-  if (object == nullptr) return nullptr;
-  Serializer &s = (object) ? *object->getSerializer() : *inst->getSerializer();
-  if (level >= select_path.size()) {
-    if (returnTypespec) {
-      if (Typespec *tp = any_cast<Typespec>(object)) {
-        return tp;
-      } else if (Expr *ep = any_cast<Expr>(object)) {
-        if (RefTypespec *rt = ep->getTypespec()) {
-          return rt->getActual();
-        }
-      } else if (IODecl *id = any_cast<IODecl>(object)) {
-        if (RefTypespec *rt = id->getTypespec()) {
-          return rt->getActual();
-        }
-      }
-      return nullptr;
-    }
-    return (Expr *)object;
-  }
-  std::string elemName = select_path[level];
-  bool lastElem = (level == select_path.size() - 1);
-  if (Variable *var = any_cast<Variable>(object)) {
-    if (const RefTypespec *rt = var->getTypespec()) {
-      if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
-        for (TypespecMember *member : *stpt->getMembers()) {
-          if (member->getName() == elemName) {
-            if (returnTypespec) {
-              if (RefTypespec *mrt = member->getTypespec()) {
-                Any *res = mrt->getActual();
-                if (lastElem) {
-                  return res;
-                } else {
-                  return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                              muteError);
-                }
-              }
-            } else {
-              return member->getDefaultValue();
-            }
-          }
-        }
-      } else if (const ClassTypespec *ctps = rt->getActual<ClassTypespec>()) {
-        const ClassDefn *defn = ctps->getClassDefn();
-        while (defn) {
-          if (defn->getVariables()) {
-            for (Variable *member : *defn->getVariables()) {
-              if (member->getName() == elemName) {
-                if (returnTypespec) {
-                  if (RefTypespec *mrt = member->getTypespec()) {
-                    return mrt->getActual();
-                  }
-                } else {
-                  return member;
-                }
-              }
-            }
-          }
-          const ClassDefn *base_defn = nullptr;
-          if (const Extends *ext = defn->getExtends()) {
-            if (const RefTypespec *rt = ext->getClassTypespec()) {
-              if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
-                base_defn = tp->getClassDefn();
-              }
-            }
-          }
-          defn = base_defn;
-        }
-      } else if (returnTypespec) {
-        if (RefTypespec *rt = var->getTypespec()) {
-          if (ArrayTypespec *const at = rt->getActual<ArrayTypespec>()) {
-            if (lastElem) {
-              return at;
-            } else {
-              return hierarchicalSelector(select_path, level + 1, at, invalidValue, inst, pexpr, returnTypespec,
-                                          muteError);
-            }
-          }
-        }
-      }
-    }
-  } else if (StructTypespec *stpt = any_cast<StructTypespec>(object)) {
-    for (TypespecMember *member : *stpt->getMembers()) {
-      if (member->getName() == elemName) {
-        Any *res = nullptr;
-        if (returnTypespec) {
-          if (RefTypespec *mrt = member->getTypespec()) {
-            Any *res = mrt->getActual();
-            if (lastElem) {
-              return res;
-            } else {
-              return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                          muteError);
-            }
-          }
-        } else {
-          res = member->getDefaultValue();
-        }
-        if (lastElem) {
-          return res;
-        } else {
-          return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                      muteError);
-        }
-      }
-    }
-  } else if (IODecl *decl = any_cast<IODecl>(object)) {
-    if (const Variable *exp = decl->getExpr<Variable>()) {
-      if (const RefTypespec *const rt = exp->getTypespec()) {
-        if (const StructTypespec *stpt = rt->getActual<StructTypespec>()) {
-          for (TypespecMember *member : *stpt->getMembers()) {
-            if (member->getName() == elemName) {
-              if (returnTypespec) {
-                if (RefTypespec *mrt = member->getTypespec()) {
-                  Any *res = mrt->getActual();
-                  if (lastElem) {
-                    return res;
-                  } else {
-                    return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                                muteError);
-                  }
-                }
-              } else {
-                return member->getDefaultValue();
-              }
-            }
-          }
-        }
-      }
-    }
-    if (returnTypespec) {
-      if (const RefTypespec *rt = decl->getTypespec()) {
-        if (const Typespec *tps = rt->getActual()) {
-          UhdmType ttps = tps->getUhdmType();
-          if (ttps == UhdmType::StructTypespec) {
-            StructTypespec *stpt = (StructTypespec *)tps;
-            for (TypespecMember *member : *stpt->getMembers()) {
-              if (member->getName() == elemName) {
-                if (RefTypespec *mrt = member->getTypespec()) {
-                  Any *res = mrt->getActual();
-                  if (lastElem) {
-                    return res;
-                  } else {
-                    return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                                muteError);
-                  }
-                }
-              }
-            }
-          } else if (ttps == UhdmType::ClassTypespec) {
-            ClassTypespec *stpt = (ClassTypespec *)tps;
-            const ClassDefn *defn = stpt->getClassDefn();
-            while (defn) {
-              if (defn->getVariables()) {
-                for (Variable *member : *defn->getVariables()) {
-                  if (member->getName() == elemName) {
-                    if (RefTypespec *mrt = member->getTypespec()) {
-                      return mrt->getActual();
-                    }
-                  }
-                }
-              }
-              const ClassDefn *base_defn = nullptr;
-              if (const Extends *ext = defn->getExtends()) {
-                if (const RefTypespec *rt = ext->getClassTypespec()) {
-                  if (const ClassTypespec *tp = rt->getActual<ClassTypespec>()) {
-                    base_defn = tp->getClassDefn();
-                  }
-                }
-              }
-              defn = base_defn;
-            }
-          }
-        }
-      }
-    }
-  } else if (Net *nt = any_cast<Net>(object)) {
-    TypespecMemberCollection *members = nullptr;
-    if (const StructTypespec *sts = uhdm::getTypespec<StructTypespec>(nt)) {
-      members = sts->getMembers();
-    } else if (const UnionTypespec *uts = uhdm::getTypespec<UnionTypespec>(nt)) {
-      members = uts->getMembers();
-    }
-    if (members) {
-      for (TypespecMember *member : *members) {
-        if (member->getName() == elemName) {
-          if (returnTypespec) {
-            if (RefTypespec *mrt = member->getTypespec()) {
-              Any *res = mrt->getActual();
-              if (lastElem) {
-                return res;
-              } else {
-                return hierarchicalSelector(select_path, level + 1, res, invalidValue, inst, pexpr, returnTypespec,
-                                            muteError);
-              }
-            }
-          } else {
-            return member->getDefaultValue();
-          }
-        }
-      }
-    }
-  } else if (Constant *cons = any_cast<Constant>(object)) {
-    if (RefTypespec *rt = cons->getTypespec()) {
-      if (const Typespec *ts = rt->getActual()) {
-        UhdmType ttps = ts->getUhdmType();
-        if (ttps == UhdmType::StructTypespec) {
-          StructTypespec *stpt = (StructTypespec *)ts;
-          uint64_t from = 0;
-          uint64_t width = 0;
-          for (TypespecMember *member : *stpt->getMembers()) {
-            if (member->getName() == elemName) {
-              width = size(member, invalidValue, inst, pexpr, true);
-              if (cons->getSize() <= 64) {
-                uint64_t iv = get_value(invalidValue, cons);
-                uint64_t mask = 0;
-
-                for (uint64_t i = from; i < uint64_t(from + width); i++) {
-                  mask |= ((uint64_t)1 << i);
-                }
-                uint64_t res = iv & mask;
-                res = res >> (from);
-                cons->setValue("UINT:" + std::to_string(res));
-                cons->setSize(static_cast<int32_t>(width));
-                cons->setConstType(vpiUIntConst);
-                return cons;
-              } else {
-                std::string_view val = cons->getValue();
-                int32_t ctype = cons->getConstType();
-                if (ctype == vpiHexConst) {
-                  std::string_view vval = val.substr(strlen("HEX:"), std::string::npos);
-                  std::string bin = NumUtils::hexToBin(vval);
-                  std::string res = bin.substr(from, width);
-                  cons->setValue("BIN:" + res);
-                  cons->setSize(static_cast<int32_t>(width));
-                  cons->setConstType(vpiBinaryConst);
-                  return cons;
-                } else if (ctype == vpiBinaryConst) {
-                  std::string_view bin = val.substr(strlen("BIN:"), std::string::npos);
-                  std::string_view res = bin.substr(from, width);
-                  cons->setValue("BIN:" + std::string(res));
-                  cons->setSize(static_cast<int32_t>(width));
-                  cons->setConstType(vpiBinaryConst);
-                  return cons;
-                }
-              }
-            } else {
-              from += size(member, invalidValue, inst, pexpr, true);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  int32_t selectIndex = -1;
-  if (elemName.find('[') != std::string::npos) {
-    std::string_view indexName = ltrim_until(elemName, '[');
-    indexName = rtrim_until(indexName, ']');
-    if (NumUtils::parseInt32(indexName, &selectIndex) == nullptr) {
-      selectIndex = -1;
-    }
-    elemName.clear();
-    if (const Operation *oper = any_cast<Operation>(object)) {
-      int32_t opType = oper->getOpType();
-      if (opType == vpiAssignmentPatternOp) {
-        AnyCollection *operands = oper->getOperands();
-        int32_t sInd = 0;
-        for (auto operand : *operands) {
-          if ((selectIndex >= 0) && (sInd == selectIndex)) {
-            return hierarchicalSelector(select_path, level + 1, operand, invalidValue, inst, pexpr, returnTypespec,
-                                        muteError);
-          }
-          sInd++;
-        }
-      }
-    } else if (const LogicTypespec *ltps = any_cast<LogicTypespec>(object)) {
-      RangeCollection *ranges = ltps->getRanges();
-      if (ranges && (ranges->size() >= 2)) {
-        LogicTypespec *tmp = s.make<LogicTypespec>();
-        RangeCollection *tmpR = s.makeCollection<Range>();
-        for (uint32_t i = 1; i < ranges->size(); i++) {
-          tmpR->emplace_back(ranges->at(i));
-        }
-        tmp->setRanges(tmpR);
-        return tmp;
-      }
-    } else if (const ArrayTypespec *ltps = any_cast<ArrayTypespec>(object)) {
-      if (const RefTypespec *rt = ltps->getElemTypespec()) {
-        return (Typespec *)rt->getActual();
-      }
-    } else if (Constant *c = any_cast<Constant>(object)) {
-      if (Expr *tmp = reduceBitSelect(c, selectIndex, invalidValue, inst, pexpr, muteError)) {
-        if (returnTypespec) {
-          if (RefTypespec *rt = tmp->getTypespec()) {
-            return rt->getActual();
-          }
-          return nullptr;
-        }
-        return tmp;
-      }
-      return object;
-    }
-  } else if (level == 0) {
-    return hierarchicalSelector(select_path, level + 1, object, invalidValue, inst, pexpr, returnTypespec, muteError);
-  }
-
-  if (const Operation *oper = any_cast<Operation>(object)) {
-    int32_t opType = oper->getOpType();
-
-    if (opType == vpiAssignmentPatternOp) {
-      AnyCollection *operands = oper->getOperands();
-      Any *defaultPattern = nullptr;
-      int32_t sInd = 0;
-
-      int32_t bIndex = -1;
-      if (inst) {
-        /*
-        Any *baseP = nullptr;
-        AnyCollection *parameters = nullptr;
-        if (inst->getUhdmType() == UhdmType::GenScopeArray) {
-        } else if (inst->getUhdmType() == UhdmType::Design) {
-          parameters = ((Design *)inst)->Parameters();
-        } else if (any_cast<scope *>(inst)) {
-          parameters = ((scope *)inst)->Parameters();
-        }
-        if (parameters) {
-          for (auto p : *parameters) {
-            if (p->getName() == select_path[0]) {
-              baseP = p;
-              break;
-            }
-          }
-        }
-        */
-        if (Any *baseP = getObject(select_path[0], inst, pexpr, muteError)) {
-          const Typespec *tps = nullptr;
-          if (Parameter *p = any_cast<Parameter>(baseP)) {
-            if (const RefTypespec *rt = p->getTypespec()) {
-              tps = rt->getActual();
-            }
-          } else if (Operation *op = any_cast<Operation>(baseP)) {
-            if (const RefTypespec *rt = op->getTypespec()) {
-              tps = rt->getActual();
-            }
-          }
-
-          if (tps && (tps->getUhdmType() == UhdmType::ArrayTypespec)) {
-            ArrayTypespec *tmp = (ArrayTypespec *)tps;
-            if (const RefTypespec *rt = tmp->getElemTypespec()) {
-              tps = rt->getActual();
-            }
-          }
-          if (tps && (tps->getUhdmType() == UhdmType::StructTypespec)) {
-            StructTypespec *sts = (StructTypespec *)tps;
-            if (TypespecMemberCollection *members = sts->getMembers()) {
-              uint32_t i = 0;
-              for (TypespecMember *member : *members) {
-                if (member->getName() == elemName) {
-                  bIndex = i;
-                  break;
-                }
-                i++;
-              }
-            }
-          }
-        }
-      }
-      if (inst) {
-        const Any *tmpInstance = inst;
-        while ((bIndex == -1) && tmpInstance) {
-          ParamAssignCollection *ParamAssigns = nullptr;
-          if (tmpInstance->getUhdmType() == UhdmType::GenScopeArray) {
-          } else if (tmpInstance->getUhdmType() == UhdmType::Design) {
-            ParamAssigns = ((Design *)tmpInstance)->getParamAssigns();
-          } else if (const Scope *spe = any_cast<Scope>(tmpInstance)) {
-            ParamAssigns = spe->getParamAssigns();
-          }
-          if (ParamAssigns) {
-            for (ParamAssign *param : *ParamAssigns) {
-              if (param && param->getLhs()) {
-                const std::string_view param_name = param->getLhs()->getName();
-                if (param_name == select_path[0]) {
-                  if (const Parameter *p = any_cast<Parameter>(param->getLhs())) {
-                    if (const RefTypespec *rt = p->getTypespec()) {
-                      if (const Typespec *tps = rt->getActual()) {
-                        if (tps->getUhdmType() == UhdmType::ArrayTypespec) {
-                          if (const RefTypespec *ert = ((ArrayTypespec *)tps)->getElemTypespec()) {
-                            tps = ert->getActual();
-                          }
-                        }
-                        if (tps && (tps->getUhdmType() == UhdmType::StructTypespec)) {
-                          StructTypespec *sts = (StructTypespec *)tps;
-                          if (TypespecMemberCollection *members = sts->getMembers()) {
-                            uint32_t i = 0;
-                            for (TypespecMember *member : *members) {
-                              if (member->getName() == elemName) {
-                                bIndex = i;
-                                break;
-                              }
-                              i++;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-          tmpInstance = tmpInstance->getParent();
-        }
-      }
-      for (auto operand : *operands) {
-        UhdmType operandType = operand->getUhdmType();
-        if (operandType == UhdmType::TaggedPattern) {
-          TaggedPattern *tpatt = (TaggedPattern *)operand;
-          const Typespec *tps = nullptr;
-          if (const RefTypespec *rt = tpatt->getTypespec()) {
-            tps = rt->getActual();
-          }
-          if (tps->getName() == "default") {
-            defaultPattern = (Any *)tpatt->getPattern();
-          }
-          if (!elemName.empty() && (tps->getName() == elemName)) {
-            const Any *patt = tpatt->getPattern();
-            UhdmType pattType = patt->getUhdmType();
-            if (pattType == UhdmType::Constant) {
-              Any *ex = reduceExpr((Expr *)patt, invalidValue, inst, pexpr, muteError);
-              if (level < select_path.size()) {
-                ex = hierarchicalSelector(select_path, level + 1, ex, invalidValue, inst, pexpr, returnTypespec);
-              }
-              if (returnTypespec) {
-                if (Typespec *tp = any_cast<Typespec>(ex)) {
-                  return tp;
-                } else if (Expr *ep = any_cast<Expr>(ex)) {
-                  if (RefTypespec *rt = ep->getTypespec()) {
-                    return rt->getActual();
-                  }
-                } else if (IODecl *id = any_cast<IODecl>(ex)) {
-                  if (RefTypespec *rt = id->getTypespec()) {
-                    return rt->getActual();
-                  }
-                } else if (Typespec *tp = any_cast<Typespec>(object)) {
-                  return tp;
-                } else if (Expr *ep = any_cast<Expr>(object)) {
-                  if (RefTypespec *rt = ep->getTypespec()) {
-                    return rt->getActual();
-                  }
-                } else if (IODecl *id = any_cast<IODecl>(object)) {
-                  if (RefTypespec *rt = id->getTypespec()) {
-                    return rt->getActual();
-                  }
-                }
-                return nullptr;
-              }
-              return ex;
-            } else if (pattType == UhdmType::Operation) {
-              return hierarchicalSelector(select_path, level + 1, (Expr *)patt, invalidValue, inst, pexpr,
-                                          returnTypespec);
-            }
-          }
-        } else if (operandType == UhdmType::Constant) {
-          if ((bIndex >= 0) && (bIndex == sInd)) {
-            return hierarchicalSelector(select_path, level + 1, (Expr *)operand, invalidValue, inst, pexpr,
-                                        returnTypespec);
-          }
-        }
-        sInd++;
-      }
-      if (defaultPattern) {
-        if (Expr *ex = any_cast<Expr>(defaultPattern)) {
-          ex = reduceExpr(ex, invalidValue, inst, pexpr, muteError);
-          if (returnTypespec) {
-            if (Typespec *tp = any_cast<Typespec>(ex)) {
-              return tp;
-            } else if (Expr *ep = any_cast<Expr>(ex)) {
-              if (RefTypespec *rt = ep->getTypespec()) {
-                return rt->getActual();
-              }
-            } else if (IODecl *id = any_cast<IODecl>(ex)) {
-              if (RefTypespec *rt = id->getTypespec()) {
-                return rt->getActual();
-              }
-            } else if (Typespec *tp = any_cast<Typespec>(object)) {
-              return tp;
-            } else if (Expr *ep = any_cast<Expr>(object)) {
-              if (RefTypespec *rt = ep->getTypespec()) {
-                return rt->getActual();
-              }
-            } else if (IODecl *id = any_cast<IODecl>(object)) {
-              if (RefTypespec *rt = id->getTypespec()) {
-                return rt->getActual();
-              }
-            }
-            return nullptr;
-          }
-          return ex;
-        }
-      }
-    }
-  }
-  return nullptr;
-}
-
-Expr *ExprEval::reduceExpr(const Any *result, bool &invalidValue, const Any *inst, const Any *pexpr, bool muteError) {
-  if (!result) return nullptr;
-  Serializer &s = *result->getSerializer();
-  UhdmType objtype = result->getUhdmType();
-  if (objtype == UhdmType::Operation) {
-    Operation *op = (Operation *)result;
-    for (auto t : m_skipOperationTypes) {
-      if (op->getOpType() == t) {
-        return (Expr *)result;
-      }
-    }
-    bool constantOperands = true;
-    if (AnyCollection *oprns = op->getOperands()) {
-      AnyCollection &operands = *oprns;
-      for (auto oper : operands) {
-        UhdmType optype = oper->getUhdmType();
-        if (optype == UhdmType::RefObj) {
-          RefObj *ref = (RefObj *)oper;
-          const std::string_view name = ref->getName();
-          if ((name == "default") && ref->getStructMember()) continue;
-          if (getValue(name, inst, pexpr, muteError, result) == nullptr) {
-            constantOperands = false;
-            break;
-          }
-        } else if (optype == UhdmType::Operation) {
-        } else if (optype == UhdmType::SysFuncCall) {
-        } else if (optype == UhdmType::FuncCall) {
-        } else if (optype == UhdmType::BitSelect) {
-        } else if (optype == UhdmType::HierPath) {
-        } else if (optype == UhdmType::VarSelect) {
-        } else if (optype != UhdmType::Constant) {
-          constantOperands = false;
-          break;
-        } else if (optype == UhdmType::Variable) {
-          if (uhdm::getTypespec<EnumTypespec>(oper) != nullptr) {
-            constantOperands = false;
-            break;
-          }
-        }
-      }
-      if (constantOperands) {
-        int32_t optype = op->getOpType();
-        switch (optype) {
-          case vpiArithRShiftOp:
-          case vpiRShiftOp: {
-            if (operands.size() == 2) {
-              Expr *arg0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              if (arg0 && arg0->getUhdmType() == UhdmType::Constant) {
-                Constant *c = (Constant *)arg0;
-                if (c->getSize() == -1) invalidValue = true;
-              }
-              int64_t val0 = get_value(invalidValue, arg0);
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) >> ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiLeOp:
-          case vpiLtOp:
-          case vpiGeOp:
-          case vpiGtOp:
-          case vpiNeqOp:
-          case vpiEqOp: {
-            if (operands.size() == 2) {
-              result = reduceCompOp(op, invalidValue, inst, pexpr);
-            }
-            break;
-          }
-          case vpiPostIncOp:
-          case vpiPostDecOp:
-          case vpiPreDecOp:
-          case vpiPreIncOp: {
-            if (operands.size() == 1) {
-              Expr *reduc0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t val = get_value(invalidValueI, reduc0);
-              if ((invalidValue == false) && (invalidValueI == false)) {
-                if (op->getOpType() == vpiPostIncOp || op->getOpType() == vpiPreIncOp) {
-                  val++;
-                } else {
-                  val--;
-                }
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-                std::map<std::string, const Typespec *> local_vars;
-                setValueInInstance(operands[0]->getName(), operands[0], c, invalidValue, s, inst, op, local_vars, 0,
-                                   muteError);
-              } else {
-                invalidValueD = false;
-                long double val = get_double(invalidValueD, reduc0);
-                if ((invalidValue == false) && (invalidValueD == false)) {
-                  if (op->getOpType() == vpiPostIncOp || op->getOpType() == vpiPreIncOp) {
-                    val++;
-                  } else {
-                    val--;
-                  }
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                  std::map<std::string, const Typespec *> local_vars;
-                  setValueInInstance(operands[0]->getName(), operands[0], c, invalidValue, s, inst, op, local_vars, 0,
-                                     muteError);
-                }
-              }
-            }
-            break;
-          }
-          case vpiArithLShiftOp:
-          case vpiLShiftOp: {
-            if (operands.size() == 2) {
-              Expr *arg0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              if (arg0 && arg0->getUhdmType() == UhdmType::Constant) {
-                Constant *c = (Constant *)arg0;
-                if (c->getSize() == -1) invalidValue = true;
-              }
-              int64_t val0 = get_value(invalidValue, arg0);
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) << ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiAddOp:
-          case vpiPlusOp: {
-            if (operands.size() == 2) {
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              Expr *expr1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              bool unsignedOperation = true;
-              for (auto exp : {expr0, expr1}) {
-                if (exp) {
-                  if (exp->getUhdmType() == UhdmType::Constant) {
-                    Constant *c = (Constant *)exp;
-                    if (c->getConstType() == vpiIntConst || c->getConstType() == vpiStringConst ||
-                        c->getConstType() == vpiRealConst || c->getConstType() == vpiDecConst) {
-                      unsignedOperation = false;
-                    }
-                  }
-                }
-              }
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              if (unsignedOperation) {
-                uint64_t val0 = get_uvalue(invalidValueI, expr0);
-                uint64_t val1 = get_uvalue(invalidValueI, expr1);
-                if ((invalidValue == false) && (invalidValueI == false)) {
-                  uint64_t val = val0 + val1;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("UINT:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize((expr0->getSize() > expr1->getSize()) ? expr0->getSize() : expr1->getSize());
-                  c->setConstType(vpiUIntConst);
-                  result = c;
-                }
-              } else {
-                int64_t val0 = get_value(invalidValueI, expr0);
-                int64_t val1 = get_value(invalidValueI, expr1);
-                if ((invalidValue == false) && (invalidValueI == false)) {
-                  int64_t val = val0 + val1;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("INT:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize((expr0->getSize() > expr1->getSize()) ? expr0->getSize() : expr1->getSize());
-                  c->setConstType(vpiIntConst);
-                  result = c;
-                } else {
-                  invalidValueD = false;
-                  long double val0 = get_double(invalidValueD, expr0);
-                  long double val1 = get_double(invalidValueD, expr1);
-                  if ((invalidValue == false) && (invalidValueD == false)) {
-                    long double val = val0 + val1;
-                    Constant *c = s.make<Constant>();
-                    c->setValue("REAL:" + std::to_string(val));
-                    c->setDecompile(std::to_string(val));
-                    c->setSize((expr0->getSize() > expr1->getSize()) ? expr0->getSize() : expr1->getSize());
-                    c->setConstType(vpiRealConst);
-                    result = c;
-                  }
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiBitOrOp: {
-            if (operands.size() == 2) {
-              int64_t val0 = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) | ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiBitAndOp: {
-            if (operands.size() == 2) {
-              int64_t val0 = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) & ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiLogOrOp: {
-            if (operands.size() == 2) {
-              int64_t val0 = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) || ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiLogAndOp: {
-            if (operands.size() == 2) {
-              int64_t val0 = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              int64_t val1 = get_value(invalidValue, reduceExpr(operands[1], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t val = ((uint64_t)val0) && ((uint64_t)val1);
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiMinusOp: {
-            if (operands.size() == 1) {
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              int64_t val0 = get_value(invalidValueI, expr0);
-              if ((invalidValue == false) && (invalidValueI == false)) {
-                int64_t val = -val0;
-                uint64_t size = 64;
-                if (expr0->getUhdmType() == UhdmType::Constant) {
-                  size = expr0->getSize();
-                }
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(static_cast<int32_t>(size));
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                if ((invalidValue == false) && (invalidValueD == false)) {
-                  long double val = -val0;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiSubOp: {
-            if (operands.size() == 2) {
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              Expr *expr1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
-              if ((invalidValue == false) && (invalidValueI == false)) {
-                int64_t val = val0 - val1;
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
-                if ((invalidValue == false) && (invalidValueD == false)) {
-                  long double val = val0 - val1;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiMultOp: {
-            if (operands.size() == 2) {
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              Expr *expr1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
-              if ((invalidValue == false) && (invalidValueI == false)) {
-                int64_t val = val0 * val1;
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
-                if ((invalidValue == false) && (invalidValueD == false)) {
-                  long double val = val0 * val1;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiBitNegOp: {
-            if (operands.size() == 1) {
-              Expr *operand = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              if (operand) {
-                uint64_t val = (uint64_t)get_value(invalidValue, operand);
-                if (invalidValue) break;
-                uint64_t size = 64;
-                if (operand->getUhdmType() == UhdmType::Constant) {
-                  Constant *c = (Constant *)operand;
-                  size = c->getSize();
-                  if (const RefTypespec *rt = c->getTypespec()) {
-                    if (const Typespec *tps = rt->getActual()) {
-                      size = ExprEval::size(tps, invalidValue, inst, pexpr, true, muteError);
-                    }
-                  }
-                  if (size == 1) {
-                    val = !val;
-                  } else {
-                    uint64_t mask = NumUtils::getMask(size);
-                    val = ~val;
-                    val = val & mask;
-                  }
-                } else {
-                  val = ~val;
-                }
-
-                Constant *c = s.make<Constant>();
-                c->setValue("UINT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(static_cast<int32_t>(size));
-                c->setConstType(vpiUIntConst);
-                result = c;
-              }
-            }
-            break;
-          }
-          case vpiNotOp: {
-            if (operands.size() == 1) {
-              uint64_t val =
-                  !((uint64_t)get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError)));
-              if (invalidValue) break;
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val));
-              c->setDecompile(std::to_string(val));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiInsideOp: {
-            if (operands.size() > 1) {
-              int64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              for (uint32_t i = 1; i < operands.size(); i++) {
-                int64_t oval = get_value(invalidValue, reduceExpr(operands[i], invalidValue, inst, pexpr, muteError));
-                if (invalidValue) break;
-                if (oval == val) {
-                  Constant *c = s.make<Constant>();
-                  c->setValue("UINT:1");
-                  c->setDecompile(std::to_string(1));
-                  c->setSize(64);
-                  c->setConstType(vpiUIntConst);
-                  result = c;
-                  break;
-                }
-              }
-            }
-            break;
-          }
-          case vpiUnaryAndOp: {
-            if (operands.size() == 1) {
-              Constant *cst = (Constant *)(reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              uint64_t val = get_value(invalidValue, cst);
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (int32_t i = 1; i < cst->getSize(); i++) {
-                res = res & ((val & (1ULL << i)) >> i);
-              }
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiUnaryNandOp: {
-            if (operands.size() == 1) {
-              uint64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (uint32_t i = 1; i < 32; i++) {
-                res = res & ((val & (1ULL << i)) >> i);
-              }
-              res = !res;
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiUnaryOrOp: {
-            if (operands.size() == 1) {
-              uint64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (uint32_t i = 1; i < 32; i++) {
-                res = res | ((val & (1ULL << i)) >> i);
-              }
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiUnaryNorOp: {
-            if (operands.size() == 1) {
-              uint64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (uint32_t i = 1; i < 64; i++) {
-                res = res | ((val & (1ULL << i)) >> i);
-              }
-              res = !res;
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiUnaryXorOp: {
-            if (operands.size() == 1) {
-              uint64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (uint32_t i = 1; i < 64; i++) {
-                res = res ^ ((val & (1ULL << i)) >> i);
-              }
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiUnaryXNorOp: {
-            if (operands.size() == 1) {
-              uint64_t val = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              uint64_t res = val & 1;
-              for (uint32_t i = 1; i < 64; i++) {
-                res = res ^ ((val & (1ULL << i)) >> i);
-              }
-              res = !res;
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(res));
-              c->setDecompile(std::to_string(res));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiModOp: {
-            if (operands.size() == 2) {
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              Expr *expr1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
-              int64_t val = 0;
-              if (val1 && (invalidValue == false) && (invalidValueI == false)) {
-                val = val0 % val1;
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
-                if (val1 && (invalidValue == false) && (invalidValueD == false)) {
-                  long double val = 0;
-                  val = std::fmod(val0, val1);
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-                if ((val1 == 0) && (invalidValue == false) && (invalidValueD == false)) {
-                  // Divide by 0
-                  std::string fullPath;
-                  if (const GenScopeArray *in = any_cast<GenScopeArray>(inst)) {
-                    fullPath = in->getFullName();
-                  } else if (inst && inst->getUhdmType() == UhdmType::Design) {
-                    fullPath = inst->getName();
-                  } else if (const Scope *spe = any_cast<Scope>(inst)) {
-                    fullPath = spe->getFullName();
-                  }
-                  if (muteError == false && m_muteError == false)
-                    s.getErrorHandler()(ErrorType::UHDM_DIVIDE_BY_ZERO, fullPath, expr1, nullptr);
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiPowerOp: {
-            if (operands.size() == 2) {
-              Expr *expr0 = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              Expr *expr1 = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t val0 = get_value(invalidValueI, expr0);
-              int64_t val1 = get_value(invalidValueI, expr1);
-              int64_t val = 0;
-              if ((invalidValue == false) && (invalidValueI == false)) {
-                val = static_cast<int64_t>(std::pow<int64_t>(val0, val1));
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double val0 = get_double(invalidValueD, expr0);
-                long double val1 = get_double(invalidValueD, expr1);
-                if ((invalidValue == false) && (invalidValueD == false)) {
-                  long double val = 0;
-                  val = pow(val0, val1);
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-            }
-            break;
-          }
-          case vpiDivOp: {
-            if (operands.size() == 2) {
-              bool divideByZero = true;
-              Expr *div_expr = reduceExpr(operands[1], invalidValue, inst, pexpr, muteError);
-              Expr *num_expr = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              bool invalidValueI = false;
-              bool invalidValueD = false;
-              int64_t divisor = get_value(invalidValueI, div_expr);
-              int64_t num = get_value(invalidValueI, num_expr);
-              if (divisor && (invalidValue == false) && (invalidValueI == false)) {
-                divideByZero = false;
-                int64_t val = num / divisor;
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(val));
-                c->setDecompile(std::to_string(val));
-                c->setSize(64);
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                invalidValueD = false;
-                long double divisor = get_double(invalidValueD, div_expr);
-                long double num = get_double(invalidValueD, num_expr);
-                if (divisor && (invalidValue == false) && (invalidValueD == false)) {
-                  divideByZero = false;
-                  long double val = num / divisor;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("REAL:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiRealConst);
-                  result = c;
-                }
-                if (divisor) {
-                  divideByZero = false;
-                }
-              }
-              if (invalidValueI && invalidValueD) invalidValue = true;
-              if (divideByZero && (!invalidValue)) {
-                // Divide by 0
-                std::string fullPath;
-                if (const GenScopeArray *in = any_cast<GenScopeArray>(inst)) {
-                  fullPath = in->getFullName();
-                } else if (inst && inst->getUhdmType() == UhdmType::Design) {
-                  fullPath = inst->getName();
-                } else if (const Scope *spe = any_cast<Scope>(inst)) {
-                  fullPath = spe->getFullName();
-                }
-                if (muteError == false && m_muteError == false)
-                  s.getErrorHandler()(ErrorType::UHDM_DIVIDE_BY_ZERO, fullPath, div_expr, nullptr);
-              }
-            }
-            break;
-          }
-          case vpiConditionOp: {
-            if (operands.size() == 3) {
-              bool localInvalidValue = false;
-              Expr *cond = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-              int64_t condVal = get_value(invalidValue, cond);
-              if (invalidValue) break;
-              int64_t val = 0;
-              Expr *the_val = nullptr;
-              if (condVal) {
-                the_val = reduceExpr(operands[1], localInvalidValue, inst, pexpr, muteError);
-              } else {
-                the_val = reduceExpr(operands[2], localInvalidValue, inst, pexpr, muteError);
-              }
-              if (localInvalidValue == false) {
-                val = get_value(localInvalidValue, the_val);
-                if (localInvalidValue == false) {
-                  Constant *c = s.make<Constant>();
-                  c->setValue("INT:" + std::to_string(val));
-                  c->setDecompile(std::to_string(val));
-                  c->setSize(64);
-                  c->setConstType(vpiIntConst);
-                  result = c;
-                } else {
-                  result = the_val;
-                }
-              } else {
-                result = the_val;
-              }
-            }
-            break;
-          }
-          case vpiMultiConcatOp: {
-            if (operands.size() == 2) {
-              int64_t n = get_value(invalidValue, reduceExpr(operands[0], invalidValue, inst, pexpr, muteError));
-              if (invalidValue) break;
-              if (n > 1000) n = 1000;  // Must be -1 or something silly
-              if (n < 0) n = 0;
-              Expr *cv = (Expr *)(operands[1]);
-              if (cv->getUhdmType() != UhdmType::Constant) {
-                cv = reduceExpr(cv, invalidValue, inst, pexpr, muteError);
-                if (cv->getUhdmType() != UhdmType::Constant) {
-                  break;
-                }
-              }
-              Constant *c = s.make<Constant>();
-              int64_t width = cv->getSize();
-              int32_t consttype = ((Constant *)cv)->getConstType();
-              c->setConstType(consttype);
-              if (consttype == vpiBinaryConst) {
-                std::string_view val = cv->getValue();
-                val.remove_prefix(std::string_view("BIN:").length());
-                std::string value;
-                if (width > (int32_t)val.size()) {
-                  value.append(width - val.size(), '0');
-                }
-                value += val;
-                std::string res;
-                for (uint32_t i = 0; i < n; i++) {
-                  res += value;
-                }
-                c->setValue("BIN:" + res);
-                c->setDecompile(res);
-              } else if (consttype == vpiHexConst) {
-                std::string_view val = cv->getValue();
-                val.remove_prefix(std::string_view("HEX:").length());
-                std::string res;
-                for (uint32_t i = 0; i < n; i++) {
-                  res += val;
-                }
-                c->setValue("HEX:" + res);
-                c->setDecompile(res);
-              } else if (consttype == vpiOctConst) {
-                std::string_view val = cv->getValue();
-                val.remove_prefix(std::string_view("OCT:").length());
-                std::string res;
-                for (uint32_t i = 0; i < n; i++) {
-                  res += val;
-                }
-                c->setValue("OCT:" + res);
-                c->setDecompile(res);
-              } else if (consttype == vpiStringConst) {
-                std::string_view val = cv->getValue();
-                val.remove_prefix(std::string_view("STRING:").length());
-                std::string res;
-                for (uint32_t i = 0; i < n; i++) {
-                  res += val;
-                }
-                c->setValue("STRING:" + res);
-                c->setDecompile(res);
-              } else {
-                uint64_t val = get_value(invalidValue, cv);
-                if (invalidValue) break;
-                uint64_t res = 0;
-                for (uint32_t i = 0; i < n; i++) {
-                  res |= val << (i * width);
-                }
-                c->setValue("UINT:" + std::to_string(res));
-                c->setDecompile(std::to_string(res));
-                c->setConstType(vpiUIntConst);
-              }
-              c->setSize(static_cast<int32_t>(n * width));
-              // Word size
-              if (width) {
-                IntTypespec *ts = s.make<IntTypespec>();
-                ts->setValue("UINT:" + std::to_string(width));
-                RefTypespec *rt = s.make<RefTypespec>();
-                rt->setActual(ts);
-                rt->setParent(c);
-                c->setTypespec(rt);
-              }
-              result = c;
-            }
-            break;
-          }
-          case vpiConcatOp: {
-            Constant *c1 = s.make<Constant>();
-            std::string cval;
-            int32_t csize = 0;
-            bool stringVal = false;
-            for (uint32_t i = 0; i < operands.size(); i++) {
-              Any *oper = operands[i];
-              UhdmType optype = oper->getUhdmType();
-              int32_t operType = 0;
-              if (optype == UhdmType::Operation) {
-                Operation *o = (Operation *)oper;
-                operType = o->getOpType();
-              }
-              if ((optype != UhdmType::Constant) && (operType != vpiConcatOp) &&
-                  (operType != vpiMultiAssignmentPatternOp) && (operType != vpiAssignmentPatternOp)) {
-                if (Expr *tmp = reduceExpr(oper, invalidValue, inst, pexpr, muteError)) {
-                  oper = tmp;
-                }
-                optype = oper->getUhdmType();
-              }
-              if (optype == UhdmType::Constant) {
-                Constant *c2 = (Constant *)oper;
-                std::string_view sv = c2->getValue();
-                int32_t size = c2->getSize();
-                csize += size;
-                int32_t type = c2->getConstType();
-                switch (type) {
-                  case vpiBinaryConst: {
-                    sv.remove_prefix(std::string_view("BIN:").length());
-                    std::string value;
-                    if (size > (int32_t)sv.size()) {
-                      value.append(size - sv.size(), '0');
-                    }
-                    if (op->getReordered()) {
-                      value.append(sv.rbegin(), sv.rend());
-                    } else {
-                      value.append(sv.begin(), sv.end());
-                    }
-                    cval += value;
-                    break;
-                  }
-                  case vpiDecConst: {
-                    sv.remove_prefix(std::string_view("DEC:").length());
-                    int64_t iv = 0;
-                    if (NumUtils::parseInt64(sv, &iv) == nullptr) {
-                      iv = 0;
-                    }
-                    std::string bin = NumUtils::toBinary(size, iv);
-                    if (op->getReordered()) {
-                      std::reverse(bin.begin(), bin.end());
-                    }
-                    cval += bin;
-                    break;
-                  }
-                  case vpiHexConst: {
-                    sv.remove_prefix(std::string_view("HEX:").length());
-                    std::string tmp = NumUtils::hexToBin(sv);
-                    std::string value;
-                    if (size > (int32_t)tmp.size()) {
-                      value.append(size - tmp.size(), '0');
-                    } else if (size < (int32_t)tmp.size()) {
-                      tmp.erase(0, (int32_t)tmp.size() - size);
-                    }
-                    if (op->getReordered()) {
-                      std::reverse(tmp.begin(), tmp.end());
-                    }
-                    value += tmp;
-                    cval += value;
-                    break;
-                  }
-                  case vpiOctConst: {
-                    sv.remove_prefix(std::string_view("OCT:").length());
-                    int64_t iv = 0;
-                    if (NumUtils::parseOctal(sv, &iv) == nullptr) {
-                      iv = 0;
-                    }
-                    std::string bin = NumUtils::toBinary(size, iv);
-                    if (op->getReordered()) {
-                      std::reverse(bin.begin(), bin.end());
-                    }
-                    cval += bin;
-                    break;
-                  }
-                  case vpiIntConst: {
-                    if (operands.size() == 1 || (size != 64)) {
-                      sv.remove_prefix(std::string_view("INT:").length());
-                      int64_t iv = 0;
-                      if (NumUtils::parseInt64(sv, &iv) == nullptr) {
-                        iv = 0;
-                      }
-                      std::string bin = NumUtils::toBinary(size, iv);
-                      if (op->getReordered()) {
-                        std::reverse(bin.begin(), bin.end());
-                      }
-                      cval += bin;
-                    } else {
-                      c1 = nullptr;
-                    }
-                    break;
-                  }
-                  case vpiUIntConst: {
-                    if (operands.size() == 1 || (size != 64)) {
-                      sv.remove_prefix(std::string_view("UINT:").length());
-                      uint64_t iv = 0;
-                      if (NumUtils::parseUint64(sv, &iv) == nullptr) {
-                        iv = 0;
-                      }
-                      std::string bin = NumUtils::toBinary(size, iv);
-                      if (op->getReordered()) {
-                        std::reverse(bin.begin(), bin.end());
-                      }
-                      cval += bin;
-                    } else {
-                      c1 = nullptr;
-                    }
-                    break;
-                  }
-                  case vpiStringConst: {
-                    sv.remove_prefix(std::string_view("STRING:").length());
-                    cval += sv;
-                    stringVal = true;
-                    break;
-                  }
-                  default: {
-                    if (sv.find("UINT:") == 0) {
-                      sv.remove_prefix(std::string_view("UINT:").length());
-                      uint64_t iv = 0;
-                      if (NumUtils::parseUint64(sv, &iv) == nullptr) {
-                        iv = 0;
-                      }
-                      std::string bin = NumUtils::toBinary(size, iv);
-                      if (op->getReordered()) {
-                        std::reverse(bin.begin(), bin.end());
-                      }
-                      cval += bin;
-                    } else {
-                      sv.remove_prefix(std::string_view("IINT:").length());
-                      int64_t iv = 0;
-                      if (NumUtils::parseInt64(sv, &iv) == nullptr) {
-                        iv = 0;
-                      }
-                      std::string bin = NumUtils::toBinary(size, iv);
-                      if (op->getReordered()) {
-                        std::reverse(bin.begin(), bin.end());
-                      }
-                      cval += bin;
-                    }
-                    break;
-                  }
-                }
-              } else {
-                c1 = nullptr;
-                break;
-              }
-            }
-            if (c1) {
-              if (stringVal) {
-                c1->setValue("STRING:" + cval);
-                c1->setSize(static_cast<int32_t>(cval.size() * 8));
-                c1->setConstType(vpiStringConst);
-              } else {
-                if (op->getReordered()) {
-                  std::reverse(cval.begin(), cval.end());
-                }
-                if (cval.size() > UHDM_MAX_BIT_WIDTH) {
-                  std::string fullPath;
-                  if (const GenScopeArray *in = any_cast<GenScopeArray>(inst)) {
-                    fullPath = in->getFullName();
-                  } else if (inst && inst->getUhdmType() == UhdmType::Design) {
-                    fullPath = inst->getName();
-                  } else if (const Scope *spe = any_cast<Scope>(inst)) {
-                    fullPath = spe->getFullName();
-                  }
-                  if (muteError == false && m_muteError == false)
-                    s.getErrorHandler()(ErrorType::UHDM_INTERNAL_ERROR_OUT_OF_BOUND, fullPath, op, nullptr);
-                  cval = "0";
-                }
-                c1->setValue("BIN:" + cval);
-                c1->setSize(csize);
-                c1->setConstType(vpiBinaryConst);
-              }
-              result = c1;
-            }
-            break;
-          }
-          case vpiCastOp: {
-            Expr *oper = reduceExpr(operands[0], invalidValue, inst, pexpr, muteError);
-            uint64_t val0 = get_value(invalidValue, oper);
-            if (invalidValue) break;
-            const Typespec *tps = nullptr;
-            if (const RefTypespec *rt = op->getTypespec()) {
-              tps = rt->getActual();
-            }
-            if (tps == nullptr) break;
-            UhdmType ttps = tps->getUhdmType();
-            if (ttps == UhdmType::IntTypespec) {
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string((int32_t)val0));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            } else if (ttps == UhdmType::LongIntTypespec) {
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string((int64_t)val0));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            } else if (ttps == UhdmType::ShortIntTypespec) {
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string((int16_t)val0));
-              c->setSize(16);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            } else if (ttps == UhdmType::IntegerTypespec) {
-              IntegerTypespec *itps = (IntegerTypespec *)tps;
-              std::string_view val = itps->getValue();
-              uint64_t cast_to = 0;
-              if (val.empty()) {
-                cast_to = 32;
-              } else if (val.find("UINT:") == 0) {
-                val.remove_prefix(std::string_view("UINT:").length());
-                if (NumUtils::parseUint64(val, &cast_to) == nullptr) {
-                  cast_to = 32;
-                }
-              } else {
-                val.remove_prefix(std::string_view("INT:").length());
-                if (NumUtils::parseIntLenient(val, &cast_to) == nullptr) {
-                  cast_to = 32;
-                }
-              }
-              Constant *c = s.make<Constant>();
-              uint64_t mask = ((uint64_t)(1ULL << cast_to)) - 1ULL;
-              uint64_t res = val0 & mask;
-              c->setValue("UINT:" + std::to_string(res));
-              c->setSize(static_cast<int32_t>(cast_to));
-              c->setConstType(vpiUIntConst);
-              result = c;
-            } else if (ttps == UhdmType::EnumTypespec) {
-              // TODO: Should check the value is in Range of the enum and
-              // issue error if not
-              Constant *c = s.make<Constant>();
-              c->setValue("UINT:" + std::to_string(val0));
-              c->setSize(64);
-              c->setConstType(vpiUIntConst);
-              result = c;
-            }
-            break;
-          }
-          case vpiMultiAssignmentPatternOp:
-          case vpiAssignmentPatternOp:
-            // Don't reduce these ops
-            break;
-          default: {
-            invalidValue = true;
-            break;
-          }
-        }
-      }
-    }
-    return (Expr *)result;
-  } else if (objtype == UhdmType::Constant) {
-    return (Expr *)result;
-  } else if (objtype == UhdmType::SysFuncCall) {
-    SysFuncCall *scall = (SysFuncCall *)result;
-    const std::string_view name = scall->getName();
-    if ((name == "$bits") || (name == "$size") || (name == "$high") || (name == "$low") || (name == "$left") ||
-        (name == "$right")) {
-      uint64_t bits = 0;
-      bool found = false;
-      for (auto arg : *scall->getArguments()) {
-        UhdmType argtype = arg->getUhdmType();
-        if (argtype == UhdmType::RefObj) {
-          RefObj *ref = (RefObj *)arg;
-          const std::string_view objname = ref->getName();
-          Any *object = getObject(objname, inst, pexpr, muteError);
-          if (object == nullptr) {
-            if (inst && inst->getUhdmType() == UhdmType::Package) {
-              std::string name(inst->getName());
-              name.append("::").append(objname);
-              object = getObject(name, inst, pexpr, muteError);
-            }
-          }
-          if (object) {
-            if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-              object = passign->getRhs();
-            }
-          }
-          if (object == nullptr) {
-            object = getValue(objname, inst, pexpr, muteError);
-          }
-          const Typespec *tps = nullptr;
-          if (Expr *exp = any_cast<Expr>(object)) {
-            if (RefTypespec *rt = exp->getTypespec()) {
-              tps = rt->getActual();
-            }
-          } else if (Typespec *tp = any_cast<Typespec>(object)) {
-            tps = tp;
-          }
-
-          if ((tps != nullptr) && (tps->getUhdmType() == UhdmType::ArrayTypespec)) {
-            // Size the object, not its Typespec
-            tps = nullptr;
-          }
-
-          if ((name == "$high") || (name == "$low") || (name == "$left") || (name == "$right")) {
-            RangeCollection *ranges = nullptr;
-            if (tps) {
-              switch (tps->getUhdmType()) {
-                case UhdmType::BitTypespec: {
-                  BitTypespec *bts = (BitTypespec *)tps;
-                  ranges = bts->getRanges();
-                  break;
-                }
-                case UhdmType::IntTypespec: {
-                  IntTypespec *bts = (IntTypespec *)tps;
-                  ranges = bts->getRanges();
-                  break;
-                }
-                case UhdmType::LogicTypespec: {
-                  LogicTypespec *bts = (LogicTypespec *)tps;
-                  ranges = bts->getRanges();
-                  break;
-                }
-                case UhdmType::ArrayTypespec: {
-                  ArrayTypespec *bts = (ArrayTypespec *)tps;
-                  ranges = bts->getRanges();
-                  break;
-                }
-                default: break;
-              }
-            }
-            if (ranges) {
-              Range *r = ranges->at(0);
-              Expr *lr = r->getLeftExpr();
-              Expr *rr = r->getRightExpr();
-              bool invalidValue = false;
-              lr = reduceExpr(lr, invalidValue, inst, pexpr, muteError);
-              ExprEval eval;
-              int64_t lrv = eval.get_value(invalidValue, lr);
-              rr = reduceExpr(rr, invalidValue, inst, pexpr, muteError);
-              int64_t rrv = eval.get_value(invalidValue, rr);
-              if (name == "$left") {
-                return lr;
-              } else if (name == "$right") {
-                return rr;
-              } else if (name == "$high") {
-                if (lrv > rrv) {
-                  return lr;
-                } else {
-                  return rr;
-                }
-              } else if (name == "$low") {
-                if (lrv > rrv) {
-                  return rr;
-                } else {
-                  return lr;
-                }
-              }
-            }
-          }
-
-          if (tps) {
-            bits += size(tps, invalidValue, inst, pexpr, (name != "$size"));
-            found = true;
-          } else {
-            if (object) {
-              bits += size(object, invalidValue, inst, pexpr, (name != "$size"));
-              found = true;
-            } else {
-              invalidValue = true;
-            }
-          }
-        } else if (argtype == UhdmType::Operation) {
-          Operation *oper = (Operation *)arg;
-          if (oper->getOpType() == vpiConcatOp) {
-            for (auto op : *oper->getOperands()) {
-              bits += size(op, invalidValue, inst, pexpr, (name != "$size"));
-            }
-            found = true;
-          }
-        } else if (argtype == UhdmType::HierPath) {
-          HierPath *path = (HierPath *)arg;
-          auto elems = path->getPathElems();
-          if (elems && (elems->size() > 1)) {
-            const std::string_view base = elems->at(0)->getName();
-            const std::string_view suffix = elems->at(1)->getName();
-            Any *var = getObject(base, inst, pexpr, muteError);
-            if (var) {
-              if (ParamAssign *passign = any_cast<ParamAssign>(var)) {
-                var = passign->getRhs();
-              }
-            }
-            if (const Port *p = any_cast<Port>(var)) {
-              if (const RefTypespec *prt = p->getTypespec()) {
-                if (const StructTypespec *tpss = prt->getActual<StructTypespec>()) {
-                  for (TypespecMember *memb : *tpss->getMembers()) {
-                    if (memb->getName() == suffix) {
-                      if (const RefTypespec *rom = memb->getTypespec()) {
-                        bits += size(rom->getActual(), invalidValue, inst, pexpr, (name != "$size"));
-                        found = true;
-                      }
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      if (found) {
-        Constant *c = s.make<Constant>();
-        c->setValue("UINT:" + std::to_string(bits));
-        c->setDecompile(std::to_string(bits));
-        c->setSize(64);
-        c->setConstType(vpiUIntConst);
-        result = c;
-      }
-    } else if (name == "$clog2") {
-      bool invalidValue = false;
-      for (auto arg : *scall->getArguments()) {
-        uint64_t clog2 = 0;
-        uint64_t val = get_uvalue(invalidValue, reduceExpr(arg, invalidValue, inst, pexpr, muteError));
-        if (val) {
-          val = val - 1;
-          for (; val > 0; clog2 = clog2 + 1) {
-            val = val >> 1;
-          }
-        }
-        if (invalidValue == false) {
-          Constant *c = s.make<Constant>();
-          c->setValue("UINT:" + std::to_string(clog2));
-          c->setDecompile(std::to_string(clog2));
-          c->setSize(64);
-          c->setConstType(vpiUIntConst);
-          result = c;
-        }
-      }
-    } else if (name == "$signed" || name == "$unsigned") {
-      if (scall->getArguments()) {
-        const Typespec *optps = nullptr;
-        if (const RefTypespec *rt = scall->getTypespec()) {
-          optps = rt->getActual();
-        }
-        for (auto arg : *scall->getArguments()) {
-          bool invalidTmpValue = false;
-          Expr *val = reduceExpr(arg, invalidTmpValue, inst, pexpr, muteError);
-          if (val && (val->getUhdmType() == UhdmType::Constant) && !invalidTmpValue) {
-            Constant *c = (Constant *)val;
-            if (c->getConstType() == vpiIntConst || c->getConstType() == vpiDecConst) {
-              int64_t value = get_value(invalidValue, val);
-              int64_t size = c->getSize();
-              if (name == "$signed") {
-                return c;
-              } else {
-                uint64_t res = value;
-                if (value >= 0) {
-                  return c;
-                } else {
-                  res = ~value;
-                  res = ~res;
-                  uint64_t mask = NumUtils::getMask(size);
-                  res = res & mask;
-                  Constant *c = s.make<Constant>();
-                  c->setValue("UINT:" + std::to_string(res));
-                  c->setDecompile(std::to_string(res));
-                  c->setSize(static_cast<int32_t>(size));
-                  c->setConstType(vpiUIntConst);
-                  result = c;
-                }
-              }
-            } else if (c->getConstType() == vpiUIntConst || c->getConstType() == vpiBinaryConst ||
-                       c->getConstType() == vpiHexConst || c->getConstType() == vpiOctConst) {
-              uint64_t value = get_uvalue(invalidValue, val);
-              int64_t size = c->getSize();
-              if (name == "$signed") {
-                int64_t res = value;
-                bool negsign = value & (1ULL << (size - 1));
-                if (optps) {
-                  uint32_t bits = ExprEval::size(optps, invalidValue, inst, pexpr, false);
-                  bool is_signed = false;
-                  if (optps->getUhdmType() == UhdmType::LogicTypespec) {
-                    LogicTypespec *ltps = (LogicTypespec *)optps;
-                    is_signed = ltps->getSigned();
-                  }
-                  if (!is_signed) {
-                    if ((size >= 0) && (bits > size)) {
-                      for (uint32_t i = (uint32_t)size; i < bits; i++) {
-                        res |= 1ULL << i;
-                      }
-                    }
-                  } else {
-                    uint32_t half = (2 << (size - 2));
-                    if (res >= half) {
-                      res = (-(2 << (size - 1))) + res;
-                    }
-                  }
-                } else {
-                  if (negsign) {
-                    res &= ~(1ULL << (size - 1));
-                    res = -res;
-                  }
-                }
-                Constant *c = s.make<Constant>();
-                c->setValue("INT:" + std::to_string(res));
-                c->setDecompile(std::to_string(res));
-                c->setSize(static_cast<int32_t>(size));
-                c->setConstType(vpiIntConst);
-                result = c;
-              } else {
-                result = c;
-              }
-            }
-          }
-        }
-      }
-    }
-  } else if (objtype == UhdmType::FuncCall) {
-    FuncCall *scall = (FuncCall *)result;
-    const std::string_view name = scall->getName();
-    std::vector<Any *> *args = scall->getArguments();
-    Function *actual_func = nullptr;
-    if (TaskFunc *func = getTaskFunc(name, inst)) {
-      actual_func = any_cast<Function>(func);
-    }
-    if (actual_func == nullptr) {
-      if (muteError == false && m_muteError == false) {
-        const std::string errMsg(name);
-        s.getErrorHandler()(ErrorType::UHDM_UNDEFINED_USER_FUNCTION, errMsg, scall, nullptr);
-      }
-      invalidValue = true;
-    }
-    if (Expr *tmp = evalFunc(actual_func, args, invalidValue, inst, (Any *)pexpr, muteError)) {
-      if (!invalidValue) result = tmp;
-    }
-  } else if (objtype == UhdmType::RefObj) {
-    RefObj *ref = (RefObj *)result;
-    const std::string_view name = ref->getName();
-    if (Any *tmp = getValue(name, inst, pexpr, muteError)) {
-      result = tmp;
-    }
-    return (Expr *)result;
-  } else if (objtype == UhdmType::HierPath) {
-    HierPath *path = (HierPath *)result;
-    return (Expr *)decodeHierPath(path, invalidValue, inst, pexpr, false);
-  } else if (objtype == UhdmType::BitSelect) {
-    BitSelect *sel = (BitSelect *)result;
-    const std::string_view name = sel->getName();
-    const Expr *index = sel->getIndex();
-    uint64_t index_val = get_value(invalidValue, reduceExpr((Expr *)index, invalidValue, inst, pexpr, muteError));
-    if (invalidValue == false) {
-      Any *object = getObject(name, inst, pexpr, muteError);
-      if (object) {
-        if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-          object = (Any *)passign->getRhs();
-        }
-      }
-      if (object == nullptr) {
-        object = getValue(name, inst, pexpr, muteError);
-      }
-      if (object && (object != result)) {
-        if (Expr *tmp = reduceExpr((Expr *)object, invalidValue, inst, pexpr, muteError)) {
-          object = tmp;
-        }
-        UhdmType otype = object->getUhdmType();
-        if (otype == UhdmType::Variable) {
-          // PackedArrayVar *array = (PackedArrayVar *)object;
-          // AnyCollection *elems = array->getElements();
-          // if (elems && index_val < elems->size()) {
-          //   Any *elem = elems->at(index_val);
-          //   if (elem->getUhdmType() == UhdmType::EnumVar ||
-          //       elem->getUhdmType() == UhdmType::StructVar ||
-          //       elem->getUhdmType() == UhdmType::UnionVar ||
-          //       elem->getUhdmType() == UhdmType::LogicVar) {
-          //   } else {
-          //     result = elems->at(index_val);
-          //   }
-          // }
-        } else if (otype == UhdmType::ArrayExpr) {
-          ArrayExpr *array = (ArrayExpr *)object;
-          ExprCollection *elems = array->getExprs();
-          if (index_val < elems->size()) {
-            result = elems->at(index_val);
-          }
-        } else if (otype == UhdmType::Operation) {
-          Operation *op = (Operation *)object;
-          int32_t opType = op->getOpType();
-          if (opType == vpiAssignmentPatternOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              result = ops->at(index_val);
-              if (result->getUhdmType() == UhdmType::Operation) {
-                if (const RefTypespec *oprt = op->getTypespec()) {
-                  if (const ArrayTypespec *atps = oprt->getActual<ArrayTypespec>()) {
-                    if (const RefTypespec *ert = atps->getElemTypespec()) {
-                      if (const Typespec *ertts = ert->getActual()) {
-                        Elaborator elaborator(&s, false, muteError);
-                        RefTypespec *celrt = elaborator.clone<>(ert, const_cast<Any *>(result));
-                        celrt->setActual(const_cast<Typespec *>(ertts));
-                        ((Operation *)result)->setTypespec(celrt);
-                      }
-                    }
-                  }
-                }
-              }
-            } else if (ops) {
-              bool defaultTaggedPattern = false;
-              for (auto op : *ops) {
-                if (op->getUhdmType() == UhdmType::TaggedPattern) {
-                  TaggedPattern *tp = (TaggedPattern *)op;
-                  if (const RefTypespec *rt = tp->getTypespec()) {
-                    if (const Typespec *tps = rt->getActual()) {
-                      if (tps->getName() == "default") {
-                        defaultTaggedPattern = true;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-              if (!defaultTaggedPattern) invalidValue = true;
-            } else {
-              invalidValue = true;
-            }
-          } else if (opType == vpiConcatOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              result = ops->at(index_val);
-            } else {
-              invalidValue = true;
-            }
-          } else if (opType == vpiConditionOp) {
-            Expr *exp = reduceExpr(op, invalidValue, inst, pexpr, muteError);
-            UhdmType otype = exp->getUhdmType();
-            if (otype == UhdmType::Operation) {
-              Operation *op = (Operation *)exp;
-              int32_t opType = op->getOpType();
-              if (opType == vpiAssignmentPatternOp) {
-                AnyCollection *ops = op->getOperands();
-                if (ops && (index_val < ops->size())) {
-                  object = ops->at(index_val);
-                } else {
-                  invalidValue = true;
-                }
-              } else if (opType == vpiConcatOp) {
-                AnyCollection *ops = op->getOperands();
-                if (ops && (index_val < ops->size())) {
-                  object = ops->at(index_val);
-                } else {
-                  invalidValue = true;
-                }
-              }
-            }
-            if (object) result = object;
-          } else if (opType == vpiMultiConcatOp) {
-            result = reduceBitSelect(op, static_cast<uint32_t>(index_val), invalidValue, inst, pexpr);
-          }
-        } else if (otype == UhdmType::Constant) {
-          result = reduceBitSelect((Constant *)object, static_cast<uint32_t>(index_val), invalidValue, inst, pexpr);
-        }
-      }
-    }
-  } else if (objtype == UhdmType::PartSelect) {
-    PartSelect *sel = (PartSelect *)result;
-    std::string_view name = sel->getName();
-    if (name.empty()) name = sel->getDefName();
-    Any *object = getObject(name, inst, pexpr, muteError);
-    if (object) {
-      if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-        object = passign->getRhs();
-      }
-    }
-    if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
-    }
-    if (object && (object->getUhdmType() == UhdmType::Constant)) {
-      Constant *co = (Constant *)object;
-      std::string binary = toBinary(co);
-      int64_t l = get_value(invalidValue, reduceExpr(sel->getLeftExpr(), invalidValue, inst, pexpr, muteError));
-      int64_t r = get_value(invalidValue, reduceExpr(sel->getRightExpr(), invalidValue, inst, pexpr, muteError));
-      std::reverse(binary.begin(), binary.end());
-      std::string sub;
-      if (r > (int64_t)binary.size() || l > (int64_t)binary.size()) {
-        sub = "0";
-      } else {
-        if (l > r)
-          sub = binary.substr(r, l - r + 1);
-        else
-          sub = binary.substr(l, r - l + 1);
-      }
-      std::reverse(sub.begin(), sub.end());
-      Constant *c = s.make<Constant>();
-      c->setValue("BIN:" + sub);
-      c->setDecompile(sub);
-      c->setSize(static_cast<int32_t>(sub.size()));
-      c->setConstType(vpiBinaryConst);
-      result = c;
-    }
-  } else if (objtype == UhdmType::IndexedPartSelect) {
-    IndexedPartSelect *sel = (IndexedPartSelect *)result;
-    std::string_view name = sel->getName();
-    if (name.empty()) name = sel->getDefName();
-    Any *object = getObject(name, inst, pexpr, muteError);
-    if (object) {
-      if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-        object = (Any *)passign->getRhs();
-      }
-    }
-    if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
-    }
-    if (object && (object->getUhdmType() == UhdmType::Constant)) {
-      Constant *co = (Constant *)object;
-      std::string binary = toBinary(co);
-      int64_t base = get_value(invalidValue, reduceExpr(sel->getBaseExpr(), invalidValue, inst, pexpr, muteError));
-      int64_t offset = get_value(invalidValue, reduceExpr(sel->getWidthExpr(), invalidValue, inst, pexpr, muteError));
-      std::reverse(binary.begin(), binary.end());
-      std::string sub;
-      if (sel->getIndexedPartSelectType() == vpiPosIndexed) {
-        if ((uint32_t)(base + offset) <= binary.size()) sub = binary.substr(base, offset);
-      } else {
-        if ((uint32_t)base < binary.size()) sub = binary.substr(base - offset, offset);
-      }
-      std::reverse(sub.begin(), sub.end());
-      Constant *c = s.make<Constant>();
-      c->setValue("BIN:" + sub);
-      c->setDecompile(sub);
-      c->setSize(static_cast<int32_t>(sub.size()));
-      c->setConstType(vpiBinaryConst);
-      result = c;
-    }
-  } else if (objtype == UhdmType::VarSelect) {
-    VarSelect *sel = (VarSelect *)result;
-    const std::string_view name = sel->getName();
-    Any *object = getObject(name, inst, pexpr, muteError);
-    if (object) {
-      if (ParamAssign *passign = any_cast<ParamAssign>(object)) {
-        object = passign->getRhs();
-      }
-    }
-    if (object == nullptr) {
-      object = getValue(name, inst, pexpr, muteError);
-    }
-    bool selection = false;
-    for (auto index : *sel->getIndexes()) {
-      uint64_t index_val = get_value(invalidValue, reduceExpr((Expr *)index, invalidValue, inst, pexpr, muteError));
-      if (object) {
-        UhdmType otype = object->getUhdmType();
-        if (otype == UhdmType::Operation) {
-          Operation *op = (Operation *)object;
-          int32_t opType = op->getOpType();
-          if (opType == vpiAssignmentPatternOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-              selection = true;
-            } else {
-              invalidValue = true;
-            }
-          } else if (opType == vpiConcatOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-              selection = true;
-            } else {
-              invalidValue = true;
-            }
-          } else if (opType == vpiConditionOp) {
-            Expr *exp = reduceExpr(object, invalidValue, inst, pexpr, muteError);
-            UhdmType otype = exp->getUhdmType();
-            if (otype == UhdmType::Operation) {
-              Operation *op = (Operation *)exp;
-              int32_t opType = op->getOpType();
-              if (opType == vpiAssignmentPatternOp) {
-                AnyCollection *ops = op->getOperands();
-                if (ops && (index_val < ops->size())) {
-                  object = ops->at(index_val);
-                  selection = true;
-                } else {
-                  invalidValue = true;
-                }
-              } else if (opType == vpiConcatOp) {
-                AnyCollection *ops = op->getOperands();
-                if (ops && (index_val < ops->size())) {
-                  object = ops->at(index_val);
-                  selection = true;
-                } else {
-                  invalidValue = true;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    if (object && selection) result = object;
-  }
-  if (result && result->getUhdmType() == UhdmType::RefObj) {
-    bool invalidValueTmp = false;
-    Expr *tmp = reduceExpr(result, invalidValue, inst, pexpr, muteError);
-    if (tmp && !invalidValueTmp) result = tmp;
-  }
-  return (Expr *)result;
-}
-
 bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsexp, bool &invalidValue, Serializer &s,
                                   const Any *inst, const Any *scope_exp,
-                                  std::map<std::string, const Typespec *> &local_vars, int opType, bool muteError) {
+                                  std::map<std::string, const Typespec *, std::less<>> &local_vars, int32_t opType,
+                                  bool muteError) {
   bool invalidValueI = false;
   bool invalidValueUI = false;
   bool invalidValueD = false;
@@ -3898,9 +6856,12 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
   bool opRhs = false;
   std::string_view lhsname = lhs;
   if (lhsname.empty()) lhsname = lhsexp->getName();
-  rhsexp = reduceExpr(rhsexp, invalidValue, inst, nullptr, muteError);
-  int64_t valI = get_value(invalidValueI, rhsexp);
-  uint64_t valUI = get_uvalue(invalidValueUI, rhsexp);
+  Expr *rhs = nullptr;
+  if (!reduceExpr(rhsexp, nullptr, &rhs, muteError)) return false;
+  int64_t valI = 0;
+  invalidValueI = !getInt64(rhsexp, &valI);
+  uint64_t valUI = 0;
+  invalidValueUI = !getUInt64(rhsexp, &valUI);
   if (rhsexp && (rhsexp->getUhdmType() == UhdmType::Constant)) {
     Constant *t = (Constant *)rhsexp;
     if (t->getConstType() != vpiBinaryConst) {
@@ -3909,12 +6870,12 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
   }
   long double valD = 0;
   if (invalidValueI) {
-    valD = get_double(invalidValueD, rhsexp);
+    invalidValueD = !getDouble(rhsexp, &valD);
   }
   uint64_t wordSize = 1;
   const std::string_view name = lhsexp->getName();
-  if (Any *object = getObject(name, inst, scope_exp, muteError)) {
-    wordSize = getWordSize(any_cast<Expr>(object), inst, scope_exp);
+  if (const Any *const object = getObject(name, inst, scope_exp, muteError)) {
+    invalidValueI = !getWordSize(any_cast<Expr>(object), scope_exp, &wordSize);
   }
   ParamAssignCollection *ParamAssigns = nullptr;
   if (inst && inst->getUhdmType() == UhdmType::GenScopeArray) {
@@ -3959,7 +6920,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
         }
       }
       Constant *c = s.make<Constant>();
-      c->setValue("REAL:" + std::to_string((double)valD));
+      c->setValue(std::to_string((double)valD));
       c->setDecompile(std::to_string(valD));
       c->setSize(64);
       c->setConstType(vpiRealConst);
@@ -3976,7 +6937,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
       Constant *c = any_cast<Constant>(rhsexp);
       if (c == nullptr) {
         c = s.make<Constant>();
-        c->setValue("INT:" + std::to_string(valI));
+        c->setValue(std::to_string(valI));
         c->setDecompile(std::to_string(valI));
         c->setSize(64);
         c->setConstType(vpiIntConst);
@@ -3991,20 +6952,22 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
         }
         Operation *op = (Operation *)lhsexp;
         if (op->getOpType() == vpiConcatOp) {
-          std::string rhsbinary = toBinary(c);
+          std::string rhsbinary;
+          invalidValue = !formatBinary(c, &rhsbinary);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           AnyCollection *operands = op->getOperands();
           uint64_t accumul = 0;
           for (Any *oper : *operands) {
             const std::string_view name = oper->getName();
-            uint64_t si = size(oper, invalidValue, inst, lhsexp, true, muteError);
+            uint64_t si = 0;
+            invalidValue = !getBitCount(oper, lhsexp, true, &si, muteError);
             std::string part;
             for (uint64_t i = accumul; i < accumul + si; i++) {
               part += rhsbinary[i];
             }
             std::reverse(part.begin(), part.end());
             Constant *c = s.make<Constant>();
-            c->setValue("BIN:" + part);
+            c->setValue(part);
             c->setDecompile(part);
             c->setSize(static_cast<int32_t>(part.size()));
             c->setConstType(vpiBinaryConst);
@@ -4022,7 +6985,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
         }
         IndexedPartSelect *sel = (IndexedPartSelect *)lhsexp;
         const std::string_view name = lhsexp->getName();
-        if (Any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (const Any *const object = getObject(name, inst, scope_exp, muteError)) {
           std::string lhsbinary;
           const Typespec *tps = nullptr;
           if (const Expr *elhs = any_cast<const Expr *>(object)) {
@@ -4030,21 +6993,28 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
               tps = rt->getActual();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
+          uint64_t si = 0;
+          if (!getBitCount(tps, lhsexp, true, &si)) si = 0;
           if (prevRhs && prevRhs->getUhdmType() == UhdmType::Constant) {
             const Constant *prev = (Constant *)prevRhs;
-            lhsbinary = toBinary(prev);
+            invalidValue = !formatBinary(prev, &lhsbinary);
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
             for (uint32_t i = 0; i < si; i++) {
               lhsbinary += "x";
             }
           }
-          uint64_t base =
-              get_uvalue(invalidValue, reduceExpr(sel->getBaseExpr(), invalidValue, inst, lhsexp, muteError));
-          uint64_t offset =
-              get_uvalue(invalidValue, reduceExpr(sel->getWidthExpr(), invalidValue, inst, lhsexp, muteError));
-          std::string rhsbinary = toBinary(c);
+          Expr *bexpr = nullptr;
+          invalidValue = !reduceExpr(sel->getBaseExpr(), lhsexp, &bexpr, muteError);
+          uint64_t base = 0;
+          invalidValue = !getUInt64(bexpr, &base);
+
+          Expr *wexpr = nullptr;
+          invalidValue = !reduceExpr(sel->getWidthExpr(), lhsexp, &wexpr, muteError);
+          uint64_t offset = 0;
+          invalidValue = !getUInt64(wexpr, &offset);
+          std::string rhsbinary;
+          invalidValue = !formatBinary(c, &rhsbinary);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           if (sel->getIndexedPartSelectType() == vpiPosIndexed) {
             int32_t index = 0;
@@ -4061,7 +7031,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
           }
           std::reverse(lhsbinary.begin(), lhsbinary.end());
           c = s.make<Constant>();
-          c->setValue("BIN:" + lhsbinary);
+          c->setValue(lhsbinary);
           c->setDecompile(lhsbinary);
           c->setSize(static_cast<int32_t>(lhsbinary.size()));
           c->setConstType(vpiBinaryConst);
@@ -4076,7 +7046,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
         }
         PartSelect *sel = (PartSelect *)lhsexp;
         const std::string_view name = lhsexp->getName();
-        if (Any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (const Any *const object = getObject(name, inst, scope_exp, muteError)) {
           std::string lhsbinary;
           const Typespec *tps = nullptr;
           if (const Expr *elhs = any_cast<const Expr *>(object)) {
@@ -4084,21 +7054,29 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
               tps = rt->getActual();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
-          if (prevRhs && prevRhs->getUhdmType() == UhdmType::Constant) {
+          uint64_t si = 0;
+          if (!getBitCount(tps, lhsexp, true, &si)) {
+            si = 0;
+            invalidValue = true;
+          }
+          if (prevRhs && (prevRhs->getUhdmType() == UhdmType::Constant)) {
             const Constant *prev = (Constant *)prevRhs;
-            lhsbinary = toBinary(prev);
+            invalidValue = !formatBinary(prev, &lhsbinary);
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
-            for (uint32_t i = 0; i < si; i++) {
-              lhsbinary += "x";
-            }
+            lhsbinary.append(si, 'x');
           }
-          uint64_t left =
-              get_uvalue(invalidValue, reduceExpr(sel->getLeftExpr(), invalidValue, inst, lhsexp, muteError));
-          uint64_t right =
-              get_uvalue(invalidValue, reduceExpr(sel->getRightExpr(), invalidValue, inst, lhsexp, muteError));
-          std::string rhsbinary = toBinary(c);
+          Expr *lexpr = nullptr;
+          invalidValue = !reduceExpr(sel->getLeftExpr(), lhsexp, &lexpr, muteError);
+          uint64_t left = 0;
+          invalidValue = !getUInt64(lexpr, &left);
+
+          Expr *rexpr = nullptr;
+          invalidValue = !reduceExpr(sel->getRightExpr(), lhsexp, &rexpr, muteError);
+          uint64_t right = 0;
+          invalidValue = !getUInt64(rexpr, &right);
+          std::string rhsbinary;
+          invalidValue = !formatBinary(c, &rhsbinary);
           std::reverse(rhsbinary.begin(), rhsbinary.end());
           if (left > right) {
             int32_t index = 0;
@@ -4115,16 +7093,19 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
           }
           std::reverse(lhsbinary.begin(), lhsbinary.end());
           c = s.make<Constant>();
-          c->setValue("BIN:" + lhsbinary);
+          c->setValue(lhsbinary);
           c->setDecompile(lhsbinary);
           c->setSize(static_cast<int32_t>(lhsbinary.size()));
           c->setConstType(vpiBinaryConst);
         }
       } else if (lhsexp->getUhdmType() == UhdmType::BitSelect) {
         BitSelect *sel = (BitSelect *)lhsexp;
-        uint64_t index = get_uvalue(invalidValue, reduceExpr(sel->getIndex(), invalidValue, inst, lhsexp, muteError));
+        Expr *iexpr = nullptr;
+        invalidValue = !reduceExpr(sel->getIndex(), lhsexp, &iexpr, muteError);
+        uint64_t index = 0;
+        invalidValue = !getUInt64(iexpr, &index);
         const std::string_view name = lhsexp->getName();
-        if (Any *object = getObject(name, inst, scope_exp, muteError)) {
+        if (const Any *const object = getObject(name, inst, scope_exp, muteError)) {
           if (object->getUhdmType() == UhdmType::ParamAssign) {
             ParamAssign *param = (ParamAssign *)object;
             if (param->getRhs()->getUhdmType() == UhdmType::ArrayExpr) {
@@ -4150,15 +7131,20 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
               tps = rt->getActual();
             }
           }
-          uint64_t si = size(tps, invalidValue, inst, lhsexp, true, muteError);
+          uint64_t si = 0;
+          if (getBitCount(tps, lhsexp, true, &si)) {
+            si = 0;
+            invalidValue = true;
+          }
           if (prevRhs && prevRhs->getUhdmType() == UhdmType::Constant) {
             const Constant *prev = (Constant *)prevRhs;
             if (prev->getConstType() == vpiBinaryConst) {
               std::string_view val = prev->getValue();
-              val.remove_prefix(std::string_view("BIN:").length());
               lhsbinary = val;
             } else {
-              lhsbinary = NumUtils::toBinary(static_cast<int32_t>(si), get_uvalue(invalidValue, prev));
+              uint64_t val = 0;
+              invalidValue = !getUInt64(prev, &val);
+              lhsbinary = NumUtils::toBinary(static_cast<int32_t>(si), val);
             }
             std::reverse(lhsbinary.begin(), lhsbinary.end());
           } else {
@@ -4178,7 +7164,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
           }
           std::reverse(lhsbinary.begin(), lhsbinary.end());
           c = s.make<Constant>();
-          c->setValue("BIN:" + lhsbinary);
+          c->setValue(lhsbinary);
           c->setDecompile(lhsbinary);
           c->setSize(static_cast<int32_t>(lhsbinary.size()));
           c->setConstType(vpiBinaryConst);
@@ -4188,7 +7174,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
           rt->setParent(c);
           c->setTypespec(rt);
         } else {
-          std::map<std::string, const Typespec *>::iterator itr = local_vars.find(std::string(lhs));
+          auto itr = local_vars.find(lhs);
           if (itr != local_vars.end()) {
             if (const Typespec *tps = itr->second) {
               if (tps->getUhdmType() == UhdmType::ArrayTypespec) {
@@ -4218,50 +7204,61 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
         }
       }
       if (opType == vpiAddOp) {
-        uint64_t prevVal = get_uvalue(invalidValue, (Expr *)prevRhs);
-        uint64_t newVal = valUI + prevVal;
-        c->setValue("UINT:" + std::to_string(newVal));
-        c->setDecompile(std::to_string(newVal));
+        uint64_t prevVal = 0;
+        if (!(invalidValue = !getUInt64((Expr *)prevRhs, &prevVal))) {
+          uint64_t newVal = valUI + prevVal;
+          c->setValue(std::to_string(newVal));
+          c->setDecompile(std::to_string(newVal));
+        }
         c->setConstType(vpiUIntConst);
       } else if (opType == vpiSubOp) {
-        int64_t prevVal = get_value(invalidValue, (Expr *)prevRhs);
-        int64_t newVal = prevVal - valI;
-        c->setValue("INT:" + std::to_string(newVal));
-        c->setDecompile(std::to_string(newVal));
+        int64_t prevVal = 0;
+        if (!(invalidValue = !getInt64((Expr *)prevRhs, &prevVal))) {
+          int64_t newVal = prevVal - valI;
+          c->setValue(std::to_string(newVal));
+          c->setDecompile(std::to_string(newVal));
+        }
         c->setConstType(vpiIntConst);
       } else if (opType == vpiMultOp) {
-        int64_t prevVal = get_value(invalidValue, (Expr *)prevRhs);
-        int64_t newVal = prevVal * valI;
-        c->setValue("INT:" + std::to_string(newVal));
-        c->setDecompile(std::to_string(newVal));
+        int64_t prevVal = 0;
+        if (!(invalidValue = !getInt64((Expr *)prevRhs, &prevVal))) {
+          int64_t newVal = prevVal * valI;
+          c->setValue(std::to_string(newVal));
+          c->setDecompile(std::to_string(newVal));
+        }
         c->setConstType(vpiIntConst);
       } else if (opType == vpiDivOp) {
-        int64_t prevVal = get_value(invalidValue, (Expr *)prevRhs);
-        int64_t newVal = prevVal / valI;
-        c->setValue("INT:" + std::to_string(newVal));
-        c->setDecompile(std::to_string(newVal));
+        int64_t prevVal = 0;
+        if (!(invalidValue = !getInt64((Expr *)prevRhs, &prevVal))) {
+          int64_t newVal = prevVal / valI;
+          c->setValue(std::to_string(newVal));
+          c->setDecompile(std::to_string(newVal));
+        }
         c->setConstType(vpiIntConst);
       }
       if ((c->getSize() == -1) && (c->getConstType() == vpiBinaryConst)) {
+        uint64_t size = 0;
         bool tmpInvalidValue = false;
-        uint64_t size = ExprEval::size(lhsexp, tmpInvalidValue, inst, scope_exp, true, true);
-        if (tmpInvalidValue) {
-          std::map<std::string, const Typespec *>::iterator itr = local_vars.find(std::string(lhs));
+        if (getBitCount(lhsexp, scope_exp, true, &size)) {
+          auto itr = local_vars.find(lhs);
           if (itr != local_vars.end()) {
             if (const Typespec *tps = itr->second) {
-              tmpInvalidValue = false;
-              size = ExprEval::size(tps, tmpInvalidValue, inst, scope_exp, true, true);
+              if (!getBitCount(tps, scope_exp, true, &size)) {
+                tmpInvalidValue = true;
+              }
             }
           }
+        } else {
+          tmpInvalidValue = true;
         }
         if (!tmpInvalidValue) {
           std::string bval;
           if (valUI) {
-            for (uint32_t i = 0; i < size; i++) bval += "1";
+            bval.append(size, '1');
           } else {
             bval = NumUtils::toBinary(size, valUI);
           }
-          c->setValue("BIN:" + bval);
+          c->setValue(bval);
           c->setDecompile(bval);
           c->setSize(size);
         }
@@ -4282,7 +7279,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
 
 void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalidValue, bool &continue_flag,
                         bool &break_flag, bool &return_flag, const Any *inst, const Any *stmt,
-                        std::map<std::string, const Typespec *> &local_vars, bool muteError) {
+                        std::map<std::string, const Typespec *, std::less<>> &local_vars, bool muteError) {
   if (invalidValue) {
     return;
   }
@@ -4292,12 +7289,19 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
     case UhdmType::CaseStmt: {
       CaseStmt *st = (CaseStmt *)stmt;
       Expr *cond = (Expr *)st->getCondition();
-      int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+
+      Expr *sexpr = nullptr;
+      invalidValue = !reduceExpr(cond, nullptr, &sexpr, muteError);
+      int64_t val = 0;
+      invalidValue = !getInt64(sexpr, &val);
       for (CaseItem *item : *st->getCaseItems()) {
         if (AnyCollection *exprs = item->getExprs()) {
           bool done = false;
           for (Any *exp : *exprs) {
-            int64_t vexp = get_value(invalidValue, reduceExpr(exp, invalidValue, scopes.back(), nullptr, muteError));
+            Expr *eexpr = nullptr;
+            invalidValue = !reduceExpr(any_cast<Expr>(exp), nullptr, &eexpr, muteError);
+            int64_t vexp = 0;
+            invalidValue = !getInt64(eexpr, &vexp);
             if (val == vexp) {
               evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag, return_flag, scopes.back(),
                        item->getStmt(), local_vars, muteError);
@@ -4313,7 +7317,10 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
     case UhdmType::IfElse: {
       IfElse *st = (IfElse *)stmt;
       Expr *cond = (Expr *)st->getCondition();
-      int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+      Expr *cexpr = nullptr;
+      invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+      int64_t val = 0;
+      invalidValue = !getInt64(cexpr, &val);
       if (val > 0) {
         evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag, return_flag, scopes.back(), st->getStmt(),
                  local_vars, muteError);
@@ -4326,7 +7333,10 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
     case UhdmType::IfStmt: {
       IfStmt *st = (IfStmt *)stmt;
       Expr *cond = (Expr *)st->getCondition();
-      int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+      Expr *cexpr = nullptr;
+      invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+      int64_t val = 0;
+      invalidValue = !getInt64(cexpr, &val);
       if (val > 0) {
         evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag, return_flag, scopes.back(), st->getStmt(),
                  local_vars, muteError);
@@ -4358,7 +7368,8 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       const std::string_view lhs = st->getLhs()->getName();
       Expr *lhsexp = st->getLhs();
       const Expr *rhs = st->getRhs<Expr>();
-      Expr *rhsexp = reduceExpr(rhs, invalidValue, scopes.back(), nullptr, muteError);
+      Expr *rhsexp = nullptr;
+      invalidValue = !reduceExpr(rhs, nullptr, &rhsexp, muteError);
       invalidValue =
           setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt, local_vars, st->getOpType(), muteError);
       break;
@@ -4368,15 +7379,20 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       const std::string_view lhs = st->getLhs()->getName();
       Expr *lhsexp = st->getLhs();
       const Expr *rhs = st->getRhs();
-      Expr *rhsexp = reduceExpr(rhs, invalidValue, scopes.back(), nullptr, muteError);
+      Expr *rhsexp = nullptr;
+      invalidValue = !reduceExpr(rhs, nullptr, &rhsexp, muteError);
       invalidValue = setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt, local_vars, 0, muteError);
       break;
     }
     case UhdmType::Repeat: {
       Repeat *st = (Repeat *)stmt;
       const Expr *cond = st->getCondition();
-      Expr *rcond = reduceExpr((Expr *)cond, invalidValue, scopes.back(), nullptr);
-      int64_t val = get_value(invalidValue, reduceExpr(rcond, invalidValue, scopes.back(), nullptr, muteError));
+      Expr *rcond1 = nullptr;
+      invalidValue = !reduceExpr((Expr *)cond, nullptr, &rcond1, muteError);
+      Expr *rcond2 = nullptr;
+      invalidValue = !reduceExpr(rcond1, nullptr, &rcond2, muteError);
+      int64_t val = 0;
+      invalidValue = !getInt64(rcond2, &val);
       if (invalidValue == false) {
         for (int32_t i = 0; i < val; i++) {
           evalStmt(funcName, scopes, invalidValue, continue_flag, break_flag, return_flag, scopes.back(), st->getStmt(),
@@ -4412,7 +7428,10 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       while (1) {
         Expr *cond = (Expr *)st->getCondition();
         if (cond) {
-          int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+          Expr *cexpr = nullptr;
+          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          int64_t val = 0;
+          invalidValue = !getInt64(cexpr, &val);
           if (val == 0) {
             break;
           }
@@ -4450,7 +7469,8 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
     case UhdmType::ReturnStmt: {
       ReturnStmt *st = (ReturnStmt *)stmt;
       if (const Expr *cond = st->getCondition()) {
-        Expr *rhsexp = reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError);
+        Expr *rhsexp = nullptr;
+        invalidValue = !reduceExpr(cond, nullptr, &rhsexp, muteError);
         RefObj *lhsexp = s.make<RefObj>();
         lhsexp->setName(funcName);
         invalidValue =
@@ -4463,7 +7483,10 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       WhileStmt *st = (WhileStmt *)stmt;
       if (const Expr *cond = st->getCondition()) {
         while (1) {
-          int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+          Expr *cexpr = nullptr;
+          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          int64_t val = 0;
+          invalidValue = !getInt64(cexpr, &val);
           if (invalidValue) break;
           if (val == 0) {
             break;
@@ -4504,7 +7527,11 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
           if (return_flag) {
             break;
           }
-          int64_t val = get_value(invalidValue, reduceExpr(cond, invalidValue, scopes.back(), nullptr, muteError));
+
+          Expr *cexpr = nullptr;
+          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          int64_t val = 0;
+          invalidValue = !getInt64(cexpr, &val);
           if (invalidValue) break;
           if (val == 0) {
             break;
@@ -4524,12 +7551,15 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
     case UhdmType::Operation: {
       Operation *op = (Operation *)stmt;
       // ++, -- ops
-      reduceExpr(op, invalidValue, scopes.back(), nullptr, muteError);
+      Expr *result = nullptr;
+      if (!reduceExpr(op, nullptr, &result, muteError)) {
+        invalidValue = true;
+      }
       break;
     }
     default: {
       invalidValue = true;
-      if (muteError == false && m_muteError == false) {
+      if (!muteError && !m_muteError) {
         const std::string errMsg(inst->getName());
         s.getErrorHandler()(ErrorType::UHDM_UNSUPPORTED_STMT, errMsg, stmt, nullptr);
       }
@@ -4538,8 +7568,8 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
   }
 }
 
-Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalidValue, const Any *inst, Any *pexpr,
-                         bool muteError) {
+Expr *ExprEval::evalFunc(const Function *func, std::vector<Any *> *args, bool &invalidValue, const Any *inst,
+                         const Any *pany, bool muteError) {
   if (func == nullptr) {
     invalidValue = true;
     return nullptr;
@@ -4561,7 +7591,7 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
   } else if (const Scope *spe = any_cast<Scope>(inst)) {
     ParamAssigns = spe->getParamAssigns();
   }
-  std::map<std::string, const Typespec *> vars;
+  std::map<std::string, const Typespec *, std::less<>> vars;
   if (ParamAssigns) {
     modinst->setParamAssigns(s.makeCollection<ParamAssign>());
     for (auto p : *ParamAssigns) {
@@ -4594,14 +7624,15 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
         Typespec *tps = io->getTypespec()->getActual();
         vars.emplace(ioname, tps);
         Expr *ioexp = (Expr *)args->at(index);
-        if (Expr *exparg = reduceExpr(ioexp, invalidValue, modinst, pexpr, muteError)) {
+        Expr *exparg = nullptr;
+        if (reduceExpr(ioexp, pany, &exparg, muteError)) {
           if (exparg->getTypespec() == nullptr) {
             RefTypespec *crt = s.make<RefTypespec>();
             crt->setParent(exparg);
             exparg->setTypespec(crt);
           }
           exparg->getTypespec()->setActual(tps);
-          std::map<std::string, const Typespec *> local_vars;
+          std::map<std::string, const Typespec *, std::less<>> local_vars;
           invalidValue =
               setValueInInstance(ioname, io, exparg, invalidValue, s, modinst, func, local_vars, 0, muteError);
         }
@@ -4617,8 +7648,8 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
     }
   }
   Typespec *funcReturnTypespec = nullptr;
-  if (RefTypespec *rt = func->getReturn()) {
-    funcReturnTypespec = rt->getActual();
+  if (const RefTypespec *const rt = func->getReturn()) {
+    funcReturnTypespec = const_cast<Typespec *>(rt->getActual());
   }
   if (funcReturnTypespec == nullptr) {
     funcReturnTypespec = s.make<LogicTypespec>();
@@ -4644,7 +7675,7 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
           evalStmt(name, scopes, invalidValue, continue_flag, break_flag, return_flag, modinst, stmt, vars, muteError);
           if (return_flag) break;
           if (continue_flag || break_flag) {
-            if (muteError == false && m_muteError == false) {
+            if (!muteError && !m_muteError) {
               const std::string errMsg(inst->getName());
               s.getErrorHandler()(ErrorType::UHDM_UNSUPPORTED_STMT, errMsg, stmt, nullptr);
             }
@@ -4658,7 +7689,7 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
         evalStmt(name, scopes, invalidValue, continue_flag, break_flag, return_flag, modinst, the_stmt, vars,
                  muteError);
         if (continue_flag || break_flag) {
-          if (muteError == false && m_muteError == false) {
+          if (!muteError && !m_muteError) {
             const std::string errMsg(inst->getName());
             s.getErrorHandler()(ErrorType::UHDM_UNSUPPORTED_STMT, errMsg, the_stmt, nullptr);
           }
@@ -4692,30 +7723,31 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
         }
         if (tps && (tps->getUhdmType() == UhdmType::LogicTypespec)) {
           LogicTypespec *ltps = (LogicTypespec *)tps;
-          uint64_t si = size(tps, invalidValue, inst, pexpr, true, true);
+          uint64_t si = 0;
+          invalidValue = !getBitCount(tps, pany, true, &si, true);
           if (p->getRhs() && (p->getRhs()->getUhdmType() == UhdmType::Constant)) {
             Constant *c = (Constant *)p->getRhs();
             Elaborator elaborator(&s, false, muteError);
             c = elaborator.clone<>(c, nullptr);
             if (c->getConstType() == vpiBinaryConst) {
               std::string_view val = c->getValue();
-              val.remove_prefix(std::string_view("BIN:").length());
               if (val.size() > si) {
                 val.remove_prefix(val.size() - si);
-                c->setValue(std::string("BIN:").append(val));
+                c->setValue(val);
                 c->setDecompile(val);
               } else if (ltps->getSigned()) {
                 if (val == "1") {
-                  c->setValue("INT:-1");
+                  c->setValue("-1");
                   c->setDecompile("-1");
                   c->setConstType(vpiIntConst);
                 }
               }
             } else {
               uint64_t mask = NumUtils::getMask(si);
-              int64_t v = get_value(invalidValue, c);
+              int64_t v = 0;
+              invalidValue = !getInt64(c, &v);
               v = v & mask;
-              c->setValue("UINT:" + std::to_string(v));
+              c->setValue(std::to_string(v));
               c->setDecompile(std::to_string(v));
               c->setConstType(vpiUIntConst);
             }
@@ -4730,24 +7762,21 @@ Expr *ExprEval::evalFunc(Function *func, std::vector<Any *> *args, bool &invalid
   invalidValue = true;
   return nullptr;
 }
-
-std::string ExprEval::prettyPrint(const Any *handle) {
-  if (handle == nullptr) {
-    // std::cout << "NULL HANDLE\n";
-    return "NULL HANDLE";
-  }
-  return uhdm::prettyPrint(handle, 0);
-}
-
-std::string vPrint(Any *handle) {
-  if (handle == nullptr) {
-    // std::cout << "NULL HANDLE\n";
-    return "NULL HANDLE";
-  }
-  std::stringstream out;
-  uhdm::prettyPrint(out, handle, 0);
-  const std::string s = out.str();
-  std::cout << s << "\n";
-  return s;
-}
 }  // namespace uhdm
+
+/*
+ * TODO:
+ * Fix calculating size of following types.
+ * 1) Structs:
+ * struct {
+ *   logic [3:0] a;
+ *   logic [3:0] b;
+ * } s;
+ * $bits(s) should be 8, but currently it's size can't be computed at
+ * reduction time. 2) Enums: enum {ONE,TWO,THREE} a; $bits(a) should be 32 as
+ * by default enum is of type int32_t.
+ */
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif

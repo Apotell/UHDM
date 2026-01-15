@@ -26,6 +26,35 @@
 #include <sstream>
 
 namespace uhdm {
+std::vector<std::string_view> tokenize(std::string_view str,
+                                       std::string_view multichar_separator) {
+  std::vector<std::string_view> result;
+  if (str.empty()) return result;
+
+  size_t start = 0;
+  size_t end = 0;
+  const size_t sepSize = multichar_separator.size();
+  const size_t stringSize = str.size();
+  for (size_t i = 0; i < stringSize; ++i) {
+    bool isSeparator = true;
+    for (size_t j = 0; j < sepSize; ++j) {
+      if ((i + j >= stringSize) || (str[i + j] != multichar_separator[j])) {
+        isSeparator = false;
+        break;
+      }
+    }
+    if (isSeparator) {
+      result.emplace_back(str.data() + start, end - start);
+      start = end = end + sepSize;
+      i = i + sepSize - 1;
+    } else {
+      ++end;
+    }
+  }
+  result.emplace_back(str.data() + start, end - start);
+  return result;
+}
+
 bool setTypespec(Any* object, Typespec* typespec) {
   if (object == nullptr) return false;
 
@@ -115,6 +144,9 @@ bool getSigned(const Typespec* typespec) {
       return static_cast<const LongIntTypespec*>(typespec)->getSigned();
     case UhdmType::ShortIntTypespec:
       return static_cast<const ShortIntTypespec*>(typespec)->getSigned();
+    case UhdmType::ShortRealTypespec:
+    case UhdmType::RealTypespec:
+      return true;
     default:
       return false;
   }
@@ -123,7 +155,7 @@ bool getSigned(const Typespec* typespec) {
 bool setSigned(Typespec* typespec, bool value) {
   switch (typespec->getUhdmType()) {
     case UhdmType::BitTypespec:
-      return static_cast<const BitTypespec*>(typespec)->getSigned();
+      return static_cast<BitTypespec*>(typespec)->setSigned(value);
     case UhdmType::ByteTypespec:
       return static_cast<ByteTypespec*>(typespec)->setSigned(value);
     case UhdmType::IntegerTypespec:
@@ -131,7 +163,7 @@ bool setSigned(Typespec* typespec, bool value) {
     case UhdmType::IntTypespec:
       return static_cast<IntTypespec*>(typespec)->setSigned(value);
     case UhdmType::LogicTypespec:
-      return static_cast<const LogicTypespec*>(typespec)->getSigned();
+      return static_cast<LogicTypespec*>(typespec)->setSigned(value);
     case UhdmType::LongIntTypespec:
       return static_cast<LongIntTypespec*>(typespec)->setSigned(value);
     case UhdmType::ShortIntTypespec:
@@ -146,19 +178,20 @@ static std::map<int32_t, std::string_view> kUnaryOperatorTokens = {
     {vpiBitNegOp, "~"},     {vpiUnaryAndOp, "&"},  {vpiUnaryNandOp, "~&"},
     {vpiUnaryOrOp, "|"},    {vpiUnaryNorOp, "~|"}, {vpiUnaryXorOp, "^"},
     {vpiUnaryXNorOp, "~^"}, {vpiPreIncOp, "++"},   {vpiPreDecOp, "--"},
+    {vpiPostIncOp, "++"},   {vpiPostDecOp, "--"},
 };
 
 static std::map<int32_t, std::string_view> kBinaryOperatorTokens = {
-    {vpiMinusOp, "-"},
-    {vpiPlusOp, "+"},
-    {vpiNotOp, "!"},
-    {vpiBitNegOp, "~"},
-    {vpiUnaryAndOp, "&"},
-    {vpiUnaryNandOp, "~&"},
-    {vpiUnaryOrOp, "|"},
-    {vpiUnaryNorOp, "~|"},
-    {vpiUnaryXorOp, "^"},
+    {vpiBitAndOp, "&"},
+    {vpiBitOrOp, "|"},
+    {vpiBitXorOp, "^"},
+    {vpiBitXNorOp, "^~"},
     {vpiUnaryXNorOp, "~^"},
+    {vpiUnaryNandOp, "~&"},
+    {vpiUnaryNorOp, "~|"},
+
+    {vpiAddOp, "+"},
+    {vpiMultOp, "*"},
     {vpiSubOp, "-"},
     {vpiDivOp, "/"},
     {vpiModOp, "%"},
@@ -170,16 +203,11 @@ static std::map<int32_t, std::string_view> kBinaryOperatorTokens = {
     {vpiGeOp, ">="},
     {vpiLtOp, "<"},
     {vpiLeOp, "<="},
+
     {vpiLShiftOp, "<<"},
     {vpiRShiftOp, ">>"},
-    {vpiAddOp, "+"},
-    {vpiMultOp, "*"},
     {vpiLogAndOp, "&&"},
     {vpiLogOrOp, "||"},
-    {vpiBitAndOp, "&"},
-    {vpiBitOrOp, "|"},
-    {vpiBitXorOp, "^"},
-    {vpiBitXNorOp, "^~"},
     {vpiArithLShiftOp, "<<<"},
     {vpiArithRShiftOp, ">>>"},
     {vpiPowerOp, "**"},
@@ -525,8 +553,7 @@ void prettyPrint(std::ostream& out, const Any* object,
     } break;
 
     case UhdmType::ArrayTypespec: {
-      const ArrayTypespec* const at =
-          static_cast<const ArrayTypespec*>(object);
+      const ArrayTypespec* const at = static_cast<const ArrayTypespec*>(object);
       if (const RefTypespec* const ert = at->getElemTypespec()) {
         if (const Typespec* const ets = ert->getActual()) {
           prettyPrint(out, ets);

@@ -29,8 +29,6 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
-#include <regex>
-#include <sstream>
 
 namespace uhdm {
 
@@ -43,7 +41,9 @@ std::string NumUtils::hexToBin(std::string_view s) {
       n = i - '0';
     else
       n = 10 + i - 'A';
-    for (int8_t j = 3; j >= 0; --j) out.push_back((n & (1 << j)) ? '1' : '0');
+    for (int8_t j = 3; j >= 0; --j) {
+      out.push_back((n & (1 << j)) ? '1' : '0');
+    }
   }
   return out;
 }
@@ -80,11 +80,12 @@ std::string NumUtils::toBinary(int32_t size, uint64_t val) {
   std::string result;
   if (size < bitFieldSize) {
     result.reserve(bitFieldSize - size + 1);
-    for (uint32_t i = bitFieldSize - size; i < bitFieldSize; i++)
+    for (uint32_t i = bitFieldSize - size; i < bitFieldSize; i++) {
       result += tmp[i];
+    }
   } else {
     result.reserve(size);
-    for (uint32_t i = 0; i < (uint32_t) (size - bitFieldSize); i++) {
+    for (uint32_t i = 0; i < (uint32_t)(size - bitFieldSize); i++) {
       result += "0";
     }
     for (uint32_t i = 0; i < bitFieldSize; i++) {
@@ -97,10 +98,8 @@ std::string NumUtils::toBinary(int32_t size, uint64_t val) {
 uint64_t NumUtils::getMask(uint64_t wide) {
   uint64_t mask = 0;
   uint64_t sizeInBits = sizeof(mask) * 8;
-  mask = (wide >= sizeInBits)
-             ? ((uint64_t)-1)
-             : ((uint64_t)((uint64_t)(((uint64_t)1) << ((uint64_t)wide))) -
-                (uint64_t)1);
+  mask =
+      (wide >= sizeInBits) ? ((uint64_t)-1) : ((uint64_t)((uint64_t)(((uint64_t)1) << ((uint64_t)wide))) - (uint64_t)1);
   return mask;
 }
 
@@ -117,28 +116,25 @@ uint64_t NumUtils::getMask(uint64_t wide) {
 template <typename T, typename = void>
 struct from_chars_available : std::false_type {};
 template <typename T>
-struct from_chars_available<
-    T, std::void_t<decltype(std::from_chars(
-           std::declval<const char *>(), std::declval<const char *>(),
-           std::declval<T &>()))>> : std::true_type {};
+struct from_chars_available<T, std::void_t<decltype(std::from_chars(
+                                   std::declval<const char *>(), std::declval<const char *>(), std::declval<T &>()))>>
+    : std::true_type {};
 
 template <typename T>
 inline constexpr bool from_chars_available_v = from_chars_available<T>::value;
 
 #if defined(_MSC_VER)
 #pragma warning(push)
-#pragma warning(disable: 4505)  // unreferenced function with internal linkage has been removed
+#pragma warning(disable : 4505)  // unreferenced function with internal linkage has been removed
 #endif
 // Copy everything that looks like a number into output iterator.
-static void CopyNumberTo(const char *in_begin, const char *in_end,
-                         char *out_begin, const char *out_end) {
+static void CopyNumberTo(const char *in_begin, const char *in_end, char *out_begin, const char *out_end) {
   const char *src = in_begin;
   char *dst = out_begin;
   const char *extra_allowed = "+-.e";
   bool have_point = false;
   out_end -= 1;  // Allow space for 0 termination.
-  while ((src < in_end) && (isdigit(*src) || strchr(extra_allowed, *src)) &&
-         (dst < out_end)) {
+  while ((src < in_end) && (isdigit(*src) || strchr(extra_allowed, *src)) && (dst < out_end)) {
     // The sign is only allowed in the first character of the buffer
     if (((*src == '+') || (*src == '-')) && (dst != out_begin)) break;
     // only allow one decimal point
@@ -157,42 +153,35 @@ static void CopyNumberTo(const char *in_begin, const char *in_end,
 #endif
 
 template <typename T, T (*strto_fallback_fun)(const char *, char **)>
-static const char *strToIeee(std::string_view s, T *result) {
+static bool strToIeee(std::string_view s, T *result) {
   // Need to skip whitespace first to not use up our buffer for that.
-  while (!s.empty() && isspace(s.front())) s.remove_prefix(1);
+  while (!s.empty() && std::isspace((int32_t)s.front())) s.remove_prefix(1);
+  while (!s.empty() && std::isspace((int32_t)s.back())) s.remove_suffix(1);
   if constexpr (from_chars_available_v<T>) {
     if (!s.empty() && (s.front() == '+')) s.remove_prefix(1);
-    if (s.empty()) return nullptr;
+    if (s.empty()) return false;
     auto success = std::from_chars(s.data(), s.data() + s.size(), *result);
-    return (success.ec == std::errc()) ? success.ptr : nullptr;
+    return ((success.ec == std::errc()) && ((s.data() + s.size()) == success.ptr));
   } else {
-    if (s.empty()) return nullptr;
+    if (s.empty()) return false;
 
     // Fallback in case std::from_chars() does not exist for this type. Here,
     // we just call the corresponding C-function, but first have to copy
     // the number to a local buffer, as that one requires \0-termination.
     char buffer[64] = {'\0'};
 
-    CopyNumberTo(s.data(), s.data() + s.size(), buffer,
-                 buffer + sizeof(buffer));
+    CopyNumberTo(s.data(), s.data() + s.size(), buffer, buffer + sizeof(buffer));
     char *endptr = nullptr;
     *result = strto_fallback_fun(buffer, &endptr);
-    if (endptr == buffer) return nullptr;  // Error.
-
-    // Now, convert our offset back relative to the original string.
-    return s.data() + (endptr - buffer);
+    return (endptr == buffer);
   }
 }
 
-const char *NumUtils::parseFloat(std::string_view s, float *result) {
-  return strToIeee<float, strtof>(s, result);
-}
+bool NumUtils::parseFloat(std::string_view s, float *result) { return strToIeee<float, strtof>(s, result); }
 
-const char *NumUtils::parseDouble(std::string_view s, double *result) {
-  return strToIeee<double, strtod>(s, result);
-}
+bool NumUtils::parseDouble(std::string_view s, double *result) { return strToIeee<double, strtod>(s, result); }
 
-const char *NumUtils::parseLongDouble(std::string_view s, long double *result) {
+bool NumUtils::parseLongDouble(std::string_view s, long double *result) {
   return strToIeee<long double, strtold>(s, result);
 }
 

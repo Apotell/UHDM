@@ -538,10 +538,11 @@ void SynthSubset::leaveForStmt(const ForStmt* object, vpiHandle handle) {
           }
         }
         if (needsTransform) {
-          ExprEval eval;
-          bool invalidValue = false;
-          uint32_t size = eval.size(var, invalidValue, parent->getParent(),
-                                    parent, true, true);
+          uint64_t size = 0;
+          ExprEval eval(nullptr);
+          if (!eval.getBitCount(var, parent, true, &size, true)) {
+            return;
+          }
           CaseStmt* case_st = m_serializer->make<CaseStmt>();
           case_st->setCaseType(vpiCaseExact);
           case_st->setParent((Any*)parent);

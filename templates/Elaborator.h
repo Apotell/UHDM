@@ -39,8 +39,7 @@ class Serializer;
 
 class Elaborator final : public VpiListener, public Cloner {
  public:
-  explicit Elaborator(Serializer* serializer, bool debug = false,
-                      bool muteErrors = false);
+  explicit Elaborator(Serializer* serializer, bool debug = false, bool muteErrors = false);
 
   void uniquifyTypespec(bool uniquify) { m_uniquifyTypespec = uniquify; }
   bool uniquifyTypespec() const { return m_uniquifyTypespec; }
@@ -63,8 +62,7 @@ class Elaborator final : public VpiListener, public Cloner {
   Any* bindParam(std::string_view name) const;
 
   // Bind to a function or task in the current scope
-  TaskFunc* bindTaskFunc(std::string_view name,
-                         const Variable* prefix = nullptr) const;
+  TaskFunc* bindTaskFunc(std::string_view name, const Variable* prefix = nullptr) const;
 
   void bindScheduledTaskFunc();
 
@@ -89,8 +87,7 @@ class Elaborator final : public VpiListener, public Cloner {
 
   void leaveRefObj(const RefObj* object, vpiHandle handle) final;
   void leaveBitSelect(const BitSelect* object, vpiHandle handle) final;
-  void leaveIndexedPartSelect(const IndexedPartSelect* object,
-                              vpiHandle handle) final;
+  void leaveIndexedPartSelect(const IndexedPartSelect* object, vpiHandle handle) final;
   void leavePartSelect(const PartSelect* object, vpiHandle handle) final;
   void leaveVarSelect(const VarSelect* object, vpiHandle handle) final;
 
@@ -112,16 +109,13 @@ class Elaborator final : public VpiListener, public Cloner {
   void enterForkStmt(const ForkStmt* object, vpiHandle handle) final;
   void leaveForkStmt(const ForkStmt* object, vpiHandle handle) final;
 
-  void enterMethodFuncCall(const MethodFuncCall* object,
-                           vpiHandle handle) final;
-  void leaveMethodFuncCall(const MethodFuncCall* object,
-                           vpiHandle handle) final;
+  void enterMethodFuncCall(const MethodFuncCall* object, vpiHandle handle) final;
+  void leaveMethodFuncCall(const MethodFuncCall* object, vpiHandle handle) final;
 
   void pushVar(Any* var);
   void popVar(Any* var);
 
-  Any* bindClassTypespec(ClassTypespec* ctps, Any* current,
-                         std::string_view name, bool& found);
+  Any* bindClassTypespec(ClassTypespec* ctps, Any* current, std::string_view name, bool& found);
 
   Any* cloneAny(const Any* source, Any* parent) final;
 
@@ -179,11 +173,8 @@ class Elaborator final : public VpiListener, public Cloner {
 
   using ComponentMap = std::map<std::string, const BaseClass*, std::less<>>;
   // Instance context stack
-  using InstStack =
-      std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap,
-                             ComponentMap, ComponentMap>>;
-  using ScheduledTfCallBinding =
-      std::vector<std::pair<TFCall*, const Variable*>>;
+  using InstStack = std::vector<std::tuple<const BaseClass*, ComponentMap, ComponentMap, ComponentMap, ComponentMap>>;
+  using ScheduledTfCallBinding = std::vector<std::pair<TFCall*, const Variable*>>;
 
   bool m_debug = false;
   bool m_muteErrors = false;

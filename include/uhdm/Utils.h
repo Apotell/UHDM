@@ -81,6 +81,9 @@ void StrAppend(std::string* dest, Ts&&... args) {
   return ltrim_until(rtrim_until(str, c), c);
 }
 
+[[nodiscard]] std::vector<std::string_view> tokenize(
+    std::string_view str, std::string_view multichar_separator);
+
 template <typename R = Any, typename T = Any>
 constexpr auto getActual(T* object) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (object == nullptr) return nullptr;
@@ -200,6 +203,28 @@ constexpr auto getParent(T* any) -> typename std::conditional<std::is_const<T>::
 
 bool getSigned(const Typespec* typespec);
 bool setSigned(Typespec* typespec, bool value);
+
+template <typename T = Any>
+auto getRanges(T* any) ->
+    typename std::conditional<std::is_const<T>::value, const RangeCollection*,
+                              RangeCollection*>::type {
+  if (auto* const at = any_cast<ArrayTypespec>(any)) {
+    return at->getRanges();
+  } else if (auto* const bt = any_cast<BitTypespec>(any)) {
+    return bt->getRanges();
+  } else if (auto* const ia = any_cast<InstanceArray>(any)) {
+    return ia->getRanges();
+  } else if (auto* const iod = any_cast<IODecl>(any)) {
+    return iod->getRanges();
+  } else if (auto* const lt = any_cast<LogicTypespec>(any)) {
+    return lt->getRanges();
+  } else if (auto* const p = any_cast<Parameter>(any)) {
+    return p->getRanges();
+  } else if (auto* const ut = any_cast<UnsupportedTypespec>(any)) {
+    return ut->getRanges();
+  }
+  return nullptr;
+}
 
 void prettyPrint(std::ostream& out, const Any* object, size_t indent = 0);
 std::string prettyPrint(const Any* object, size_t indent = 0);

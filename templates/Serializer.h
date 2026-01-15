@@ -44,6 +44,7 @@
 
 namespace uhdm {
 class ScopedScope;
+class Serializer;
 
 enum ErrorType {
   UHDM_UNSUPPORTED_EXPR = 700,
@@ -80,8 +81,9 @@ void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
                          const Any* object1, const Any* object2);
 
 class Factory final {
-  friend Serializer;
+  friend class Serializer;
 
+ public:
   using objects_t = std::vector<Any*>;
   using collections_t = std::vector<objects_t*>;
 

@@ -25,13 +25,13 @@
 #include <uhdm/NumUtils.h>
 #include <uhdm/Serializer.h>
 #include <uhdm/UhdmComparer.h>
+#include <uhdm/Utils.h>
 #include <uhdm/containers.h>
 #include <uhdm/sv_vpi_user.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/uhdm_types.h>
 #include <uhdm/vhpi_user.h>
 #include <uhdm/vpi_uhdm.h>
-#include <uhdm/Utils.h>
 
 #include <cctype>
 #include <cstring>
@@ -77,13 +77,13 @@ void String2VpiValue(std::string_view sv, s_vpi_value* value) {
   if (sv.find("UINT:") == 0) {
     value->format = vpiUIntVal;
     sv.remove_prefix(std::string_view("UINT:").length());
-    if (NumUtils::parseUint64(sv, &value->value.uint) == nullptr) {
+    if (!NumUtils::parseUint64(sv, &value->value.uint)) {
       value->value.uint = 0;
     }
   } else if (sv.find("INT:") == 0) {
     value->format = vpiIntVal;
     sv.remove_prefix(std::string_view("INT:").length());
-    if (NumUtils::parseInt64(sv, &value->value.integer) == nullptr) {
+    if (!NumUtils::parseInt64(sv, &value->value.integer)) {
       value->value.integer = 0;
     }
   } else if (sv.find("SCAL:") == 0) {
@@ -104,7 +104,7 @@ void String2VpiValue(std::string_view sv, s_vpi_value* value) {
           value->value.scalar = vpiNoChange;
         } else {
           // Maybe written numerically?
-          if (NumUtils::parseInt32(sv, &value->value.scalar) == nullptr) {
+          if (!NumUtils::parseInt32(sv, &value->value.scalar)) {
             value->value.scalar = 0;
           }
         }
@@ -129,7 +129,7 @@ void String2VpiValue(std::string_view sv, s_vpi_value* value) {
   } else if (sv.find("REAL:") == 0) {
     value->format = vpiRealVal;
     sv.remove_prefix(std::string_view("REAL:").length());
-    if (NumUtils::parseDouble(sv, &value->value.real) == nullptr) {
+    if (!NumUtils::parseDouble(sv, &value->value.real)) {
       value->value.real = 0;
     }
   } else if (sv.find("DEC:") == 0) {
@@ -160,7 +160,7 @@ void String2VpiDelay(std::string_view sv, s_vpi_delay* delay) {
     delay->no_of_delays = 1;
     delay->time_type = vpiScaledRealTime;
     sv.remove_prefix(1);
-    if (NumUtils::parseUint32(sv, &delay->da[0].low) == nullptr) {
+    if (!NumUtils::parseUint32(sv, &delay->da[0].low)) {
       delay->da[0].low = 0;
     }
     delay->da[0].type = vpiScaledRealTime;
@@ -168,7 +168,7 @@ void String2VpiDelay(std::string_view sv, s_vpi_delay* delay) {
 }
 
 void VpiDestroyDelay(s_vpi_delay& delay) {
-  if (delay.da != nullptr) delete [] delay.da;
+  if (delay.da != nullptr) delete[] delay.da;
 }
 
 std::string VpiValue2String(const s_vpi_value* value) {

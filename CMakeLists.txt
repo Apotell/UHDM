@@ -186,10 +186,12 @@ set(uhdm_SRC
     ${PROJECT_SOURCE_DIR}/src/BaseClass.cpp
     ${PROJECT_SOURCE_DIR}/src/ExprEval.cpp
     ${PROJECT_SOURCE_DIR}/src/NumUtils.cpp
+    ${PROJECT_SOURCE_DIR}/src/Reducer.cpp
     ${PROJECT_SOURCE_DIR}/src/SymbolFactory.cpp
     ${PROJECT_SOURCE_DIR}/src/SymbolId.cpp
     ${PROJECT_SOURCE_DIR}/src/SynthSubset.cpp
     ${PROJECT_SOURCE_DIR}/src/UhdmAdjuster.cpp
+    ${PROJECT_SOURCE_DIR}/src/UhdmFinder.cpp
     ${PROJECT_SOURCE_DIR}/src/UhdmLint.cpp
     ${PROJECT_SOURCE_DIR}/src/Utils.cpp
     ${uhdm-GENERATED_SRC}
@@ -327,6 +329,9 @@ if (UHDM_BUILD_TESTS)
     tests/error-handler_test.cpp
     tests/expr_prettyPrint_test.cpp
     tests/expr_reduce_test.cpp
+    tests/ExprEvalFunc_test.cpp
+    tests/ExprEvalOper_test.cpp
+    tests/ExprEvalReduce_test.cpp
     tests/full_elab_test.cpp
     tests/garbage_collect_test.cpp
     tests/group_membership_test.cpp
@@ -366,6 +371,12 @@ target_link_libraries(uhdm-hier PRIVATE uhdm)
 add_executable(uhdm-lint ${PROJECT_SOURCE_DIR}/util/uhdm-lint.cpp)
 target_link_libraries(uhdm-lint PRIVATE uhdm)
 
+add_executable(uhdm-reduce
+  ${PROJECT_SOURCE_DIR}/src/UhdmFinder.cpp
+  ${PROJECT_SOURCE_DIR}/util/uhdm-reduce.cpp
+)
+target_link_libraries(uhdm-reduce PRIVATE uhdm)
+
 add_executable(vscode-uhdm-debugger ${PROJECT_SOURCE_DIR}/util/vscode-uhdm-debugger.cpp)
 target_link_libraries(vscode-uhdm-debugger PRIVATE uhdm)
 
@@ -390,7 +401,7 @@ target_link_libraries(test_inst PRIVATE uhdm capnp kj
 
 # Installation target
 install(
-  TARGETS capnp kj uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-gentest uhdm-hier uhdm-lint vscode-uhdm-debugger
+  TARGETS capnp kj uhdm uhdm-cmp uhdm-dump uhdm-equiv uhdm-gc uhdm-gentest uhdm-hier uhdm-lint uhdm-reduce vscode-uhdm-debugger
   EXPORT uhdmTargets
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/uhdm
 )
