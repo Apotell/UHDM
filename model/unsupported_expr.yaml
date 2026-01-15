@@ -16,3 +16,7 @@
 
 - obj_def: unsupported_expr
 - extends: expr
+- obj_ref: value
+  vpi: vpiValue
+  type: constant
+  card: 1

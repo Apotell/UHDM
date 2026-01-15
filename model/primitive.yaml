@@ -15,18 +15,6 @@
 # Universal Hardware Data Model (UHDM) "primitive" formal description
 
 - class_def: primitive
-- property: array_member
-  vpi: vpiArrayMember
-  type: bool
-  card: 1
-- property: def_name
-  vpi: vpiDefName
-  type: string
-  card: 1
-- property: vpiDelay
-  vpi: vpiDelay
-  type: delay
-  card: 1
 - property: name
   vpi: vpiName
   type: string
@@ -34,6 +22,18 @@
 - property: full_name
   vpi: vpiFullName
   type: string
+  card: 1
+- property: def_name
+  vpi: vpiDefName
+  type: string
+  card: 1
+- property: array_member
+  vpi: vpiArrayMember
+  type: bool
+  card: 1
+- property: vpiDelay
+  vpi: vpiDelay
+  type: delay
   card: 1
 - property: prim_type
   vpi: vpiPrimType
@@ -51,10 +51,6 @@
   vpi: vpiAttribute
   type: attribute
   card: any
-- property: value
-  vpi: vpiValue
-  type: value
-  card: 1
 - class_ref: delay
   vpi: vpiDelay
   type: expr

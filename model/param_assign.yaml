@@ -23,13 +23,13 @@
   vpi: vpiOverriden
   type: bool
   card: 1
-- group_ref: rhs
-  vpi: vpiRhs
-  type: expr_typespec_group
-  card: 1
 - group_ref: lhs
   vpi: vpiLhs
   type: parameters
+  card: 1
+- group_ref: rhs
+  vpi: vpiRhs
+  type: expr_typespec_group
   card: 1
 - obj_ref: attribute
   vpi: vpiAttribute

@@ -15,18 +15,6 @@
 # Universal Hardware Data Model (UHDM) "expr" formal description
 
 - class_def: expr
-- property: decompile
-  vpi: vpiDecompile
-  type: string
-  card: 1
-- property: size
-  vpi: vpiSize
-  type: int32_t
-  card: 1
-- property: value
-  vpi: vpiValue
-  type: value
-  card: 1
 - class_ref: typespec
   vpi: vpiTypespec
   type: ref_typespec

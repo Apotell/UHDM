@@ -20,6 +20,10 @@
 # expr
 #  - extends: atomic_stmt
 - extends: expr
+- obj_ref: name
+  vpi: vpiName
+  type: identifier
+  card: 1
 - class_ref: scope
   vpi: vpiScope
   type: scope
@@ -32,7 +36,3 @@
   vpi: vpiArgument
   type: tf_call_args
   card: any
-- obj_ref: name
-  vpi: vpiName
-  type: identifier
-  card: 1

@@ -170,7 +170,6 @@ net_loads.yaml
 prim_term.yaml
 path_term.yaml
 tchk_term.yaml
-nets.yaml
 net.yaml
 event_typespec.yaml
 named_event.yaml

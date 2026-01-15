@@ -15,13 +15,13 @@
 # Universal Hardware Data Model (UHDM) "clocking_io_decl" formal description
 
 - obj_def: clocking_io_decl
-- property: direction
-  vpi: vpiDirection
-  type: int32_t
-  card: 1
 - obj_ref: name
   vpi: vpiName
   type: identifier
+  card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
   card: 1
 - property: input_edge
   vpi: vpiInputEdge

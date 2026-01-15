@@ -15,6 +15,10 @@
 # Universal Hardware Data Model (UHDM) "let decl" formal description
 
 - obj_def: let_decl
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - class_ref: expr
   vpi: vpiExpr
   type: expr
@@ -23,7 +27,3 @@
   vpi: vpiSeqFormalDecl
   type: seq_formal_decl
   card: any
-- property: name
-  vpi: vpiName
-  type: string
-  card: 1

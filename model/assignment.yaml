@@ -24,13 +24,13 @@
   vpi: vpiBlocking
   type: bool
   card: 1
-- group_ref: rhs
-  vpi: vpiRhs
-  type: expr_interf_expr_group
-  card: 1
 - class_ref: lhs
   vpi: vpiLhs
   type: expr
+  card: 1
+- group_ref: rhs
+  vpi: vpiRhs
+  type: expr_interf_expr_group
   card: 1
 - obj_ref: delay_control
   vpi: vpiDelayControl

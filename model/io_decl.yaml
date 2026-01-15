@@ -15,13 +15,13 @@
 # Universal Hardware Data Model (UHDM) "io_decl" formal description
 
 - obj_def: io_decl
-- property: direction
-  vpi: vpiDirection
-  type: int32_t
-  card: 1
 - property: name
   vpi: vpiName
   type: string
+  card: 1
+- property: direction
+  vpi: vpiDirection
+  type: int32_t
   card: 1
 - property: scalar
   vpi: vpiScalar

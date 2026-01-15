@@ -15,10 +15,6 @@
 # Universal Hardware Data Model (UHDM) "named event" formal description
 
 - obj_def: named_event
-- property: array_member
-  vpi: vpiArrayMember
-  type: bool
-  card: 1
 - property: name
   vpi: vpiName
   type: string
@@ -26,6 +22,10 @@
 - property: full_name
   vpi: vpiFullName
   type: string
+  card: 1
+- property: array_member
+  vpi: vpiArrayMember
+  type: bool
   card: 1
 - property: automatic
   vpi: vpiAutomatic

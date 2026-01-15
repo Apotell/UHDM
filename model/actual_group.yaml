@@ -17,7 +17,7 @@
 
 - group_def: actual_group
 - class_ref: expr
-- class_ref: nets
+- class_ref: net
 - class_ref: scope
 - class_ref: task_func
 - obj_ref: clocking_io_decl

@@ -19,16 +19,7 @@
   vpi: vpiName
   type: string
   card: 1
-- property: value
+- obj_ref: value
   vpi: vpiValue
-  type: value
-  card: 1
-# Not Standard: adding the decompile and size properties
-- property: decompile
-  vpi: vpiDecompile
-  type: string
-  card: 1
-- property: size
-  vpi: vpiSize
-  type: int32_t
+  type: constant
   card: 1

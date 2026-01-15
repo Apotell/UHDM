@@ -16,23 +16,23 @@
 
  
 - obj_def: module
-  - property: name
-    name: name
-    vpi: vpiName
-    type: string
-    card: 1
-  - property: top_module
-    name: top module
-    type: bool
-    vpi: vpiTopModule
-    card: 1
-  - obj_ref: modules
-    vpi: vpiModule
-    type: module
-    card: any
+- property: name
+  name: name
+  vpi: vpiName
+  type: string
+  card: 1
+- property: top_module
+  name: top module
+  type: bool
+  vpi: vpiTopModule
+  card: 1
+- obj_ref: modules
+  vpi: vpiModule
+  type: module
+  card: any
 
 - obj_def: design
-  - class: uhdmAllModules
-    type: module
-    vpi_obj: vpiModule
-    card: any
+- class_ref: uhdmAllModules
+  type: module
+  vpi_obj: vpiModule
+  card: any

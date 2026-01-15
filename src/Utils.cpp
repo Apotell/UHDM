@@ -228,8 +228,7 @@ void prettyPrint(std::ostream& out, const Any* object,
       break;
 
     case UhdmType::Parameter:
-      out << ltrim_until(static_cast<const Parameter*>(object)->getValue(),
-                         ':');
+      out << object->getName();
       break;
 
     case UhdmType::SysFuncCall: {
@@ -242,8 +241,11 @@ void prettyPrint(std::ostream& out, const Any* object,
     } break;
 
     case UhdmType::EnumConst:
-      out << ltrim_until(static_cast<const EnumConst*>(object)->getValue(),
-                         ':');
+      out << object->getName();
+      if (const Constant* const value = static_cast<const EnumConst*>(object)->getValue()) {
+        out << " = ";
+        prettyPrint(out, value, 0);
+      }
       break;
 
     case UhdmType::Operation: {

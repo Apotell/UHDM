@@ -23,10 +23,6 @@
   vpi: vpiTermIndex
   type: int32_t
   card: 1
-- property: value
-  vpi: vpiValue
-  type: value
-  card: 1
 - obj_ref: attribute
   vpi: vpiAttribute
   type: attribute

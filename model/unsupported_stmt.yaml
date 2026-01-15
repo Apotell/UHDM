@@ -16,7 +16,7 @@
 
 - obj_def: unsupported_stmt
 - extends: atomic_stmt
-- property: value
+- obj_ref: value
   vpi: vpiValue
-  type: value
+  type: constant
   card: 1

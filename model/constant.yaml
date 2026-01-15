@@ -20,3 +20,15 @@
   vpi: vpiConstType
   type: int32_t
   card: 1
+- property: size
+  vpi: vpiSize
+  type: int32_t
+  card: 1
+- property: decompile
+  vpi: vpiDecompile
+  type: string
+  card: 1
+- property: value
+  vpi: vpiValue
+  type: value
+  card: 1

@@ -15,6 +15,10 @@
 # Universal Hardware Data Model (UHDM) "sequence_inst" formal description
 
 - obj_def: sequence_inst
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - obj_ref: sequence_decl
   vpi: vpiSequenceDecl
   type: sequence_decl
@@ -23,10 +27,6 @@
   vpi: vpiArgument
   type: named_event_sequence_expr_group
   card: any
-- property: name
-  vpi: vpiName
-  type: string
-  card: 1
 - obj_ref: clocking_block
   vpi: vpiClockingBlock
   type: clocking_block

@@ -220,15 +220,17 @@ void UhdmLint::leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) {
   if (!eval.getBitCount(baseType, object->getParent(), true, &baseSize, true)) return;
 
   if (object->getEnumConsts()) {
-    for (auto c : *object->getEnumConsts()) {
-      const std::string_view val = c->getDecompile();
-      if (c->getSize() == -1) continue;
-      if (!std::regex_match(std::string(val), r)) continue;
+    for (auto ec : *object->getEnumConsts()) {
+      if (const Constant *const c = ec->getValue()) {
+        const std::string_view val = c->getDecompile();
+        if (c->getSize() == -1) continue;
+        if (!std::regex_match(std::string(val), r)) continue;
 
-      uint64_t c_size = 0;
-      if (eval.getBitCount(c, object->getParent(), true, &c_size, true) && (baseSize != c_size)) {
-        const std::string errMsg(c->getName());
-        m_serializer->getErrorHandler()(ErrorType::UHDM_ENUM_CONST_SIZE_MISMATCH, errMsg, c, baseType);
+        uint64_t c_size = 0;
+        if (eval.getBitCount(c, object->getParent(), true, &c_size, true) && (baseSize != c_size)) {
+          const std::string errMsg(c->getName());
+          m_serializer->getErrorHandler()(ErrorType::UHDM_ENUM_CONST_SIZE_MISMATCH, errMsg, c, baseType);
+        }
       }
     }
   }

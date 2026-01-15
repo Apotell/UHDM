@@ -15,6 +15,10 @@
 # Universal Hardware Data Model (UHDM) "property_inst" formal description
 
 - obj_def: property_inst
+- property: name
+  vpi: vpiName
+  type: string
+  card: 1
 - group_ref: disable_condition
   vpi: vpiDisableCondition
   type: expr_dist
@@ -26,10 +30,6 @@
 - obj_ref: property_decl
   vpi: vpiPropertyDecl
   type: property_decl
-  card: 1
-- property: name
-  vpi: vpiName
-  type: string
   card: 1
 - obj_ref: clocking_block
   vpi: vpiClockingBlock

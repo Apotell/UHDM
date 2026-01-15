@@ -44,7 +44,7 @@ def _get_implementation(classname, vpi, card):
 
 def _get_vpi_xxx_visitor(type, vpi, card):
     content = []
-    if vpi == 'vpiValue':
+    if (vpi == 'vpiValue') and (type == 'value'):
         content.append('  s_vpi_value value;')
         content.append('  vpi_get_value(obj_h, &value);')
         content.append('  if (value.format) {')

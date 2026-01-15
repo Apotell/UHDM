@@ -102,5 +102,5 @@
 #define vpiSourceStartColumn        6011
 #define vpiSourceEndLine            6012
 #define vpiSourceEndColumn          6013
-
+#define vpiValue                    6014
 #endif  // UHDM_VPI_USER_H

@@ -2140,12 +2140,13 @@ std::string ExprEval::parseBinary(const Expr *expr) const {
   int32_t constType = 0;
   std::string_view sv;
 
+  if (const Variable *const variable = any_cast<Variable>(expr)) {
+    expr = variable->getValue();
+  }
+
   if (const Constant *const constant = any_cast<Constant>(expr)) {
     constType = constant->getConstType();
     sv = constant->getDecompile();
-  } else if (const Variable *const variable = any_cast<Variable>(expr)) {
-    constType = vpiUIntConst;
-    sv = variable->getDecompile();
   }
 
   if (sv.empty()) return "";
@@ -2241,14 +2242,14 @@ ExprEval::value_t ExprEval::parse(const Expr *expr) const {
   std::string_view sv;
   size_t size = 0;
 
+  if (const Variable *const variable = any_cast<Variable>(expr)) {
+    expr = variable->getValue();
+  }
+
   if (const Constant *const constant = any_cast<Constant>(expr)) {
     constType = constant->getConstType();
     sv = constant->getDecompile();
     size = constant->getSize();
-  } else if (const Variable *const variable = any_cast<Variable>(expr)) {
-    constType = vpiUIntConst;
-    sv = variable->getDecompile();
-    size = variable->getSize();
   }
 
   if (sv.empty()) return value_t();
@@ -3548,7 +3549,10 @@ bool ExprEval::reduceTaggedPattern(const TaggedPattern *tp, const Any *pany, std
     return false;
   }
 
-  std::string elemBits(reducedValue->getDecompile());
+  Constant *const reducedConstant = any_cast<Constant>(reducedValue);
+  if (reducedConstant == nullptr) return false;
+
+  std::string elemBits(reducedConstant->getDecompile());
   if (elemBits.size() < elemWidth) {
     elemBits = std::string(elemWidth - elemBits.size(), '0') + elemBits;
   }
@@ -5531,7 +5535,9 @@ bool ExprEval::getBitCount(const Any *any, const Any *pany, bool allRanges, uint
 
     case UhdmType::EnumConst: {
       const EnumConst *const ec = static_cast<const EnumConst *>(any);
-      *bits = ec->getSize();
+      if (const Constant *const c = ec->getValue()) {
+        return getBitCount(c, ec, allRanges, bits, muteError);
+      }
     } break;
 
     case UhdmType::HierPath: {
@@ -5987,13 +5993,15 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pany,
       for (auto p : *Typespecs) {
         if (p->getUhdmType() == UhdmType::EnumTypespec) {
           EnumTypespec *e = (EnumTypespec *)p;
-          for (auto c : *e->getEnumConsts()) {
-            if (c->getName() == the_name) {
-              Constant *cc = s.make<Constant>();
-              cc->setValue(c->getValue());
-              cc->setSize(c->getSize());
-              result = cc;
-              break;
+          for (auto ec : *e->getEnumConsts()) {
+            if (ec->getName() == the_name) {
+              if (const Constant *const c = ec->getValue()) {
+                Constant *cc = s.make<Constant>();
+                cc->setValue(c->getValue());
+                cc->setSize(c->getSize());
+                result = cc;
+                break;
+              }
             }
           }
         }

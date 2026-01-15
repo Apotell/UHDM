@@ -1784,7 +1784,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
         if (obj->getUhdmType() == UhdmType::BitSelect) {
           BitSelect* bs = static_cast<BitSelect*>(obj);
           const Expr* index = bs->getIndex();
-          std::string_view indexName = index->getDecompile();
+          std::string_view indexName = index->getName();
           if (!indexName.empty()) {
             nameIndexed.append("[").append(indexName).append("]");
           }
@@ -2250,7 +2250,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
                   }
                 }
                 if (!found && interf->getNets()) {
-                  for (Nets* n : *interf->getNets()) {
+                  for (Net* n : *interf->getNets()) {
                     if (n->getName() == name) {
                       if (RefObj* cro = any_cast<RefObj>(current)) {
                         cro->setActual(n, true);
@@ -2670,7 +2670,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
           }
 
           if (!found && mod->getNets()) {
-            for (Nets* n : *mod->getNets()) {
+            for (Net* n : *mod->getNets()) {
               if (n->getName() == name) {
                 if (RefObj* cro = any_cast<RefObj>(current)) {
                   cro->setActual(n, true);
@@ -2707,7 +2707,7 @@ HierPath* Elaborator::clone(const HierPath* source, Any* parent) {
             }
           } else {
             if (!found && scope->getNets()) {
-              for (Nets* n : *scope->getNets()) {
+              for (Net* n : *scope->getNets()) {
                 if (n->getName() == name) {
                   if (RefObj* cro = any_cast<RefObj>(current)) {
                     cro->setActual(n, true);

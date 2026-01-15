@@ -15,13 +15,17 @@
 # Universal Hardware Data Model (UHDM) "ports" formal description
 
 - class_def: ports
-- property: port_index
-  vpi: vpiPortIndex
-  type: int32_t
-  card: 1
 - property: name
   vpi: vpiName
   type: string
+  card: 1
+- property: explicit_name
+  vpi: vpiExplicitName
+  type: string
+  card: 1
+- property: port_index
+  vpi: vpiPortIndex
+  type: int32_t
   card: 1
 - property: port_type
   vpi: vpiPortType
@@ -47,16 +51,12 @@
   vpi: vpiSize
   type: int32_t
   card: 1
-- property: explicit_name
-  vpi: vpiExplicitName
-  type: string
+- group_ref: low_conn
+  vpi: vpiLowConn
+  type: expr_ref_obj_group
   card: 1
 - group_ref: high_conn
   vpi: vpiHighConn
-  type: expr_ref_obj_group
-  card: 1
-- group_ref: low_conn
-  vpi: vpiLowConn
   type: expr_ref_obj_group
   card: 1
 - class_ref: typespec
