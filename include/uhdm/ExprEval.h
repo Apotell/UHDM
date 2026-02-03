@@ -173,8 +173,8 @@ class ExprEval final {
   [[nodiscard]] bool reduceFuncCall(const FuncCall* call, const Any* pany, Expr** rexpr, bool muteError);
   [[nodiscard]] bool reduceRefObj(const RefObj* ro, const Any* pany, Expr** rexpr, bool muteError);
   [[nodiscard]] bool reduceBitSelect(const BitSelect* bs, const Any* pany, Expr** rexpr, bool muteError);
-  [[nodiscard]] bool reduceConstant(const Constant* constant, uint32_t index, const Any* pany, Expr** rexpr,
-                                    bool muteError);
+  [[nodiscard]] bool selectArrayElement(const Constant* constant, uint32_t index, const Any* pany, Expr** rexpr,
+                                        bool muteError);
   [[nodiscard]] bool reducePartSelect(const PartSelect* ps, const Any* pany, Expr** rexpr, bool muteError);
   [[nodiscard]] bool reduceIndexedPartSelect(const IndexedPartSelect* ips, const Any* pany, Expr** rexpr,
                                              bool muteError);

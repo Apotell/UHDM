@@ -429,6 +429,7 @@ if (WIN32 AND (CMAKE_CXX_COMPILER_ID MATCHES "MSVC"))
           $<TARGET_PDB_FILE:uhdm-gentest>
           $<TARGET_PDB_FILE:uhdm-hier>
           $<TARGET_PDB_FILE:uhdm-lint>
+          $<TARGET_PDB_FILE:uhdm-reduce>
           $<TARGET_PDB_FILE:vscode-uhdm-debugger>
     CONFIGURATIONS Debug RelWithDebInfo
     DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -35,9 +35,9 @@ enum class UhdmType {
 <DEFINES>
 };
 
-std::string UhdmName(UhdmType type);
+std::string_view UhdmName(UhdmType type);
 
-std::string VpiTypeName(vpiHandle h);
+std::string_view VpiTypeName(vpiHandle h);
 
 } // namespace uhdm
 

@@ -40,6 +40,16 @@
 namespace uhdm {
 class Serializer;
 
+enum class ReduceStatus { REDUCED, NO_CHANGE, INVALID };
+
+struct ReduceRow final {
+  std::string m_inputType;
+  std::string m_outputType;
+  size_t m_inputId = 0;
+  size_t m_outputId = 0;
+  ReduceStatus m_status;
+};
+
 class Reducer final : public ObjectProvider {
  public:
   explicit Reducer(Serializer* serializer) : m_serializer(serializer) {}
@@ -47,27 +57,23 @@ class Reducer final : public ObjectProvider {
   Reducer(const Reducer& rhs) = delete;
   Reducer& operator=(const Reducer& rhs) = delete;
 
-  const Any* getObject(std::string_view name, const Any* inst, const Any* pexpr,
-                       bool muteErrors = false) final;
-  const TaskFunc* getTaskFunc(std::string_view name, const Any* inst,
-                              const Any* pexpr, bool muteErrors = false) final;
-  Any* getValue(std::string_view name, const Any* inst, const Any* pexpr,
-                bool muteErrors = false) final;
+  const Any* getObject(std::string_view name, const Any* inst, const Any* pexpr, bool muteErrors = false) final;
+  const TaskFunc* getTaskFunc(std::string_view name, const Any* inst, const Any* pexpr, bool muteErrors = false) final;
+  Any* getValue(std::string_view name, const Any* inst, const Any* pexpr, bool muteErrors = false) final;
 
-  void reduce();
+  void reduce(bool verbose);
 
- protected:
-  void reduce(const ArrayExpr* const object);
-  void reduce(const Operation* const object);
-  void reduce(const SysFuncCall* const object);
+ private:
+  void reduce(const ArrayExpr* object);
+  void reduce(const Operation* object);
+  void reduce(const RefObj* object);
+  void reduce(const SysFuncCall* object);
 
- public:
-  Expr* reduceExpr(const Any* expr, bool& invalidValue, const Any* pexpr,
-                   bool muteErrors = false);
+  void addAttempt(const Any* what, Any* with, bool result);
+  void printAttempts(std::ostream& os) const;
 
   void setRange(const Constant* c, uint16_t lr, uint16_t rr);
 
- private:
   const Design* getDesign(std::string_view name) const;
   const Package* getPackage(std::string_view name) const;
 
@@ -78,11 +84,11 @@ class Reducer final : public ObjectProvider {
   Serializer* const m_serializer = nullptr;
   UhdmFinder m_finder;
   std::map<const Any*, Any*> m_swaps;
-  Module* m_exprEvalPlaceHolder = nullptr;
+  std::vector<ReduceRow> m_rows;
   Design* m_design = nullptr;
+  uint32_t m_stackLevel = 0;
   bool m_unwind = false;
   bool m_checkForLoops = false;
-  uint32_t m_stackLevel = 0;
 };
 }  // namespace uhdm
 

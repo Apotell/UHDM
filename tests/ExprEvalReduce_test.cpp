@@ -309,62 +309,128 @@ TEST(ExprEvalReduceExpr, VarSelect_Concat) {
   ASSERT_EQ(rc->getConstType(), vpiDecConst);
 }
 
+TEST(ExprEvalReduceExpr, BitSelect_LogicVector) {
+  TestObjectProvider provider;
+  Serializer& s = provider.m_serializer;
+  Constants& m_constants = provider.m_constants;
+  ExprEval eval(&provider);
+
+  auto makeInt = [&](const char* v) {
+    Constant* c = s.make<Constant>();
+    c->setValue(v);
+    c->setDecompile(v);
+    c->setConstType(vpiDecConst);
+    c->setSize(32);
+    setTypespec(c, UhdmType::IntTypespec, true, v, s);
+    return c;
+  };
+
+  /*---------------- logic [7:0] vec ----------------*/
+  LogicTypespec* lts = s.make<LogicTypespec>();
+  lts->setSigned(false);
+
+  Range* r = s.make<Range>();
+  r->setLeftExpr(makeInt("7"));
+  r->setRightExpr(makeInt("0"));
+
+  RangeCollection* rc = s.makeCollection<Range>();
+  rc->push_back(r);
+  lts->setRanges(rc);
+
+  /*---------------- constant vec = 8'b10101010 ----------------*/
+  Constant* vec = s.make<Constant>();
+  vec->setValue("10101010");
+  vec->setDecompile("8'b10101010");
+  vec->setConstType(vpiBinaryConst);
+  vec->setSize(8);
+
+  // ✅ Correct setTypespec call (pass LogicTypespec*, not RefTypespec*)
+  uhdm::setTypespec(vec, lts);
+
+  m_constants.emplace("vec", vec);
+
+  /*---------------- vec[2] ----------------*/
+  BitSelect* bs = s.make<BitSelect>();
+  bs->setName("vec");
+  bs->setIndex(makeInt("2"));
+  bs->setActual(vec);
+
+  Expr* result = nullptr;
+  bool ok = eval.reduceExpr(bs, bs, &result, true);
+
+  ASSERT_TRUE(ok);
+  ASSERT_NE(result, nullptr);
+
+  Constant* rcst = any_cast<Constant>(result);
+  ASSERT_NE(rcst, nullptr);
+
+  /*---------------- checks ----------------*/
+  EXPECT_EQ(rcst->getValue(), "0");
+  EXPECT_EQ(rcst->getConstType(), vpiBinaryConst);
+  EXPECT_EQ(rcst->getSize(), 1);
+}
+
 // TEST(ExprEvalReduceExpr, BitSelect_ConstantVector) {
 //   TestObjectProvider provider;
 //   Serializer& s = provider.m_serializer;
 //   Constants& m_constants = provider.m_constants;
 //   ExprEval eval(&provider);
+//  TEST(ExprEvalReduceExpr, BitSelect_ConstantVector) {
+//    TestObjectProvider provider;
+//    Serializer& s = provider.m_serializer;
+//    Constants& m_constants = provider.m_constants;
+//    ExprEval eval(&provider);
 //
-//   auto makeInt = [&](const char* v) {
-//     Constant* c = s.make<Constant>();
-//     c->setValue(v);
-//     c->setDecompile(v);
-//     c->setConstType(vpiDecConst);
-//     c->setSize(32);
-//     setTypespec(c, UhdmType::IntTypespec, false, v, s);
-//     return c;
-//   };
-//
-//
-//   LogicTypespec* const lts = s.make<LogicTypespec>();
-//   lts->setSigned(false);
-//
-//   Range* const pr = s.make<Range>();
-//   pr->setLeftExpr(makeInt("7"));
-//   pr->setRightExpr(makeInt("0"));
-//
-//   RangeCollection* const prc = s.makeCollection<Range>();
-//   prc->push_back(pr);
-//   lts->setRanges(prc);
+//    auto makeInt = [&](const char* v) {
+//      Constant* c = s.make<Constant>();
+//      c->setValue(v);
+//      c->setDecompile(v);
+//      c->setConstType(vpiDecConst);
+//      c->setSize(32);
+//      setTypespec(c, UhdmType::IntTypespec, false, v, s);
+//      return c;
+//    };
 //
 //
-//   Constant* vec = s.make<Constant>();
-//   vec->setValue("10110011");
-//   vec->setDecompile("10110011");
-//   vec->setConstType(vpiBinaryConst);
-//   vec->setSize(8);
-//   uhdm::setTypespec(vec, lts);
+//    LogicTypespec* const lts = s.make<LogicTypespec>();
+//    lts->setSigned(false);
 //
-//   m_constants.emplace("vec", vec);
+//    Range* const pr = s.make<Range>();
+//    pr->setLeftExpr(makeInt("7"));
+//    pr->setRightExpr(makeInt("0"));
 //
-//   Constant* idx = makeInt("0");
+//    RangeCollection* const prc = s.makeCollection<Range>();
+//    prc->push_back(pr);
+//    lts->setRanges(prc);
 //
-//   BitSelect* bs = s.make<BitSelect>();
-//   bs->setName("vec");
-//   bs->setIndex(idx);
 //
-//   Expr* result = nullptr;
-//   bool ok = eval.reduceExpr(bs, bs, &result, true);
+//    Constant* vec = s.make<Constant>();
+//    vec->setValue("10110011");
+//    vec->setDecompile("10110011");
+//    vec->setConstType(vpiBinaryConst);
+//    vec->setSize(8);
+//    uhdm::setTypespec(vec, lts);
 //
-//   ASSERT_TRUE(ok);
-//   ASSERT_NE(result, nullptr);
+//    m_constants.emplace("vec", vec);
 //
-//   Constant* rc = any_cast<Constant>(result);
-//   ASSERT_NE(rc, nullptr);
+//    Constant* idx = makeInt("0");
 //
-//   ASSERT_EQ(rc->getValue(), "1");
-//   ASSERT_EQ(rc->getConstType(), vpiBinaryConst);
-// }
+//    BitSelect* bs = s.make<BitSelect>();
+//    bs->setName("vec");
+//    bs->setIndex(idx);
+//
+//    Expr* result = nullptr;
+//    bool ok = eval.reduceExpr(bs, bs, &result, true);
+//
+//    ASSERT_TRUE(ok);
+//    ASSERT_NE(result, nullptr);
+//
+//    Constant* rc = any_cast<Constant>(result);
+//    ASSERT_NE(rc, nullptr);
+//
+//    ASSERT_EQ(rc->getValue(), "1");
+//    ASSERT_EQ(rc->getConstType(), vpiBinaryConst);
+//  }
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

@@ -69,36 +69,55 @@ inline const T *getNamedObject(const Factory::objects_t &objects, std::string_vi
   return (it == objects.cend()) ? nullptr : any_cast<T>(*it);
 }
 
-template <typename T>
-inline const T *getParentOfType(const Any *object) {
-  const Any *p = object;
-  while (p != nullptr) {
-    if (const T *const tp = any_cast<T>(p)) {
-      return tp;
-    }
-    p = p->getParent();
-  }
-  return nullptr;
-}
+void Reducer::addAttempt(const Any *what, Any *with, bool result) {
+  ReduceRow &row = m_rows.emplace_back();
 
-void Reducer::reduce(const ArrayExpr *const object) {
-  // Create ExprEval object
-  // Evaluate input object
-  // If succeeded, replace the input object with a constant object
-}
+  row.m_inputType = UhdmName(what->getUhdmType());
+  row.m_inputId = what->getUhdmId();
 
-void Reducer::reduce(const SysFuncCall *const object) {
-  bool bIsInvalid = false;
-  if (Any *const updatedExpr = reduceExpr(object, bIsInvalid, object->getParent(), false)) {
-    if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
+  if ((with != nullptr) && result) {
+    m_swaps.emplace(what, with);
+
+    row.m_outputId = with->getUhdmId();
+    row.m_outputType = UhdmName(with->getUhdmType());
+    row.m_status = ReduceStatus::REDUCED;
+  } else if (!result) {
+    row.m_outputId = what->getUhdmId();
+    row.m_outputType = row.m_inputType;
+    row.m_status = ReduceStatus::INVALID;
+  } else {
+    row.m_outputId = what->getUhdmId();
+    row.m_outputType = row.m_inputType;
+    row.m_status = ReduceStatus::NO_CHANGE;
   }
 }
 
-void Reducer::reduce(const Operation *const object) {
-  bool bIsInvalid = false;
-  if (Any *const updatedExpr = reduceExpr(object, bIsInvalid, object->getParent(), false)) {
-    if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
-  }
+void Reducer::reduce(const ArrayExpr *object) {
+  Expr *rexpr = nullptr;
+  ExprEval eval(this, false);
+  bool result = eval.reduceExpr(object, object->getParent(), &rexpr, false);
+  addAttempt(object, rexpr, result);
+}
+
+void Reducer::reduce(const Operation *object) {
+  Expr *rexpr = nullptr;
+  ExprEval eval(this, false);
+  bool result = eval.reduceExpr(object, object->getParent(), &rexpr, false);
+  addAttempt(object, rexpr, result);
+}
+
+void Reducer::reduce(const RefObj *object) {
+  Expr *rexpr = nullptr;
+  ExprEval eval(this, false);
+  bool result = eval.reduceExpr(object, object->getParent(), &rexpr, false);
+  addAttempt(object, rexpr, result);
+}
+
+void Reducer::reduce(const SysFuncCall *object) {
+  Expr *rexpr = nullptr;
+  ExprEval eval(this, false);
+  bool result = eval.reduceExpr(object, object->getParent(), &rexpr, false);
+  addAttempt(object, rexpr, result);
 }
 
 const TaskFunc *Reducer::getTaskFunc(std::string_view name, const Any *inst, const Any *pexpr,
@@ -110,44 +129,30 @@ const Any *Reducer::getObject(std::string_view name, const Any *inst, const Any 
   return m_finder.findObject(name, pexpr);
 }
 
-Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue, const Any *pexpr, bool muteErrors /* = false */) {
-  ExprEval eval(this, muteErrors);
-  if (m_exprEvalPlaceHolder == nullptr) {
-    m_exprEvalPlaceHolder = m_serializer->make<Module>();
-    m_exprEvalPlaceHolder->setParamAssigns(m_serializer->makeCollection<ParamAssign>());
-  } else {
-    m_exprEvalPlaceHolder->getParamAssigns()->erase(m_exprEvalPlaceHolder->getParamAssigns()->begin(),
-                                                    m_exprEvalPlaceHolder->getParamAssigns()->end());
-  }
-  Expr *res = nullptr;
-  invalidValue = !eval.reduceExpr(any_cast<Expr>(result), pexpr, &res, muteErrors);
-  // If loop was detected, drop the partially constructed new value!
-  return m_unwind ? nullptr : res;
-}
-
 void Reducer::setRange(const Constant *c, uint16_t lr, uint16_t rr) {
-  if (!c) return;
+  if (c == nullptr) return;
+  if ((lr == 0) && (rr == 0)) return;
 
-  // uint16_t lr = val->getLRange();
-  // uint16_t rr = val->getRRange();
-  if (lr || rr) {
-    LogicTypespec *tps = m_serializer->make<LogicTypespec>();
-    RefTypespec *tpsRef = m_serializer->make<RefTypespec>();
-    tpsRef->setParent(const_cast<Constant *>(c));
-    tpsRef->setActual(tps);
-    const_cast<Constant *>(c)->setTypespec(tpsRef);
-    Range *r = m_serializer->make<Range>();
-    r->setParent(tps);
-    RangeCollection *ranges = m_serializer->makeCollection<Range>();
-    ranges->push_back(r);
-    tps->setRanges(ranges);
-    Constant *lc = m_serializer->make<Constant>();
-    lc->setValue(std::to_string(lr));
-    r->setLeftExpr(lc);
-    Constant *rc = m_serializer->make<Constant>();
-    rc->setValue(std::to_string(rr));
-    r->setRightExpr(rc);
-  }
+  RefTypespec *const rt = m_serializer->make<RefTypespec>();
+  rt->setParent(const_cast<Constant *>(c));
+
+  LogicTypespec *const lt = m_serializer->make<LogicTypespec>();
+  rt->setActual(lt);
+  const_cast<Constant *>(c)->setTypespec(rt);
+
+  Range *const r = m_serializer->make<Range>();
+  r->setParent(lt);
+
+  RangeCollection *const ranges = lt->getRanges(true);
+  ranges->emplace_back(r);
+
+  Constant *const lc = m_serializer->make<Constant>();
+  lc->setValue(std::to_string(lr));
+  r->setLeftExpr(lc);
+
+  Constant *const rc = m_serializer->make<Constant>();
+  rc->setValue(std::to_string(rr));
+  r->setRightExpr(rc);
 }
 
 bool Reducer::loopDetected() {
@@ -217,13 +222,13 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
       if (const Package *pack = getPackage(packName)) {
         if (Expr *val = getComplexValue(pack, varName)) {
           result = val;
+          /*
           if (result->getUhdmType() == UhdmType::Operation) {
             Operation *op = (Operation *)result;
             const Typespec *opts = nullptr;
             if (RefTypespec *rt = op->getTypespec()) {
               opts = rt->getActual();
             }
-            /*
             ExprEval eval;
             if (expr *res = eval.flattenPatternAssignments(
                     s, opts, (expr *)result)) {
@@ -231,8 +236,8 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
                 op->Operands(((operation *)res)->Operands());
               }
             }
-            */
           }
+          */
         }
         if (result == nullptr) {
           // Need to get input about Value
@@ -285,13 +290,11 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
       }
     } else if ((resultType == UhdmType::Operation) || (resultType == UhdmType::HierPath) ||
                (resultType == UhdmType::BitSelect) || (resultType == UhdmType::SysFuncCall)) {
-      bool invalidValue = false;
-      if (Any *tmp = reduceExpr(result, invalidValue, pexpr, muteErrors)) {
-        result = tmp;
+      Expr *rexpr = nullptr;
+      ExprEval eval(this, muteErrors);
+      if (eval.reduceExpr(any_cast<Expr>(result), pexpr, &rexpr, muteErrors)) {
+        result = rexpr;
       }
-    } else {
-      int32_t setBreakpointHere = 1;
-      setBreakpointHere++;
     }
   }
   if (m_checkForLoops) {
@@ -300,7 +303,46 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
   return result;
 }
 
-void Reducer::reduce() {
+static std::string_view statusToStr(ReduceStatus s) {
+  switch (s) {
+    case ReduceStatus::REDUCED: return "REDUCED";
+    case ReduceStatus::INVALID: return "INVALID";
+    case ReduceStatus::NO_CHANGE: return "NO_CHANGE";
+  }
+  return "";
+}
+
+void Reducer::printAttempts(std::ostream &os) const {
+  constexpr uint32_t kInputTypeW = 16;
+  constexpr uint32_t kInputIdW = 8;
+  constexpr uint32_t kOutputTypeW = 16;
+  constexpr uint32_t kOutputIdW = 8;
+  constexpr uint32_t kStatusW = 10;
+  constexpr uint32_t kTableW = kInputTypeW + kInputIdW + kOutputTypeW + kOutputIdW + kStatusW;
+
+  auto printBanner = [&](std::string_view txt) {
+    uint32_t pad = kTableW - txt.size();
+    os << std::string(pad / 2, '=') << txt << std::string(pad - (pad / 2), '=') << '\n';
+  };
+
+  printBanner(" REDUCTION START ");
+
+  os << std::left << std::setw(kInputTypeW) << "InputObjType" << std::right << std::setw(kInputIdW) << "InputId"
+     << std::left << std::setw(kOutputTypeW) << " OutputObjType" << std::right << std::setw(kOutputIdW) << "OutputId"
+     << std::right << std::setw(kStatusW) << "Status" << '\n';
+
+  os << std::string(kTableW, '-') << '\n';
+
+  for (const auto &r : m_rows) {
+    os << std::left << std::setw(kInputTypeW) << r.m_inputType << std::right << std::setw(kInputIdW) << r.m_inputId
+       << std::left << " " << std::setw(kOutputTypeW - 1) << r.m_outputType << std::right << std::setw(kOutputIdW)
+       << r.m_outputId << std::right << std::setw(kStatusW) << statusToStr(r.m_status) << '\n';
+  }
+
+  printBanner(" REDUCTION END ");
+}
+
+void Reducer::reduce(bool verbose) {
   if (Factory *const factory = m_serializer->getFactory<Operation>()) {
     for (const Any *object : factory->getObjects()) {
       reduce(static_cast<const Operation *>(object));
@@ -313,6 +355,26 @@ void Reducer::reduce() {
     }
   }
 
+  if (Factory *const factory = m_serializer->getFactory<CaseItem>()) {
+    for (const Any *object : factory->getObjects()) {
+      if (const AnyCollection *const collection = static_cast<const CaseItem *>(object)->getExprs()) {
+        for (const Any *expr : *collection) {
+          if (const RefObj *const ro = any_cast<RefObj>(expr)) {
+            reduce(ro);
+          }
+        }
+      }
+    }
+  }
+
+  for (auto &[what, with] : m_swaps) {
+    if (const Any *p = what->getParent()) {
+      with->setParent(const_cast<Any *>(p), true);
+      const_cast<Any *>(what)->setParent(nullptr);
+    }
+  }
+
   m_serializer->swap(m_swaps);
+  if (verbose) printAttempts(std::cout);
 }
 }  // namespace uhdm

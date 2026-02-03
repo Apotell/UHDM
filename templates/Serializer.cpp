@@ -372,9 +372,7 @@ vpiHandle Serializer::makeUhdmHandle(UhdmType type, const void* object, uint32_t
   return (object == nullptr) ? nullptr : (vpiHandle)m_uhdmHandleFactory.make(type, object, index);
 }
 
-bool Serializer::erase(vpiHandle handle) {
-  return m_uhdmHandleFactory.erase((UhdmHandle*)handle);
-}
+bool Serializer::erase(vpiHandle handle) { return m_uhdmHandleFactory.erase((UhdmHandle*)handle); }
 
 SymbolCollection* Serializer::makeSymbolCollection() {
   // return m_symbolVectorFactory.make();
@@ -389,7 +387,7 @@ Serializer::IdMap Serializer::getAllObjects() const {
   return idMap;
 }
 
-std::string UhdmName(UhdmType type) {
+std::string_view UhdmName(UhdmType type) {
   switch (type) {
 <UHDM_NAME_MAP>
     default: return "NO TYPE";
@@ -397,18 +395,32 @@ std::string UhdmName(UhdmType type) {
 }
 
 // From uhdm_types.h
-std::string VpiTypeName(vpiHandle h) {
+std::string_view VpiTypeName(vpiHandle h) {
   const UhdmHandle* const handle = (const UhdmHandle*)h;
   const BaseClass* const obj = (const BaseClass*)handle->object;
   return UhdmName(obj->getUhdmType());
 }
 
-std::map<std::string, uint32_t, std::less<>> Serializer::getObjectStats() const {
-  std::map<std::string, uint32_t, std::less<>> stats;
+std::map<std::string_view, uint32_t, std::less<>> Serializer::getObjectStats() const {
+  std::map<std::string_view, uint32_t, std::less<>> stats;
   for (factories_t::const_reference entry : m_factories) {
     stats.emplace(UhdmName(entry.first), entry.second->m_objects.size());
   }
   return stats;
+}
+
+std::map<std::string_view, std::set<uint32_t>, std::less<>> Serializer::getObjectIdSets() const {
+  std::map<std::string_view, std::set<uint32_t>, std::less<>> result;
+
+  for (factories_t::const_reference entry : m_factories) {
+    const std::string_view typeName = UhdmName(entry.first);
+    auto& idSet = result[typeName];
+
+    for (const Any* obj : entry.second->m_objects) {
+      idSet.emplace(obj->getUhdmId());
+    }
+  }
+  return result;
 }
 
 void Serializer::printStats(std::ostream& strm, std::string_view infoText) const {

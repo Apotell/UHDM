@@ -74,11 +74,8 @@ enum ErrorType {
   UHDM_FORCING_UNSIGNED_TYPE = 733
 };
 
-using ErrorHandler =
-    std::function<void(ErrorType errType, const std::string&,
-                       const Any* object1, const Any* object2)>;
-void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg,
-                         const Any* object1, const Any* object2);
+using ErrorHandler = std::function<void(ErrorType errType, const std::string&, const Any* object1, const Any* object2)>;
+void DefaultErrorHandler(ErrorType errType, const std::string& errorMsg, const Any* object1, const Any* object2);
 
 class Factory final {
   friend class Serializer;
@@ -115,8 +112,7 @@ class Factory final {
   template <typename T>
   bool erase(const std::vector<T*>* collection) {
     collections_t::iterator it =
-        std::find(m_collections.begin(), m_collections.end(),
-                  static_cast<const std::vector<Any*>*>(collection));
+        std::find(m_collections.begin(), m_collections.end(), static_cast<const std::vector<Any*>*>(collection));
     if (it != m_collections.end()) {
       delete collection;
       m_collections.erase(it);
@@ -139,8 +135,7 @@ class Factory final {
     return count;
   }
 
-  void mapToIndex(std::map<const Any*, uint32_t>& table,
-                  uint32_t index = 1) const {
+  void mapToIndex(std::map<const Any*, uint32_t>& table, uint32_t index = 1) const {
     for (objects_t::const_reference any : m_objects) {
       table.emplace(any, index++);
     }
@@ -197,7 +192,8 @@ class Serializer final {
 
   const std::vector<vpiHandle> restore(const std::filesystem::path& filepath);
   const std::vector<vpiHandle> restore(const std::string& filepath);
-  std::map<std::string, uint32_t, std::less<>> getObjectStats() const;
+  std::map<std::string_view, uint32_t, std::less<>> getObjectStats() const;
+  std::map<std::string_view, std::set<uint32_t>, std::less<>> getObjectIdSets() const;
   void printStats(std::ostream& strm, std::string_view infoText) const;
 
   void swap(const Any* what, Any* with);
@@ -206,23 +202,23 @@ class Serializer final {
  private:
   template <typename T>
   T* make(Factory* const factory) {
-    T *const obj = factory->template make<T>(this);
+    T* const obj = factory->template make<T>(this);
     obj->setUhdmId(++m_objId);
     return obj;
   }
 
   template <typename T>
-  void make(Factory *const factory, uint32_t count) {
+  void make(Factory* const factory, uint32_t count) {
     for (uint32_t i = 0; i < count; ++i) make<T>(factory);
   }
 
   template <typename T>
-  std::vector<T *> *makeCollection(Factory *const factory) {
+  std::vector<T*>* makeCollection(Factory* const factory) {
     return factory->template makeCollection<T>();
   }
 
  public:
-  template<typename T>
+  template <typename T>
   T* make() {
     return make<T>(m_factories[T::kUhdmType]);
   }
@@ -233,13 +229,13 @@ class Serializer final {
   }
 
   template <typename T>
-  std::vector<T *> *makeCollection() {
+  std::vector<T*>* makeCollection() {
     return makeCollection<T>(m_factories[T::kUhdmType]);
   }
 
   template <typename T>
-  T* clone(const T *source) {
-    Factory *const factory = m_factories[T::kUhdmType];
+  T* clone(const T* source) {
+    Factory* const factory = m_factories[T::kUhdmType];
     T* const target = factory->template make<T>(this, *source);
     target->setUhdmId(++m_objId);
     return target;
@@ -255,20 +251,17 @@ class Serializer final {
   bool erase(vpiHandle handle);
 
   bool erase(const BaseClass* p);
-  template<typename T>
+  template <typename T>
   bool erase(const std::vector<T*>* collection) {
     return m_factories[T::kUhdmType]->template erase<T>(collection);
   }
 
   void pushScope(Any* s);
   bool popScope(Any* s);
-  Any* topScope() const {
-    return m_scopeStack.empty() ? nullptr : m_scopeStack.back();
-  }
+  Any* topScope() const { return m_scopeStack.empty() ? nullptr : m_scopeStack.back(); }
 
   Any* topDesign() const {
-    for (auto it = m_scopeStack.rbegin(), end = m_scopeStack.rend(); it != end;
-         ++it) {
+    for (auto it = m_scopeStack.rbegin(), end = m_scopeStack.rend(); it != end; ++it) {
       if ((*it)->getUhdmType() == UhdmType::Design) {
         return *it;
       }
@@ -285,7 +278,7 @@ class Serializer final {
   friend struct RestoreAdapter;
 
  private:
-  template<typename T>
+  template <typename T>
   T* getObject(uint32_t type, uint32_t index) const;
 
   uint64_t m_version = 0;
@@ -296,7 +289,7 @@ class Serializer final {
   SymbolFactory m_symbolFactory;
   UhdmHandleFactory m_uhdmHandleFactory;
 
-  using scope_stack_t = std::vector<Any *>;
+  using scope_stack_t = std::vector<Any*>;
   scope_stack_t m_scopeStack;
 
   using factories_t = std::map<UhdmType, Factory*>;
@@ -311,6 +304,6 @@ class ScopedScope final {
  private:
   Any* const m_any = nullptr;
 };
-} // namespace uhdm
+}  // namespace uhdm
 
 #endif  // UHDM_SERIALIZER_H

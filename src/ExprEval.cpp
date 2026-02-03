@@ -51,22 +51,22 @@ struct identity final {
   constexpr static bool boolean_result = false;
 
   template <class T>
-  inline constexpr T operator()(const T &x) const {
+  constexpr T operator()(const T &x) const {
     return x;
   };
-  inline std::string operator()(std::string_view x) const { return std::string(x); };
+  std::string operator()(std::string_view x) const { return std::string(x); };
 };
 
 struct unary_reduce_and final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr bool operator()(T v) const {
+  constexpr bool operator()(T v) const {
     using UT = typename std::make_unsigned<T>::type;
     UT u = static_cast<UT>(v);
     return u == std::numeric_limits<UT>::max();
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "0";
 
     // v may contain '0', '1', 'x', 'z', or other characters.
@@ -82,11 +82,11 @@ struct unary_reduce_or final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr bool operator()(T v) const {
+  constexpr bool operator()(T v) const {
     using UT = typename std::make_unsigned<T>::type;
     return static_cast<UT>(v) != 0;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "0";
 
     // If ANY bit is '1' -> result is '1'
@@ -102,7 +102,7 @@ struct unary_reduce_xor final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr bool operator()(T v) const {
+  constexpr bool operator()(T v) const {
     using UT = typename std::make_unsigned<T>::type;
 
     UT x = static_cast<UT>(v);
@@ -113,7 +113,7 @@ struct unary_reduce_xor final {
     }
     return parity;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "0";
 
     bool parity = false;
@@ -142,10 +142,10 @@ struct unary_negate final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return std::negate()(v);
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "0";
 
     const size_t width = v.size();
@@ -192,14 +192,14 @@ struct unary_bit_not final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return std::bit_not()(v);
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "";
 
     std::string out;
@@ -225,18 +225,17 @@ struct unary_logical_not final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return std::logical_not()(v);
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     bool has_one = false;
-    bool has_zero = false;
     bool has_xz = false;
 
     for (char c : v) {
       switch (c) {
         case '1': has_one = true; break;
-        case '0': has_zero = true; break;
+        case '0': break;
         case 'x':
         case 'X':
         case 'z':
@@ -261,14 +260,14 @@ struct unary_and_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_and()(v) ? T{1} : T{0};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "x";
 
     bool hasZero = false;
@@ -301,14 +300,14 @@ struct unary_nand_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_and()(v) ? T{0} : T{1};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "x";
 
     bool hasZero = false;
@@ -346,14 +345,14 @@ struct unary_or_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_or()(v) ? T{1} : T{0};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     if (v.empty()) return "x";
 
     bool hasXorZ = false;
@@ -382,14 +381,14 @@ struct unary_nor_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_or()(v) ? T{0} : T{1};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     bool has1 = false;
     bool hasUnknown = false;
 
@@ -410,14 +409,14 @@ struct unary_xor_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_xor()(v) ? T{1} : T{0};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     bool parity = false;
 
     for (char c : v) {
@@ -437,14 +436,14 @@ struct unary_xnor_op final {
   constexpr static bool boolean_result = true;
 
   template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return unary_reduce_xor()(v) ? T{0} : T{1};
   }
   template <typename T, typename std::enable_if<std::is_floating_point<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     bool parity = false;
 
     for (char c : v) {
@@ -465,10 +464,10 @@ struct unary_preinc_op final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v + 1;
   }
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     // 1. X/Z propagation
     if (v.find_first_of("xz") != std::string::npos) {
       return std::string(v.size(), 'x');
@@ -500,11 +499,11 @@ struct unary_predec_op final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v - 1;
   }
 
-  inline std::string operator()(std::string_view v) const {
+  std::string operator()(std::string_view v) const {
     const size_t width = v.size();
 
     // X/Z propagation
@@ -538,20 +537,20 @@ struct unary_postinc_op final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const { return std::string(v); }
+  std::string operator()(std::string_view v) const { return std::string(v); }
 };
 
 struct unary_postdec_op final {
   constexpr static bool boolean_result = false;
 
   template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-  inline constexpr T operator()(T v) const {
+  constexpr T operator()(T v) const {
     return v;
   }
-  inline std::string operator()(std::string_view v) const { return std::string(v); }
+  std::string operator()(std::string_view v) const { return std::string(v); }
 };
 
 struct binary_plus final {
@@ -559,10 +558,10 @@ struct binary_plus final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a + b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // Any X/Z → return X
     auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
 
@@ -602,10 +601,10 @@ struct binary_minus final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a - b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // Check X/Z in operand
     auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
 
@@ -647,10 +646,10 @@ struct binary_multiplies final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a * b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // Check for X/Z in operands
     auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
 
@@ -691,10 +690,10 @@ struct binary_divides final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a / b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // Check for X/Z in operands
     auto has_unknown = [](std::string_view v) { return v.find_first_of("xXzZ") != std::string::npos; };
 
@@ -738,16 +737,16 @@ struct binary_bit_or final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a | b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // Make widths equal (pad left with zeros)
     size_t w = std::max(a.size(), b.size());
 
@@ -764,7 +763,6 @@ struct binary_bit_or final {
 
     auto is1 = [](char c) { return c == '1'; };
     auto is0 = [](char c) { return c == '0'; };
-    auto is_unknown = [](char c) { return (c == 'x') || (c == 'X') || (c == 'z') || (c == 'Z'); };
 
     for (size_t i = 0; i < w; i++) {
       char A = as[i];
@@ -796,16 +794,16 @@ struct binary_bit_xor final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a ^ b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     size_t w = std::max(a.size(), b.size());
 
     auto pad_msb = [&](std::string_view v) {
@@ -842,16 +840,16 @@ struct binary_modulus_op {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a % b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return std::fmod(a, b);
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // If either operand has unknown bits → result is X
     auto has_unknown_xz = [](std::string_view s) { return s.find_first_of("xz") != std::string_view::npos; };
     auto has_unknown_XZ = [](std::string_view s) { return s.find_first_of("XZ") != std::string_view::npos; };
@@ -903,16 +901,16 @@ struct binary_bit_and {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a & b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     size_t width = std::max(a.size(), b.size());
     std::string out(width, '0');
 
@@ -939,11 +937,11 @@ struct binary_equal final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a == b;
   }
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     auto get_bit = [](std::string_view s, size_t i, size_t w) -> char {
       return (i < w - s.size()) ? '0' : s[i - (w - s.size())];
     };
@@ -973,11 +971,11 @@ struct binary_not_equal final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a != b;
   }
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     auto get_bit = [](std::string_view s, size_t i, size_t w) -> char {
       return (i < w - s.size()) ? '0' : s[i - (w - s.size())];
     };
@@ -1007,10 +1005,10 @@ struct binary_greater final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a > b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
     if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
       return "x";
@@ -1039,10 +1037,10 @@ struct binary_greater_equal final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a >= b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
     if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
       return "x";
@@ -1071,10 +1069,10 @@ struct binary_less final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a < b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
     if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
       return "x";
@@ -1103,10 +1101,10 @@ struct binary_less_equal final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a <= b;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     // If either input contains unknown ('x', 'X', 'z', 'Z'), return "x"
     if ((a.find_first_of("xz") != std::string::npos) || (b.find_first_of("xz") != std::string::npos)) {
       return "x";
@@ -1135,11 +1133,11 @@ struct binary_logical_and_op final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return (a && b);
   }
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     auto reduce_to_bit = [](std::string_view v) {
       char unknown = 0;
 
@@ -1171,11 +1169,11 @@ struct binary_logical_or_op final {
 
   template <typename A, typename B,
             std::enable_if_t<std::is_arithmetic<A>::value && std::is_arithmetic<B>::value, bool> = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return (a || b);
   }
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     bool unknown = false;
 
     for (char c : a) {
@@ -1198,16 +1196,16 @@ struct binary_xnor_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return ~(a ^ b);
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     if (a.size() != b.size()) return "x";  // size mismatch → unknown
 
     std::string result;
@@ -1235,16 +1233,16 @@ struct binary_nand_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return ~(a & b);
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view v1, std::string_view v2) const {
+  std::string operator()(std::string_view v1, std::string_view v2) const {
     if (v1.size() != v2.size()) return "x";  // size mismatch → unknown
 
     std::string result;
@@ -1272,16 +1270,16 @@ struct binary_nor_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return ~(a | b);
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view v1, std::string_view v2) const {
+  std::string operator()(std::string_view v1, std::string_view v2) const {
     if (v1.size() != v2.size()) return "x";  // size mismatch → unknown
 
     std::string result;
@@ -1320,16 +1318,16 @@ struct binary_imply_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) const {
+  constexpr bool operator()(A a, B b) const {
     return (!a) || b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) const {
+  constexpr bool operator()(A a, B b) const {
     return false;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+  std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
 };
 
 struct binary_overlap_imply_op final {
@@ -1337,16 +1335,16 @@ struct binary_overlap_imply_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) const {
+  constexpr bool operator()(A a, B b) const {
     return (!a) || b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) const {
+  constexpr bool operator()(A a, B b) const {
     return false;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+  std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
 };
 
 struct binary_non_overlap_imply_op final {
@@ -1356,7 +1354,7 @@ struct binary_non_overlap_imply_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) {
+  constexpr bool operator()(A a, B b) {
     bool result = true;
 
     // If previous cycle had a=1, b must be 1 now
@@ -1370,10 +1368,10 @@ struct binary_non_overlap_imply_op final {
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value && std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr bool operator()(A a, B b) {
+  constexpr bool operator()(A a, B b) {
     return false;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+  std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
 };
 
 struct binary_logical_lshift_op final {
@@ -1381,7 +1379,7 @@ struct binary_logical_lshift_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr A operator()(A a, B b) const {
+  constexpr A operator()(A a, B b) const {
     using V = std::make_unsigned_t<A>;
     V ua = static_cast<V>(a);
 
@@ -1394,10 +1392,10 @@ struct binary_logical_lshift_op final {
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     const size_t width = a.size();
 
     // 1. Shift amount must be known (no X/Z)
@@ -1435,7 +1433,7 @@ struct binary_logical_rshift_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr A operator()(A a, B b) const {
+  constexpr A operator()(A a, B b) const {
     using V = std::make_unsigned_t<A>;
     V ua = static_cast<V>(a);
 
@@ -1448,11 +1446,11 @@ struct binary_logical_rshift_op final {
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     size_t width = a.size();
 
     // 1. Check shift amount for X/Z
@@ -1487,16 +1485,16 @@ struct binary_arith_lshift_op final {
 
   template <typename A, typename B,
             typename std::enable_if<std::is_integral<A>::value && std::is_integral<B>::value, bool>::type = true>
-  inline constexpr A operator()(A a, B b) const {
+  constexpr A operator()(A a, B b) const {
     return static_cast<std::make_unsigned_t<A>>(a) << b;
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     const size_t N = a.size();
 
     // Binary shift amount with x/z check
@@ -1530,7 +1528,7 @@ struct binary_arith_rshift_op final {
 
   template <typename T, typename U,
             typename std::enable_if<std::is_integral<T>::value && std::is_integral<U>::value, bool>::type = true>
-  inline constexpr T operator()(T a, U b) const {
+  constexpr T operator()(T a, U b) const {
     using ST = std::make_signed_t<T>;
     using UT = std::make_unsigned_t<T>;
 
@@ -1543,17 +1541,17 @@ struct binary_arith_rshift_op final {
     ST shifted = sa >> b;
 
     // Mask back to original width (important!)
-    UT mask = (WIDTH == 64) ? ~UT(0) : ((UT(1) << WIDTH) - 1);
+    UT mask = (WIDTH == 64) ? ~UT(0) : ((1ULL << WIDTH) - 1);
 
     return static_cast<T>(shifted & mask);
   }
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return a;
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     size_t width = a.size();
 
     // 1. Check shift amount for X/Z
@@ -1588,7 +1586,7 @@ struct binary_power_op final {
 
   template <typename T, typename U,
             typename std::enable_if<std::is_integral<T>::value && std::is_integral<U>::value, bool>::type = true>
-  inline constexpr T operator()(T a, U b) const {
+  constexpr T operator()(T a, U b) const {
     using R = typename std::common_type_t<T, U>;
     R base = static_cast<R>(a);
     R exp = static_cast<R>(b);
@@ -1606,10 +1604,10 @@ struct binary_power_op final {
   template <
       typename A, typename B,
       typename std::enable_if<std::is_floating_point<A>::value || std::is_floating_point<B>::value, bool>::type = true>
-  inline constexpr auto operator()(A a, B b) const {
+  constexpr auto operator()(A a, B b) const {
     return std::pow(a, b);
   }
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     const size_t N = a.size();
 
     // 1. Parse exponent string
@@ -1671,13 +1669,13 @@ struct binary_power_op final {
 struct binary_concat_op final {
   constexpr static bool boolean_result = false;
 
-  inline std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
+  std::string operator()(std::string_view a, std::string_view b) const { return StrCat(a, b); }
 };
 
 struct binary_replicate_op final {
   constexpr static bool boolean_result = false;
 
-  inline std::string operator()(int64_t count, std::string_view value) const {
+  std::string operator()(int64_t count, std::string_view value) const {
     if (count <= 0) return {};
 
     const size_t n = static_cast<size_t>(count);
@@ -1696,7 +1694,7 @@ struct binary_replicate_op final {
 struct unary_replicate_extend_op final {
   constexpr static bool boolean_result = false;
 
-  inline std::string operator()(size_t width, std::string_view value) const {
+  std::string operator()(size_t width, std::string_view value) const {
     if (value.size() == 1) {
       return std::string(width, value.front());
     }
@@ -1712,13 +1710,13 @@ struct unary_replicate_extend_op final {
     size_t missing = width - value.size();
     return StrCat(std::string(missing, value.front()), value);
   }
-  inline std::string operator()(std::string_view width, std::string_view value) const { return std::string(value); }
+  std::string operator()(std::string_view width, std::string_view value) const { return std::string(value); }
 };
 
 struct binary_case_eq_op final {
   constexpr static bool boolean_result = false;
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     if (a.length() != b.length()) return "0";
 
     for (size_t i = 0, ni = a.length(); i < ni; ++i) {
@@ -1731,7 +1729,7 @@ struct binary_case_eq_op final {
 struct binary_case_neq_op final {
   constexpr static bool boolean_result = false;
 
-  inline std::string operator()(std::string_view a, std::string_view b) const {
+  std::string operator()(std::string_view a, std::string_view b) const {
     binary_case_eq_op eq;
     return (eq(a, b) == "1") ? "0" : "1";
   }
@@ -1739,7 +1737,7 @@ struct binary_case_neq_op final {
 
 struct ExprEval::cast_op final {
   template <typename R>
-  inline std::enable_if_t<std::is_integral<R>::value, R> operator()(const value_t &value) const {
+  std::enable_if_t<std::is_integral<R>::value, R> operator()(const value_t &value) const {
     return std::visit(
         [](auto &&arg) -> R {
           using T = std::decay_t<decltype(arg)>;
@@ -1786,7 +1784,7 @@ struct ExprEval::cast_op final {
   }
 
   template <typename R, typename std::enable_if<std::is_floating_point<R>::value, bool>::type = true>
-  inline constexpr R operator()(const value_t &value) const {
+  constexpr R operator()(const value_t &value) const {
     return std::visit(
         [](auto &&arg) -> R {
           using T = std::decay_t<decltype(arg)>;
@@ -1819,7 +1817,7 @@ struct ExprEval::cast_op final {
   }
 
   template <typename R, typename std::enable_if<std::is_same<R, std::string>::value, bool>::type = true>
-  inline R operator()(const value_t &value) const {
+  R operator()(const value_t &value) const {
     if (std::holds_alternative<svalue_t>(value)) {
       return std::get<std::string>(std::get<svalue_t>(value));
     } else if (std::holds_alternative<nvalue_t>(value)) {
@@ -1847,7 +1845,7 @@ struct ExprEval::cast_op final {
 };
 
 struct ExprEval::is_signed_op final {
-  inline bool operator()(const value_t &value) const {
+  bool operator()(const value_t &value) const {
     if (!std::holds_alternative<nvalue_t>(value)) {
       return false;
     }
@@ -1862,7 +1860,7 @@ struct ExprEval::is_signed_op final {
 };
 
 struct ExprEval::is_unsigned_op final {
-  inline bool operator()(const value_t &value) const {
+  bool operator()(const value_t &value) const {
     if (!std::holds_alternative<nvalue_t>(value)) {
       return false;
     }
@@ -1877,7 +1875,7 @@ struct ExprEval::is_unsigned_op final {
 };
 
 struct ExprEval::rank_op final {
-  inline uint32_t operator()(UhdmType ut) const {
+  uint32_t operator()(UhdmType ut) const {
     switch (ut) {
       case UhdmType::ByteTypespec: return 1;
       case UhdmType::ShortIntTypespec: return 2;
@@ -1930,13 +1928,13 @@ inline static bool isVector(const Typespec *typespec) {
          (typespec->getUhdmType() == UhdmType::LogicTypespec) || (typespec->getUhdmType() == UhdmType::BitTypespec);
 }
 
-inline static constexpr bool isConvSysFunc(std::string_view name) {
+static constexpr bool isConvSysFunc(std::string_view name) {
   return (name == "$rtoi") || (name == "$itor") || (name == "$signed") || (name == "$unsigned") ||
          (name == "$realtobits") || (name == "$bitstoreal") || (name == "$shortrealtobits") || (name == "$cast") ||
          (name == "$bitstoshortreal");
 }
 
-inline static constexpr bool isMathSysFunc(std::string_view name) {
+static constexpr bool isMathSysFunc(std::string_view name) {
   return (name == "$clog2") || (name == "$asin") || (name == "$acos") || (name == "$atan") || (name == "$ln") ||
          (name == "$log10") || (name == "$exp") || (name == "$sqrt") || (name == "$floor") || (name == "$ceil") ||
          (name == "$sin") || (name == "$cos") || (name == "$tan") || (name == "$sinh") || (name == "$cosh") ||
@@ -2138,19 +2136,12 @@ std::string ExprEval::parseBinary(const Expr *expr) const {
   if (typespec == nullptr) return "";
   if (typespec->getUhdmType() == UhdmType::EnumTypespec) return "";
 
-  int32_t constType = 0;
-  std::string_view sv;
-
   if (const Variable *const variable = any_cast<Variable>(expr)) {
     expr = variable->getValue();
   }
 
-  if (const Constant *const constant = any_cast<Constant>(expr)) {
-    constType = constant->getConstType();
-    sv = constant->getValue();
-  }
-
-  if (sv.empty()) return "";
+  const Constant *const constant = any_cast<Constant>(expr);
+  if (constant == nullptr) return nullptr;
 
   std::string value;
   switch (typespec->getUhdmType()) {
@@ -2437,7 +2428,7 @@ bool ExprEval::formatBinary(const Constant *constant, std::string *result) const
     const svalue_t &svalue = std::get<svalue_t>(value);
     *result = std::get<std::string>(svalue);
 
-    if (result->size() < constant->getSize()) {
+    if (result->size() < static_cast<size_t>(constant->getSize())) {
       *result = std::string(constant->getSize() - result->size(), '0') + *result;
     }
 
@@ -2845,7 +2836,16 @@ bool ExprEval::reduceUnaryOp(const Expr *iexpr, const Any *pany, F op, Expr **re
       rt->getActual()->setParent(const_cast<Any *>(p));
     }
   }
-
+  if (oconstant != nullptr) {
+    RefTypespec *const rt = oconstant->getTypespec();
+    rt->setParent(oconstant);
+    if (const Any *const p = iexpr->getParent()) {
+      oconstant->setParent(const_cast<Any *>(p));
+    }
+    if (const Any *const p = getParent<Design>(iexpr)) {
+      rt->getActual()->setParent(const_cast<Any *>(p));
+    }
+  }
   *rexpr = oconstant;
   return (oconstant != nullptr);
 }
@@ -2918,7 +2918,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           it->setSigned(true);
         } else if (signed0 && !signed1) {
           // Op0 is signed, Op1 is unsigned -> result is unsinged
-          const uint8_t uresult = op(iarg0, uarg1);
+          const uint8_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
           const std::string result = std::to_string(uresult);
           oconstant->setValue(result);
           oconstant->setDecompile(result);
@@ -2926,7 +2926,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           it->setSigned(false);
         } else if (!signed0 && signed1) {
           // Op0 is unsigned, Op1 is signed -> result is unsigned
-          const uint8_t uresult = op(uarg0, iarg1);
+          const uint8_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
           const std::string result = std::to_string(uresult);
           oconstant->setValue(result);
           oconstant->setDecompile(result);
@@ -2979,7 +2979,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           it->setSigned(true);
         } else if (signed0 && !signed1) {
           // Op0 is signed, Op1 is unsigned -> result is unsinged
-          const uint16_t uresult = op(iarg0, uarg1);
+          const uint16_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
           const std::string result = std::to_string(uresult);
           oconstant->setValue(result);
           oconstant->setDecompile(result);
@@ -2987,7 +2987,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           it->setSigned(false);
         } else if (!signed0 && signed1) {
           // Op0 is unsigned, Op1 is signed -> result is unsigned
-          const uint16_t uresult = op(uarg0, iarg1);
+          const uint16_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
           const std::string result = std::to_string(uresult);
           oconstant->setValue(result);
           oconstant->setDecompile(result);
@@ -3038,12 +3038,12 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(true);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint32_t uresult = op(iarg0, uarg1);
+              const uint32_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint32_t uresult = op(uarg0, iarg1);
+              const uint32_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else {
@@ -3063,12 +3063,12 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(true);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint32_t uresult = op(iarg0, uarg1);
+              const uint32_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint32_t uresult = op(uarg0, iarg1);
+              const uint32_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else {
@@ -3100,7 +3100,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
             it->setSigned(true);
           } else if (signed0 && !signed1) {
             // Op0 is signed, Op1 is unsigned -> result is unsinged
-            const uint32_t uresult = op(iarg0, uarg1);
+            const uint32_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
             const std::string result = std::to_string(uresult);
             oconstant->setValue(result);
             oconstant->setDecompile(result);
@@ -3108,7 +3108,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
             it->setSigned(false);
           } else if (!signed0 && signed1) {
             // Op0 is unsigned, Op1 is signed -> result is unsigned
-            const uint32_t uresult = op(uarg0, iarg1);
+            const uint32_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
             const std::string result = std::to_string(uresult);
             oconstant->setValue(result);
             oconstant->setDecompile(result);
@@ -3161,12 +3161,12 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(true);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint64_t uresult = op(iarg0, uarg1);
+              const uint64_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint64_t uresult = op(uarg0, iarg1);
+              const uint64_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else {
@@ -3186,12 +3186,12 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(true);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint64_t uresult = op(iarg0, uarg1);
+              const uint64_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint64_t uresult = op(uarg0, iarg1);
+              const uint64_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               format(uresult, vpiBinaryConst, op.boolean_result ? 1 : isize, &sresult);
               it->setSigned(false);
             } else {
@@ -3223,7 +3223,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(true);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint64_t uresult = op(iarg0, uarg1);
+              const uint64_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               const std::string result = std::to_string(uresult);
               oconstant->setValue(result);
               oconstant->setDecompile(result);
@@ -3231,7 +3231,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               it->setSigned(false);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint64_t uresult = op(uarg0, iarg1);
+              const uint64_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               const std::string result = std::to_string(uresult);
               oconstant->setValue(result);
               oconstant->setDecompile(result);
@@ -3258,14 +3258,14 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
               oconstant->setConstType(vpiTimeConst);
             } else if (signed0 && !signed1) {
               // Op0 is signed, Op1 is unsigned -> result is unsinged
-              const uint64_t uresult = op(iarg0, uarg1);
+              const uint64_t uresult = op(static_cast<uint64_t>(iarg0), uarg1);
               const std::string result = std::to_string(uresult);
               oconstant->setValue(result);
               oconstant->setDecompile(result);
               oconstant->setConstType(vpiTimeConst);
             } else if (!signed0 && signed1) {
               // Op0 is unsigned, Op1 is signed -> result is unsigned
-              const uint64_t uresult = op(uarg0, iarg1);
+              const uint64_t uresult = op(uarg0, static_cast<uint64_t>(iarg1));
               const std::string result = std::to_string(uresult);
               oconstant->setValue(result);
               oconstant->setDecompile(result);
@@ -3353,10 +3353,10 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
     rt->setActual(otypespec);
     oconstant->setTypespec(rt);
     rt->setParent(oconstant);
-    if (const Any *p = iexpr0->getParent()) {
+    if (const Any *const p = iexpr0->getParent()) {
       oconstant->setParent(const_cast<Any *>(p));
     }
-    if (const Any *p = getParent<Design>(iexpr0)) {
+    if (const Any *const p = getParent<Design>(iexpr0)) {
       rt->getActual()->setParent(const_cast<Any *>(p));
     }
     *rexpr = oconstant;
@@ -4562,8 +4562,8 @@ static int64_t rangeSize(int32_t l, int32_t r) {
 
 bool ExprEval::reduceArrayQuerySysFunc(const SysFuncCall *call, const Any *pexpr, Expr **rexpr, bool muteError) {
   const std::string_view name = call->getName();
-  const AnyCollection *args = call->getArguments();
-  if (!args || args->empty()) return false;
+  const AnyCollection *const args = call->getArguments();
+  if ((args == nullptr) || args->empty()) return false;
 
   Expr *argExpr = nullptr;
   if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
@@ -4605,7 +4605,7 @@ bool ExprEval::reduceArrayQuerySysFunc(const SysFuncCall *call, const Any *pexpr
     if (!NumUtils::parseInt64(c->getValue(), &idx)) return false;
 
     idx -= 1;
-    return (idx >= 0) && (idx < dims.size());
+    return (idx >= 0) && (idx < static_cast<int32_t>(dims.size()));
   };
 
   if (name == "$size") {
@@ -4869,7 +4869,7 @@ bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTy
 
   // Substitution
   if (const ParamAssign *const pass = any_cast<ParamAssign>(object)) {
-    const Expr *rhs = pass->getRhs<Expr>();
+    const Expr *const rhs = pass->getRhs<Expr>();
     Expr *r = nullptr;
     if ((invalidValue = !reduceExpr(rhs, pany, &r, muteError))) {
       object = r;
@@ -4889,10 +4889,10 @@ bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTy
     object = elaborator.clone<>(cons, nullptr);
     cons = any_cast<Constant>(object);
     if (cons->getTypespec() == nullptr) {
-      RefTypespec *rt = elaborator.clone<>(hp->getTypespec(), const_cast<Any *>(object));
+      RefTypespec *const rt = elaborator.clone<>(hp->getTypespec(), const_cast<Any *>(object));
       const_cast<Constant *>(cons)->setTypespec(rt);
     }
-  } else if (const Operation *oper = any_cast<Operation>(object)) {
+  } else if (const Operation *const oper = any_cast<Operation>(object)) {
     if (returnTypespec) {
       if (const RefTypespec *const rt = oper->getTypespec()) {
         object = rt->getActual();
@@ -4922,145 +4922,105 @@ bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTy
 
   return (*rany != nullptr);
 }
-
 bool ExprEval::reduceBitSelect(const BitSelect *bs, const Any *pany, Expr **rexpr, bool muteError) {
-  bool succeeded = false;
-  Expr *result = nullptr;
   Serializer &serializer = *bs->getSerializer();
 
-  const std::string_view name = bs->getName();
-  const Expr *const index = bs->getIndex();
+  std::string_view name = bs->getName();
+  if (name.empty()) name = bs->getDefName();
 
-  Expr *rindex = nullptr;
-  if (!reduceExpr(index, pany, &rindex, muteError)) return false;
-
-  uint64_t index_val = 0;
-  if (!getUInt64(rindex, &index_val)) return false;
-
-  const Any *object = getObject(name, nullptr, pany, muteError);
-  if (object != nullptr) {
-    if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
-      object = passign->getRhs();
-    }
-  }
+  const Any *object = bs->getActual();
   if (object == nullptr) {
     object = getValue(name, nullptr, pany, muteError);
   }
-  if ((object != nullptr) && (object != result)) {
-    Expr *robject = nullptr;
-    if (reduceExpr(any_cast<Expr>(object), pany, &robject, muteError)) {
-      object = robject;
-    }
-    UhdmType otype = object->getUhdmType();
-    if (otype == UhdmType::Variable) {
-      // PackedArrayVar *array = (PackedArrayVar *)object;
-      // AnyCollection *elems = array->getElements();
-      // if (elems && index_val < elems->size()) {
-      //   Any *elem = elems->at(index_val);
-      //   if (elem->getUhdmType() == UhdmType::EnumVar ||
-      //       elem->getUhdmType() == UhdmType::StructVar ||
-      //       elem->getUhdmType() == UhdmType::UnionVar ||
-      //       elem->getUhdmType() == UhdmType::LogicVar) {
-      //   } else {
-      //     result = elems->at(index_val);
-      //   }
-      // }
-    } else if (otype == UhdmType::ArrayExpr) {
-      ArrayExpr *array = (ArrayExpr *)object;
-      ExprCollection *elems = array->getExprs();
-      if (index_val < elems->size()) {
-        result = elems->at(index_val);
+  if (object == nullptr) return false;
+  if (object->getUhdmType() != UhdmType::Constant) return false;
+
+  const Constant *const c = static_cast<const Constant *>(object);
+
+  Expr *rindex = nullptr;
+  if (!reduceExpr(bs->getIndex(), pany, &rindex, muteError)) return false;
+
+  int64_t index = 0;
+  if (!getInt64(rindex, &index)) return false;
+  if (index < 0) return false;
+
+  std::string binary;
+  if (!formatBinary(c, &binary)) return false;
+  if (binary.empty()) return false;
+
+  const Typespec *ts = getTypespec(c);
+  if (const RefTypespec *rts = any_cast<RefTypespec>(ts)) {
+    ts = rts->getActual();
+  }
+
+  uint32_t bitIndex = static_cast<uint32_t>(index);
+  bool hasExplicitRange = false;
+  int64_t left = 0;
+  int64_t right = 0;
+
+  if (ts) {
+    if (const LogicTypespec *const lts = any_cast<LogicTypespec>(ts)) {
+      if (const RangeCollection *const rc = lts->getRanges(); rc && !rc->empty()) {
+        const Range *const r = rc->front();
+
+        Expr *lexpr2 = nullptr;
+        Expr *rexpr2 = nullptr;
+        if (!reduceExpr(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
+        if (!reduceExpr(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
+
+        if (!getInt64(lexpr2, &left)) return false;
+        if (!getInt64(rexpr2, &right)) return false;
+
+        hasExplicitRange = true;
       }
-    } else if (otype == UhdmType::Operation) {
-      Operation *op = (Operation *)object;
-      int32_t opType = op->getOpType();
-      if (opType == vpiAssignmentPatternOp) {
-        AnyCollection *ops = op->getOperands();
-        if (ops && (index_val < ops->size())) {
-          result = any_cast<Expr>(ops->at(index_val));
-          if ((result != nullptr) && (result->getUhdmType() == UhdmType::Operation)) {
-            if (const RefTypespec *oprt = op->getTypespec()) {
-              if (const ArrayTypespec *atps = oprt->getActual<ArrayTypespec>()) {
-                if (const RefTypespec *ert = atps->getElemTypespec()) {
-                  if (const Typespec *ertts = ert->getActual()) {
-                    Elaborator elaborator(&serializer, false, muteError);
-                    RefTypespec *celrt = elaborator.clone<>(ert, const_cast<Expr *>(result));
-                    celrt->setActual(const_cast<Typespec *>(ertts));
-                    ((Operation *)result)->setTypespec(celrt);
-                  }
-                }
-              }
-            }
-          }
-        } else if (ops) {
-          bool defaultTaggedPattern = false;
-          for (const Any *op : *ops) {
-            if (const TaggedPattern *const tp = any_cast<TaggedPattern>(op)) {
-              if (const RefTypespec *const rt = tp->getTypespec()) {
-                if (const Typespec *const tps = rt->getActual()) {
-                  if (tps->getName() == "default") {
-                    defaultTaggedPattern = true;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-          if (!defaultTaggedPattern) succeeded = false;
-        } else {
-          succeeded = false;
-        }
-      } else if (opType == vpiConcatOp) {
-        AnyCollection *ops = op->getOperands();
-        if (ops && (index_val < ops->size())) {
-          result = any_cast<Expr>(ops->at(index_val));
-        } else {
-          succeeded = false;
-        }
-      } else if (opType == vpiConditionOp) {
-        Expr *exp = nullptr;
-        if (reduceExpr(op, pany, &exp, muteError)) {
-          return false;
-        }
-        UhdmType otype = exp->getUhdmType();
-        if (otype == UhdmType::Operation) {
-          Operation *op = (Operation *)exp;
-          int32_t opType = op->getOpType();
-          if (opType == vpiAssignmentPatternOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-            } else {
-              succeeded = false;
-            }
-          } else if (opType == vpiConcatOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-            } else {
-              succeeded = false;
-            }
-          }
-        }
-        if (object != nullptr) result = const_cast<Expr *>(any_cast<Expr>(object));
-      } else if (opType == vpiMultiConcatOp) {
-        Expr *c = nullptr;
-        if (reduceOperation(op, pany, &c, muteError)) {
-          if ((c != nullptr) && (c->getUhdmType() == UhdmType::Constant))
-            succeeded = reduceConstant((Constant *)c, static_cast<uint32_t>(index_val), pany, &result, muteError);
-        }
+    } else if (const BitTypespec *const bts = any_cast<BitTypespec>(ts)) {
+      if (const RangeCollection *const rc = bts->getRanges(); rc && !rc->empty()) {
+        const Range *r = rc->front();
+
+        Expr *lexpr2 = nullptr;
+        Expr *rexpr2 = nullptr;
+        if (!reduceExpr(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
+        if (!reduceExpr(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
+
+        if (!getInt64(lexpr2, &left)) return false;
+        if (!getInt64(rexpr2, &right)) return false;
+
+        hasExplicitRange = true;
       }
-    } else if (otype == UhdmType::Constant) {
-      succeeded = reduceConstant((Constant *)object, static_cast<uint32_t>(index_val), pany, &result, muteError);
+    } else if (any_cast<RealTypespec>(ts)) {
+      return false;
+    } else {
+      hasExplicitRange = false;
     }
   }
 
-  succeeded = result != nullptr;
-  *rexpr = const_cast<Expr *>(result);
-  return succeeded;
+  if (hasExplicitRange) {
+    if (left >= right) {
+      bitIndex = static_cast<uint32_t>(left - index);
+    } else {
+      bitIndex = static_cast<uint32_t>(index - left);
+    }
+  }
+
+  char bit = '0';
+  if (bitIndex < binary.size()) {
+    bit = binary[bitIndex];
+  }
+
+  std::string value(1, bit);
+
+  Constant *const result = serializer.make<Constant>();
+  result->setValue(value);
+  result->setDecompile(value);
+  result->setConstType(vpiBinaryConst);
+  result->setSize(1);
+
+  *rexpr = result;
+  return true;
 }
 
-bool ExprEval::reduceConstant(const Constant *constant, uint32_t index, const Any *pany, Expr **rexpr, bool muteError) {
+bool ExprEval::selectArrayElement(const Constant *constant, uint32_t index, const Any *pany, Expr **rexpr,
+                                  bool muteError) {
   Serializer &serializer = *constant->getSerializer();
 
   const Typespec *const ts = getTypespec(constant);
@@ -5127,8 +5087,9 @@ bool ExprEval::reducePartSelect(const PartSelect *ps, const Any *pany, Expr **re
 
   std::string_view name = ps->getName();
   if (name.empty()) name = ps->getDefName();
+
   const Any *object = getObject(name, nullptr, pany, muteError);
-  if (object) {
+  if (object != nullptr) {
     if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
       object = passign->getRhs();
     }
@@ -5178,7 +5139,7 @@ bool ExprEval::reduceIndexedPartSelect(const IndexedPartSelect *ips, const Any *
   if (name.empty()) name = ips->getDefName();
 
   const Any *object = getObject(name, nullptr, pany, muteError);
-  if (object) {
+  if (object != nullptr) {
     if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
       object = passign->getRhs();
     }
@@ -5207,6 +5168,7 @@ bool ExprEval::reduceIndexedPartSelect(const IndexedPartSelect *ips, const Any *
 
   std::string sub;
   const uint32_t N = static_cast<uint32_t>(binary.size());
+  // TOBE::REVIEWED::HS
   if (ips->getIndexedPartSelectType() == vpiPosIndexed) {
     uint32_t start = N - base - offset;
     if (start > N) start = 0;
@@ -5232,6 +5194,7 @@ bool ExprEval::reduceIndexedPartSelect(const IndexedPartSelect *ips, const Any *
 
 bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexpr, bool muteError) {
   const std::string_view name = vs->getName();
+
   const Any *object = getObject(name, nullptr, pany, muteError);
   if (object != nullptr) {
     if (const ParamAssign *const passign = any_cast<ParamAssign>(object)) {
@@ -5243,62 +5206,47 @@ bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexp
   }
   if (object == nullptr) return false;
 
+  auto selectFromOperation = [&](const Operation *op, uint64_t index) -> const Any * {
+    const AnyCollection *const ops = op->getOperands();
+    if ((ops == nullptr) || (index >= ops->size())) return nullptr;
+    return ops->at(index);
+  };
+
   for (const Expr *index : *vs->getIndexes()) {
     Expr *rindex = nullptr;
     if (!reduceExpr(index, pany, &rindex, muteError)) return false;
 
-    uint64_t index_val = 0;
-    if (!getUInt64(rindex, &index_val)) return false;
+    uint64_t indexVal = 0;
+    if (!getUInt64(rindex, &indexVal)) return false;
 
-    if (const Operation *const operation = any_cast<Operation>(object)) {
-      int32_t opType = operation->getOpType();
-      if (opType == vpiAssignmentPatternOp) {
-        AnyCollection *ops = operation->getOperands();
-        if (ops && (index_val < ops->size())) {
-          object = ops->at(index_val);
+    const Operation *const op = any_cast<Operation>(object);
+    if (op == nullptr) return false;
+
+    switch (op->getOpType()) {
+      case vpiAssignmentPatternOp:
+      case vpiConcatOp: object = selectFromOperation(op, indexVal); break;
+
+      case vpiConditionOp: {
+        Expr *condExpr = nullptr;
+        if (!reduceExpr(any_cast<Expr>(object), pany, &condExpr, muteError)) return false;
+
+        const Operation *const innerOp = any_cast<Operation>(condExpr);
+        if (innerOp == nullptr) return false;
+
+        if ((innerOp->getOpType() == vpiAssignmentPatternOp) || (innerOp->getOpType() == vpiConcatOp)) {
+          object = selectFromOperation(innerOp, indexVal);
         } else {
-          object = nullptr;
-        }
-      } else if (opType == vpiConcatOp) {
-        AnyCollection *ops = operation->getOperands();
-        if (ops && (index_val < ops->size())) {
-          object = ops->at(index_val);
-        } else {
-          object = nullptr;
-        }
-      } else if (opType == vpiConditionOp) {
-        Expr *exp = nullptr;
-        if (reduceExpr(any_cast<Expr>(object), pany, &exp, muteError)) {
           return false;
         }
-        UhdmType otype = exp->getUhdmType();
-        if (otype == UhdmType::Operation) {
-          Operation *op = (Operation *)exp;
-          int32_t opType = operation->getOpType();
-          if (opType == vpiAssignmentPatternOp) {
-            AnyCollection *ops = op->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-            } else {
-              object = nullptr;
-            }
-          } else if (opType == vpiConcatOp) {
-            AnyCollection *ops = operation->getOperands();
-            if (ops && (index_val < ops->size())) {
-              object = ops->at(index_val);
-            } else {
-              object = nullptr;
-            }
-          }
-        }
-      } else {
-        object = nullptr;
+        break;
       }
-    } else {
-      object = nullptr;
+
+      default: return false;
     }
+
     if (object == nullptr) return false;
   }
+
   *rexpr = any_cast<Expr>(const_cast<Any *>(object));
   return (*rexpr != nullptr);
 }
@@ -5920,7 +5868,7 @@ const Any *ExprEval::getObject(std::string_view name, const Any *inst, const Any
     RefObj *ref = (RefObj *)result;
     const std::string_view refname = ref->getName();
     if (refname != name) result = getObject(refname, inst, pany, muteError);
-    if (result) {
+    if (result != nullptr) {
       if (const ParamAssign *const passign = any_cast<ParamAssign>(result)) {
         result = passign->getRhs();
       }
@@ -5999,7 +5947,7 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pany,
     }
     if (ParamAssigns) {
       for (const ParamAssign *p : *ParamAssigns) {
-        if (p->getLhs() && (p->getLhs()->getName() == the_name)) {
+        if ((p->getLhs() != nullptr) && (p->getLhs()->getName() == the_name)) {
           result = (Any *)p->getRhs();
           break;
         }
@@ -6368,7 +6316,7 @@ const Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       }
     } else if (const Constant *const c = any_cast<Constant>(object)) {
       Expr *tmp = nullptr;
-      if (reduceConstant(c, selectIndex, pany, &tmp, muteError)) {
+      if (selectArrayElement(c, selectIndex, pany, &tmp, muteError)) {
         if (returnTypespec) {
           if (RefTypespec *rt = tmp->getTypespec()) {
             return rt->getActual();
@@ -6886,7 +6834,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
     }
   }
   long double valD = 0;
-  if (invalidValueI) {
+  if (invalidValueI && invalidValueUI) {
     invalidValueD = !getDouble(rhsexp, &valD);
   }
   uint64_t wordSize = 1;

@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 #include "test_util.h"
 #include "uhdm/Elaborator.h"
+#include "uhdm/Utils.h"
 #include "uhdm/VpiListener.h"
 #include "uhdm/uhdm.h"
 #include "uhdm/vpi_visitor.h"
@@ -161,8 +162,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
 
   ModuleCollection* topModules = s->makeCollection<Module>();
   d->setTopModules(topModules);
-  topModules->emplace_back(
-      m3);  // Only m3 goes there as it is the top level module
+  topModules->emplace_back(m3);  // Only m3 goes there as it is the top level module
 
   vpiHandle dh = s->makeUhdmHandle(UhdmType::Design, d);
   designs.push_back(dh);
@@ -175,7 +175,7 @@ std::string dumpStats(const Serializer& serializer) {
   auto stats = serializer.getObjectStats();
   for (const auto& stat : stats) {
     if (!stat.second) continue;
-    result += stat.first + " " + std::to_string(stat.second) + "\n";
+    StrAppend(&result, stat.first, " ", stat.second, "\n");
   }
   return result;
 }
