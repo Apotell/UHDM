@@ -28,15 +28,10 @@
 #include <uhdm/UhdmFinder.h>
 #include <uhdm/uhdm.h>
 
-#include <algorithm>
-#include <deque>
-#include <fstream>
-
 namespace StringUtils {
 // Tokenize "str" at "multichar_separator"; store in "result" array.
-std::vector<std::string_view> &tokenizeMulti(
-    std::string_view str, std::string_view multichar_separator,
-    std::vector<std::string_view> &result) {
+std::vector<std::string_view> &tokenizeMulti(std::string_view str, std::string_view multichar_separator,
+                                             std::vector<std::string_view> &result) {
   if (str.empty()) return result;
 
   size_t start = 0;
@@ -63,17 +58,14 @@ std::vector<std::string_view> &tokenizeMulti(
   result.emplace_back(str.data() + start, end - start);
   return result;
 }
-
 }  // namespace StringUtils
 
 namespace uhdm {
-
 template <typename T>
-inline const T *getNamedObject(const Factory::objects_t &objects,
-                               std::string_view name) {
-  Factory::objects_t::const_iterator it = std::find_if(
-      objects.cbegin(), objects.cend(),
-      [&name](const Any *object) { return object->getName() == name; });
+inline const T *getNamedObject(const Factory::objects_t &objects, std::string_view name) {
+  if (name.empty()) return nullptr;
+  Factory::objects_t::const_iterator it =
+      std::find_if(objects.cbegin(), objects.cend(), [&name](const Any *object) { return object->getName() == name; });
   return (it == objects.cend()) ? nullptr : any_cast<T>(*it);
 }
 
@@ -97,46 +89,38 @@ void Reducer::reduce(const ArrayExpr *const object) {
 
 void Reducer::reduce(const SysFuncCall *const object) {
   bool bIsInvalid = false;
-  if (Any *const updatedExpr =
-          reduceExpr(object, bIsInvalid, object->getParent(), false)) {
+  if (Any *const updatedExpr = reduceExpr(object, bIsInvalid, object->getParent(), false)) {
     if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
   }
 }
 
 void Reducer::reduce(const Operation *const object) {
   bool bIsInvalid = false;
-  if (Any *const updatedExpr =
-          reduceExpr(object, bIsInvalid, object->getParent(), false)) {
+  if (Any *const updatedExpr = reduceExpr(object, bIsInvalid, object->getParent(), false)) {
     if (!bIsInvalid) m_swaps.emplace(object, updatedExpr);
   }
 }
 
-const TaskFunc *Reducer::getTaskFunc(std::string_view name, const Any *inst,
-                                     const Any *pexpr,
+const TaskFunc *Reducer::getTaskFunc(std::string_view name, const Any *inst, const Any *pexpr,
                                      bool muteErrors /* = false */) {
   return nullptr;
 }
 
-const Any *Reducer::getObject(std::string_view name, const Any *inst,
-                              const Any *pexpr, bool muteErrors /* = false */) {
+const Any *Reducer::getObject(std::string_view name, const Any *inst, const Any *pexpr, bool muteErrors /* = false */) {
   return m_finder.findObject(name, pexpr);
 }
 
-Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue,
-                          const Any *pexpr, bool muteErrors /* = false */) {
+Expr *Reducer::reduceExpr(const Any *result, bool &invalidValue, const Any *pexpr, bool muteErrors /* = false */) {
   ExprEval eval(this, muteErrors);
   if (m_exprEvalPlaceHolder == nullptr) {
     m_exprEvalPlaceHolder = m_serializer->make<Module>();
-    m_exprEvalPlaceHolder->setParamAssigns(
-        m_serializer->makeCollection<ParamAssign>());
+    m_exprEvalPlaceHolder->setParamAssigns(m_serializer->makeCollection<ParamAssign>());
   } else {
-    m_exprEvalPlaceHolder->getParamAssigns()->erase(
-        m_exprEvalPlaceHolder->getParamAssigns()->begin(),
-        m_exprEvalPlaceHolder->getParamAssigns()->end());
+    m_exprEvalPlaceHolder->getParamAssigns()->erase(m_exprEvalPlaceHolder->getParamAssigns()->begin(),
+                                                    m_exprEvalPlaceHolder->getParamAssigns()->end());
   }
   Expr *res = nullptr;
-  invalidValue =
-      !eval.reduceExpr(any_cast<Expr>(result), pexpr, &res, muteErrors);
+  invalidValue = !eval.reduceExpr(any_cast<Expr>(result), pexpr, &res, muteErrors);
   // If loop was detected, drop the partially constructed new value!
   return m_unwind ? nullptr : res;
 }
@@ -158,10 +142,10 @@ void Reducer::setRange(const Constant *c, uint16_t lr, uint16_t rr) {
     ranges->push_back(r);
     tps->setRanges(ranges);
     Constant *lc = m_serializer->make<Constant>();
-    lc->setValue("UINT:" + std::to_string(lr));
+    lc->setValue(std::to_string(lr));
     r->setLeftExpr(lc);
     Constant *rc = m_serializer->make<Constant>();
-    rc->setValue("UINT:" + std::to_string(rr));
+    rc->setValue(std::to_string(rr));
     r->setRightExpr(rc);
   }
 }
@@ -215,8 +199,7 @@ Expr *Reducer::getComplexValue(const Any *any, std::string_view name) const {
 }
 
 // on the fly just get the expr using name
-Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
-                       bool muteErrors /* = false */) {
+Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr, bool muteErrors /* = false */) {
   // Value *sval = nullptr;
   Any *result = nullptr;
   if (loopDetected()) {
@@ -300,10 +283,8 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
           result = tmp;
         }
       }
-    } else if (resultType == UhdmType::Operation ||
-               resultType == UhdmType::HierPath ||
-               resultType == UhdmType::BitSelect ||
-               resultType == UhdmType::SysFuncCall) {
+    } else if ((resultType == UhdmType::Operation) || (resultType == UhdmType::HierPath) ||
+               (resultType == UhdmType::BitSelect) || (resultType == UhdmType::SysFuncCall)) {
       bool invalidValue = false;
       if (Any *tmp = reduceExpr(result, invalidValue, pexpr, muteErrors)) {
         result = tmp;
@@ -334,5 +315,4 @@ void Reducer::reduce() {
 
   m_serializer->swap(m_swaps);
 }
-
 }  // namespace uhdm

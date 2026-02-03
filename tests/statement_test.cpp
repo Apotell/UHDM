@@ -52,7 +52,7 @@ static std::vector<vpiHandle> buildStatementDesign(Serializer* s) {
   lhs_rf->setParent(assign1);
 
   Constant* c1 = s->make<Constant>();
-  c1->setValue("INT:0");
+  c1->setValue("0");
   c1->setParent(assign1);
   assign1->setRhs(c1);
   statements->emplace_back(assign1);
@@ -62,7 +62,7 @@ static std::vector<vpiHandle> buildStatementDesign(Serializer* s) {
   assign2->setParent(begin_block);
 
   Constant* c2 = s->make<Constant>();
-  c2->setValue("STRING:a string");
+  c2->setValue("a string");
   c2->setParent(assign2);
   assign2->setRhs(c2);
   statements->emplace_back(assign2);

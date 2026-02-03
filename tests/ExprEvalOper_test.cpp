@@ -6,9 +6,6 @@
 using namespace uhdm;
 using Constants = std::map<std::string_view, Constant*>;
 
-static const std::map<int32_t, std::string_view> kConstTypeMap{
-    {vpiIntConst, "INT:"}, {vpiUIntConst, "UINT:"}, {vpiDecConst, "DEC:"}};
-
 class TestObjectProvider : public ObjectProvider {
  public:
   Serializer m_serializer;
@@ -30,7 +27,7 @@ class TestObjectProvider : public ObjectProvider {
 static Constant* makeConst(const std::string& v, Serializer& s) {
   Constant* c = s.make<Constant>();
   c->setConstType(vpiIntConst);
-  c->setDecompile(v);
+  c->setValue(v);
   c->setSize(v.size());
   return c;
 }
@@ -52,7 +49,6 @@ static void setTypespec(Constant* constant, UhdmType uhdmType, bool sign, std::s
   }
   uhdm::setTypespec(constant, t);
   setSigned(t, sign);
-  constant->setDecompile(svalue);
   constant->setValue(svalue);
 }
 
@@ -80,6 +76,7 @@ class UnaryOperationTest
     Constant* const c = m_serializer.make<Constant>();
     RefTypespec* const rt = m_serializer.make<RefTypespec>();
     c->setTypespec(rt);
+    ro->setActual(c);
     m_constants.emplace("a", c);
   }
 
@@ -131,11 +128,13 @@ class BinaryOperationTest : public testing::TestWithParam<
     Constant* const ac = m_serializer.make<Constant>();
     RefTypespec* const art = m_serializer.make<RefTypespec>();
     ac->setTypespec(art);
+    ro1->setActual(ac);
     m_constants.emplace("a", ac);
 
     Constant* const bc = m_serializer.make<Constant>();
     RefTypespec* const brt = m_serializer.make<RefTypespec>();
     bc->setTypespec(brt);
+    ro2->setActual(bc);
     m_constants.emplace("b", bc);
   }
 
@@ -193,7 +192,7 @@ TEST_P(UnaryOperationTest, UnaryOperators) {
 
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
-  ASSERT_EQ(c->getDecompile(), resultValue);
+  ASSERT_EQ(c->getValue(), resultValue);
 
   Typespec* const t = getTypespec(result);
   ASSERT_NE(t, nullptr);
@@ -234,8 +233,7 @@ TEST_P(BinaryOperationTest, BinaryOperators) {
 
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
-  ASSERT_EQ(c->getDecompile(), resultValue);
-  ASSERT_EQ(c->getDecompile(), c->getValue());
+  ASSERT_EQ(c->getValue(), resultValue);
 
   Typespec* const t = getTypespec(result);
   ASSERT_NE(t, nullptr);
@@ -1704,6 +1702,7 @@ TEST(ConcatOperator, ConcatOperatorTest) {
   ro2->setName("b");
 
   Operation* const m_operation = m_serializer.make<Operation>();
+  m_operation->setOpType(vpiConcatOp);
 
   AnyCollection* const operands = m_operation->getOperands(true);
   operands->emplace_back(ro1);
@@ -1711,18 +1710,22 @@ TEST(ConcatOperator, ConcatOperatorTest) {
   ro1->setParent(m_operation);
   ro2->setParent(m_operation);
 
-  m_constants.emplace("a", m_serializer.make<Constant>());
-  m_constants.emplace("b", m_serializer.make<Constant>());
+  Constant* const ca = m_serializer.make<Constant>();
+  Constant* const cb = m_serializer.make<Constant>();
 
-  m_operation->setOpType(vpiConcatOp);
+  m_constants.emplace("a", ca);
+  m_constants.emplace("b", cb);
 
-  setTypespec(m_constants["a"], UhdmType::LogicTypespec, false, "1010", m_serializer);
-  setTypespec(m_constants["b"], UhdmType::LogicTypespec, false, "0011", m_serializer);
-  m_constants["a"]->setConstType(vpiBinaryConst);
-  m_constants["b"]->setConstType(vpiBinaryConst);
+  setTypespec(ca, UhdmType::LogicTypespec, false, "1010", m_serializer);
+  setTypespec(cb, UhdmType::LogicTypespec, false, "0011", m_serializer);
+  ca->setConstType(vpiBinaryConst);
+  cb->setConstType(vpiBinaryConst);
 
-  m_constants["a"]->setSize(24);
-  m_constants["b"]->setSize(24);
+  ca->setSize(24);
+  cb->setSize(24);
+
+  ro1->setActual(ca);
+  ro2->setActual(cb);
 
   Expr* result = nullptr;
   const bool succeeded = m_evaluator.reduceExpr(m_operation, m_operation, &result, true);
@@ -1732,7 +1735,7 @@ TEST(ConcatOperator, ConcatOperatorTest) {
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
 
-  ASSERT_EQ(c->getDecompile(), "000000000000000000001010000000000000000000000011");
+  ASSERT_EQ(c->getValue(), "000000000000000000001010000000000000000000000011");
   ASSERT_EQ(c->getConstType(), vpiBinaryConst);
 
   Typespec* const t = getTypespec(result);
@@ -1757,14 +1760,17 @@ TEST(CastOperator, CastIntToReal) {
   operands->emplace_back(ro);
   ro->setParent(m_operation);
 
-  m_constants.emplace("a", m_serializer.make<Constant>());
+  Constant* const ca = m_serializer.make<Constant>();
+  m_constants.emplace("a", ca);
 
   m_operation->setOpType(vpiCastOp);
 
-  m_constants["a"]->setValue("10");
-  setTypespec(m_constants["a"], UhdmType::IntTypespec, true, "10", m_serializer);
-  m_constants["a"]->setConstType(vpiDecConst);
-  m_constants["a"]->setSize(32);
+  ca->setValue("10");
+  setTypespec(ca, UhdmType::IntTypespec, true, "10", m_serializer);
+  ca->setConstType(vpiDecConst);
+  ca->setSize(32);
+
+  ro->setActual(ca);
 
   {
     RefTypespec* const rt = m_serializer.make<RefTypespec>();
@@ -1783,7 +1789,7 @@ TEST(CastOperator, CastIntToReal) {
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
 
-  ASSERT_EQ(c->getDecompile(), "10");
+  ASSERT_EQ(c->getValue(), "10");
   ASSERT_EQ(c->getConstType(), vpiRealConst);
 
   Typespec* const t = getTypespec(result);
@@ -1811,18 +1817,24 @@ TEST(ReplicationOperator, ReplicationOperatorTest) {
   ro1->setParent(m_operation);
   ro2->setParent(m_operation);
 
-  m_constants.emplace("a", m_serializer.make<Constant>());
-  m_constants.emplace("b", m_serializer.make<Constant>());
+  Constant* const ca = m_serializer.make<Constant>();
+  Constant* const cb = m_serializer.make<Constant>();
+
+  m_constants.emplace("a", ca);
+  m_constants.emplace("b", cb);
 
   m_operation->setOpType(vpiMultiConcatOp);
 
-  setTypespec(m_constants["a"], UhdmType::IntTypespec, false, "2", m_serializer);
-  setTypespec(m_constants["b"], UhdmType::LogicTypespec, false, "0011", m_serializer);
-  m_constants["a"]->setConstType(vpiIntConst);
-  m_constants["b"]->setConstType(vpiBinaryConst);
+  setTypespec(ca, UhdmType::IntTypespec, false, "2", m_serializer);
+  setTypespec(cb, UhdmType::LogicTypespec, false, "0011", m_serializer);
+  ca->setConstType(vpiIntConst);
+  cb->setConstType(vpiBinaryConst);
 
-  m_constants["a"]->setSize(32);
-  m_constants["b"]->setSize(24);
+  ca->setSize(32);
+  cb->setSize(24);
+
+  ro1->setActual(ca);
+  ro2->setActual(cb);
 
   Expr* result = nullptr;
   const bool succeeded = m_evaluator.reduceExpr(m_operation, m_operation, &result, true);
@@ -1831,7 +1843,7 @@ TEST(ReplicationOperator, ReplicationOperatorTest) {
 
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
-  ASSERT_EQ(c->getDecompile(), "000000000000000000000011000000000000000000000011");
+  ASSERT_EQ(c->getValue(), "000000000000000000000011000000000000000000000011");
   ASSERT_EQ(c->getConstType(), vpiBinaryConst);
 
   Typespec* const t = getTypespec(result);
@@ -1868,24 +1880,32 @@ TEST(ConditionalOperator, ConditionalOperatorTest) {
   ro2->setParent(m_operation);
   ro3->setParent(m_operation);
 
-  m_constants.emplace("a", m_serializer.make<Constant>());
-  m_constants.emplace("b", m_serializer.make<Constant>());
-  m_constants.emplace("c", m_serializer.make<Constant>());
+  Constant* const ca = m_serializer.make<Constant>();
+  Constant* const cb = m_serializer.make<Constant>();
+  Constant* const cc = m_serializer.make<Constant>();
+
+  m_constants.emplace("a", ca);
+  m_constants.emplace("b", cb);
+  m_constants.emplace("c", cc);
+
+  ro1->setActual(ca);
+  ro2->setActual(cb);
+  ro3->setActual(cc);
 
   m_operation->setOpType(vpiConditionOp);
 
   // Setup: condition = 1 (true)
-  setTypespec(m_constants["a"], UhdmType::IntTypespec, false, "1", m_serializer);
-  m_constants["a"]->setConstType(vpiIntConst);
-  m_constants["a"]->setSize(32);
+  setTypespec(ca, UhdmType::IntTypespec, false, "1", m_serializer);
+  ca->setConstType(vpiIntConst);
+  ca->setSize(32);
 
-  setTypespec(m_constants["b"], UhdmType::LogicTypespec, false, "0101", m_serializer);
-  m_constants["b"]->setConstType(vpiBinaryConst);
-  m_constants["b"]->setSize(4);
+  setTypespec(cb, UhdmType::LogicTypespec, false, "0101", m_serializer);
+  cb->setConstType(vpiBinaryConst);
+  cb->setSize(4);
 
-  setTypespec(m_constants["c"], UhdmType::LogicTypespec, false, "1111", m_serializer);
-  m_constants["c"]->setConstType(vpiBinaryConst);
-  m_constants["c"]->setSize(4);
+  setTypespec(cc, UhdmType::LogicTypespec, false, "1111", m_serializer);
+  cc->setConstType(vpiBinaryConst);
+  cc->setSize(4);
 
   Expr* result = nullptr;
   const bool succeeded = m_evaluator.reduceExpr(m_operation, m_operation, &result, true);
@@ -1894,7 +1914,7 @@ TEST(ConditionalOperator, ConditionalOperatorTest) {
 
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
-  ASSERT_EQ(c->getDecompile(), "0101");
+  ASSERT_EQ(c->getValue(), "0101");
   ASSERT_EQ(c->getConstType(), vpiBinaryConst);
 
   Typespec* const t = getTypespec(result);
@@ -1934,7 +1954,7 @@ TEST(CaseEqualityOperator, CaseEqualityTrueAndFalse) {
   Constant* const c1 = any_cast<Constant>(result1);
   ASSERT_NE(c1, nullptr);
   ASSERT_EQ(c1->getConstType(), vpiBinaryConst);
-  ASSERT_EQ(c1->getDecompile(), "1");
+  ASSERT_EQ(c1->getValue(), "1");
 
   Constant* lhs2 = m_serializer.make<Constant>();
   setTypespec(lhs2, UhdmType::LogicTypespec, false, "1x010", m_serializer);
@@ -1962,7 +1982,7 @@ TEST(CaseEqualityOperator, CaseEqualityTrueAndFalse) {
   Constant* const c2 = any_cast<Constant>(result2);
   ASSERT_NE(c2, nullptr);
   ASSERT_EQ(c2->getConstType(), vpiBinaryConst);
-  ASSERT_EQ(c2->getDecompile(), "0");
+  ASSERT_EQ(c2->getValue(), "0");
 }
 
 TEST(CaseInequalityOperator, CaseInequalityTrueAndFalse) {
@@ -1996,7 +2016,7 @@ TEST(CaseInequalityOperator, CaseInequalityTrueAndFalse) {
   Constant* const c1 = any_cast<Constant>(result1);
   ASSERT_NE(c1, nullptr);
   ASSERT_EQ(c1->getConstType(), vpiBinaryConst);
-  ASSERT_EQ(c1->getDecompile(), "0");
+  ASSERT_EQ(c1->getValue(), "0");
 
   Constant* const lhs2 = m_serializer.make<Constant>();
   setTypespec(lhs2, UhdmType::LogicTypespec, false, "x1001", m_serializer);
@@ -2025,7 +2045,7 @@ TEST(CaseInequalityOperator, CaseInequalityTrueAndFalse) {
   Constant* const c2 = any_cast<Constant>(result2);
   ASSERT_NE(c2, nullptr);
   ASSERT_EQ(c2->getConstType(), vpiBinaryConst);
-  ASSERT_EQ(c2->getDecompile(), "1");
+  ASSERT_EQ(c2->getValue(), "1");
 }
 
 TEST(ReplicationOperator, FillXSingleOperandTest) {
@@ -2043,13 +2063,16 @@ TEST(ReplicationOperator, FillXSingleOperandTest) {
   operands->emplace_back(ro1);
   ro1->setParent(m_operation);
 
-  m_constants.emplace("a", m_serializer.make<Constant>());
+  Constant* const ca = m_serializer.make<Constant>();
+  ro1->setActual(ca);
+
+  m_constants.emplace("a", ca);
 
   m_operation->setOpType(vpiMultiConcatOp);
 
-  setTypespec(m_constants["a"], UhdmType::LogicTypespec, false, "x", m_serializer);
-  m_constants["a"]->setConstType(vpiBinaryConst);
-  m_constants["a"]->setSize(8);
+  setTypespec(ca, UhdmType::LogicTypespec, false, "x", m_serializer);
+  ca->setConstType(vpiBinaryConst);
+  ca->setSize(8);
 
   Expr* result = nullptr;
   const bool succeeded = m_evaluator.reduceExpr(m_operation, m_operation, &result, true);
@@ -2059,7 +2082,7 @@ TEST(ReplicationOperator, FillXSingleOperandTest) {
   Constant* const c = any_cast<Constant>(result);
   ASSERT_NE(c, nullptr);
   // Expect 8 X's
-  ASSERT_EQ(c->getDecompile(), "xxxxxxxx");
+  ASSERT_EQ(c->getValue(), "xxxxxxxx");
   ASSERT_EQ(c->getConstType(), vpiBinaryConst);
 
   Typespec* const t = getTypespec(result);
@@ -2102,7 +2125,7 @@ TEST(DefaultTaggedPattern, DefaultZeroReplication) {
 
   Constant* const defExpr = serializer.make<Constant>();
   defExpr->setConstType(vpiBinaryConst);
-  defExpr->setDecompile("0");
+  defExpr->setValue("0");
   defExpr->setSize(4);
 
   TaggedPattern* const tag = serializer.make<TaggedPattern>();
@@ -2118,7 +2141,7 @@ TEST(DefaultTaggedPattern, DefaultZeroReplication) {
     auto* c = any_cast<Constant>(result[i]);
     ASSERT_NE(c, nullptr);
     ASSERT_EQ(c->getConstType(), vpiBinaryConst);
-    ASSERT_EQ(c->getDecompile(), "0000");
+    ASSERT_EQ(c->getValue(), "0000");
     ASSERT_EQ(c->getSize(), 4);
   }
 }

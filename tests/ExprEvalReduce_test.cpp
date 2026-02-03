@@ -8,8 +8,6 @@ using namespace uhdm;
 
 using Constants = std::map<std::string_view, Constant*>;
 
-static const std::map<int32_t, std::string_view> kConstTypeMap{
-    {vpiIntConst, "INT:"}, {vpiUIntConst, "UINT:"}, {vpiDecConst, "DEC:"}};
 class TestObjectProvider : public ObjectProvider {
  public:
   Serializer m_serializer;
@@ -63,6 +61,7 @@ TEST(ExprEvalRefObj, ReduceRefObjResolvesConstant) {
   c->setDecompile("42");
   c->setConstType(vpiDecConst);
   c->setSize(32);
+  ro->setActual(c);
 
   setTypespec(c, UhdmType::IntTypespec, true, "42", m_serializer);
 
@@ -91,7 +90,7 @@ TEST(ExprEvalReduceExpr, HierPathSimpleConstant) {
   ExprEval eval(&provider);
 
   // ---- constant a = 10 ----
-  Constant* c = s.make<Constant>();
+  Constant* const c = s.make<Constant>();
   c->setValue("10");
   c->setDecompile("10");
   c->setConstType(vpiDecConst);
@@ -100,13 +99,14 @@ TEST(ExprEvalReduceExpr, HierPathSimpleConstant) {
 
   m_constants.emplace("a", c);
 
-  HierPath* hp = s.make<HierPath>();
+  HierPath* const hp = s.make<HierPath>();
 
   RefObj* ref = s.make<RefObj>();
   ref->setName("a");
   ref->setParent(hp);
+  ref->setActual(c);
 
-  AnyCollection* elems = hp->getPathElems(true);
+  AnyCollection* const elems = hp->getPathElems(true);
   elems->push_back(ref);
 
   Expr* result = nullptr;
@@ -115,11 +115,11 @@ TEST(ExprEvalReduceExpr, HierPathSimpleConstant) {
   ASSERT_TRUE(ok);
   ASSERT_NE(result, nullptr);
 
-  Constant* rc = any_cast<Constant>(result);
+  Constant* const rc = any_cast<Constant>(result);
   ASSERT_NE(rc, nullptr);
   ASSERT_EQ(rc->getDecompile(), "10");
 
-  Typespec* t = getTypespec(rc);
+  Typespec* const t = getTypespec(rc);
   ASSERT_NE(t, nullptr);
   ASSERT_EQ(t->getUhdmType(), UhdmType::IntTypespec);
   ASSERT_TRUE(getSigned(t));
@@ -152,7 +152,7 @@ TEST(ExprEvalReduceExpr, PartSelect_ConstantVector) {
   prc->push_back(pr);
   lts->setRanges(prc);
 
-  Constant* vec = s.make<Constant>();
+  Constant* const vec = s.make<Constant>();
   vec->setValue("10110011");
   vec->setDecompile("10110011");
   vec->setConstType(vpiBinaryConst);
@@ -164,7 +164,7 @@ TEST(ExprEvalReduceExpr, PartSelect_ConstantVector) {
   Constant* left = makeInt("5");
   Constant* right = makeInt("2");
 
-  PartSelect* ps = s.make<PartSelect>();
+  PartSelect* const ps = s.make<PartSelect>();
   ps->setName("vec");
   ps->setLeftExpr(left);
   ps->setRightExpr(right);
@@ -175,7 +175,7 @@ TEST(ExprEvalReduceExpr, PartSelect_ConstantVector) {
   ASSERT_TRUE(ok);
   ASSERT_NE(result, nullptr);
 
-  Constant* rc = any_cast<Constant>(result);
+  Constant* const rc = any_cast<Constant>(result);
   ASSERT_NE(rc, nullptr);
 
   ASSERT_EQ(rc->getValue(), "1100");

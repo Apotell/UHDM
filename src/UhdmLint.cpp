@@ -197,7 +197,7 @@ void UhdmLint::leaveNet(const Net* object, vpiHandle handle) {
     if (const RangeCollection* ranges = tps->getRanges()) {
       Range* r0 = ranges->at(0);
       if (const Constant* c = r0->getRightExpr<Constant>()) {
-        if (c->getValue() == "STRING:unsized") {
+        if (c->getValue() == "unsized") {
           const std::string errMsg(object->getName());
           m_serializer->getErrorHandler()(ErrorType::UHDM_ILLEGAL_PACKED_DIMENSION, errMsg, c, nullptr);
         }
@@ -221,7 +221,7 @@ void UhdmLint::leaveEnumTypespec(const EnumTypespec* object, vpiHandle handle) {
 
   if (object->getEnumConsts()) {
     for (auto ec : *object->getEnumConsts()) {
-      if (const Constant *const c = ec->getValue()) {
+      if (const Constant *const c = ec->getValue<Constant>()) {
         const std::string_view val = c->getDecompile();
         if (c->getSize() == -1) continue;
         if (!std::regex_match(std::string(val), r)) continue;

@@ -33,11 +33,11 @@ static std::vector<vpiHandle> build_tfCallDesign(Serializer* s) {
   display->setParent(begin_block);
   AnyCollection* arguments = s->makeCollection<Any>();
   Constant* cA = s->make<Constant>();
-  cA->setValue("INT:0");
+  cA->setValue("0");
   cA->setParent(display);
   arguments->push_back(cA);
   Constant* cA1 = s->make<Constant>();
-  cA1->setValue("INT:8");
+  cA1->setValue("8");
   cA1->setParent(display);
 
   arguments->push_back(cA1);
@@ -51,11 +51,11 @@ static std::vector<vpiHandle> build_tfCallDesign(Serializer* s) {
   my_func->setParent(begin_block);
   AnyCollection* arguments2 = s->makeCollection<Any>();
   Constant* cA2 = s->make<Constant>();
-  cA2->setValue("INT:1");
+  cA2->setValue("1");
   arguments2->push_back(cA2);
   cA2->setParent(my_func);
   Constant* cA3 = s->make<Constant>();
-  cA3->setValue("INT:2");
+  cA3->setValue("2");
   arguments2->push_back(cA3);
   cA3->setParent(my_func);
   my_func_call->setArguments(arguments2);

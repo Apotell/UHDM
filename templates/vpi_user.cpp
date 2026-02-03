@@ -70,30 +70,49 @@ Design* UhdmDesignFromVpiHandle(vpiHandle hdesign) {
     return nullptr;
 }
 
-void String2VpiValue(std::string_view sv, s_vpi_value* value) {
+void String2VpiValue(std::string_view sv, int32_t constType, s_vpi_value* value) {
   while (!sv.empty() && isspace(sv.front())) sv.remove_prefix(1);
   value->format = 0;
   value->value = {0};
-  if (sv.find("UINT:") == 0) {
+  if (constType == vpiUIntConst) {
     value->format = vpiUIntVal;
-    sv.remove_prefix(std::string_view("UINT:").length());
     if (!NumUtils::parseUint64(sv, &value->value.uint)) {
       value->value.uint = 0;
     }
-  } else if (sv.find("INT:") == 0) {
+  } else if ((constType == vpiIntConst) || (constType == vpiNullConst)) {
     value->format = vpiIntVal;
-    sv.remove_prefix(std::string_view("INT:").length());
     if (!NumUtils::parseInt64(sv, &value->value.integer)) {
       value->value.integer = 0;
     }
-  } else if (sv.find("SCAL:") == 0) {
+  } else if (constType == vpiBinaryConst) {
+    value->format = vpiBinStrVal;
+    value->value.str = StrClone(sv);
+  } else if (constType == vpiHexConst) {
+    value->format = vpiHexStrVal;
+    value->value.str = StrClone(sv);
+  } else if (constType == vpiOctConst) {
+    value->format = vpiOctStrVal;
+    value->value.str = StrClone(sv);
+  } else if ((constType == vpiStringConst) || (constType == vpiUnboundedConst)) {
+    value->format = vpiStringVal;
+    value->value.str = StrClone(sv);
+  } else if (constType == vpiRealConst) {
+    value->format = vpiRealVal;
+    if (!NumUtils::parseDouble(sv, &value->value.real)) {
+      value->value.real = 0;
+    }
+  } else if (constType == vpiDecConst) {
+    value->format = vpiDecStrVal;
+    value->value.str = StrClone(sv);
+  } else if (constType == vpiScalarConst) {
     value->format = vpiScalarVal;
-    sv.remove_prefix(std::string_view("SCAL:").length());
     switch (sv.front()) {
       case 'Z': value->value.scalar = vpiZ; break;
       case 'X': value->value.scalar = vpiX; break;
       case 'H': value->value.scalar = vpiH; break;
-      case 'L': value->value.scalar = vpiL; break;
+      case 'L':
+        value->value.scalar = vpiL;
+        break;
         // Not really clear what the difference between X and DontCare is.
         // Let's parse 'W'eak don't care as this one.
       case 'W': value->value.scalar = vpiDontCare; break;
@@ -110,32 +129,6 @@ void String2VpiValue(std::string_view sv, s_vpi_value* value) {
         }
       } break;
     }
-  } else if (sv.find("BIN:") == 0) {
-    value->format = vpiBinStrVal;
-    sv.remove_prefix(std::string_view("BIN:").length());
-    value->value.str = StrClone(sv);
-  } else if (sv.find("HEX:") == 0) {
-    value->format = vpiHexStrVal;
-    sv.remove_prefix(std::string_view("HEX:").length());
-    value->value.str = StrClone(sv);
-  } else if (sv.find("OCT:") == 0) {
-    value->format = vpiOctStrVal;
-    sv.remove_prefix(std::string_view("OCT:").length());
-    value->value.str = StrClone(sv);
-  } else if (sv.find("STRING:") == 0) {
-    value->format = vpiStringVal;
-    sv.remove_prefix(std::string_view("STRING:").length());
-    value->value.str = StrClone(sv);
-  } else if (sv.find("REAL:") == 0) {
-    value->format = vpiRealVal;
-    sv.remove_prefix(std::string_view("REAL:").length());
-    if (!NumUtils::parseDouble(sv, &value->value.real)) {
-      value->value.real = 0;
-    }
-  } else if (sv.find("DEC:") == 0) {
-    value->format = vpiDecStrVal;
-    sv.remove_prefix(std::string_view("DEC:").length());
-    value->value.str = StrClone(sv);
   }
 }
 
@@ -172,41 +165,31 @@ void VpiDestroyDelay(s_vpi_delay& delay) {
 }
 
 std::string VpiValue2String(const s_vpi_value* value) {
-  static constexpr std::string_view kIntPrefix("INT:");
-  static constexpr std::string_view kUIntPrefix("UINT:");
-  static constexpr std::string_view kScalPrefix("SCAL:");
-  static constexpr std::string_view kStrPrefix("STRING:");
-  static constexpr std::string_view kHexPrefix("HEX:");
-  static constexpr std::string_view kOctPrefix("OCT:");
-  static constexpr std::string_view kBinPrefix("BIN:");
-  static constexpr std::string_view kRealPrefix("REAL:");
-  static constexpr std::string_view kDecPrefix("DEC:");
-
   if (!value) return "";
   switch (value->format) {
-    case vpiIntVal: return StrCat(kIntPrefix, value->value.integer);
-    case vpiUIntVal: return StrCat(kUIntPrefix, value->value.uint);
+    case vpiIntVal: return std::to_string(value->value.integer);
+    case vpiUIntVal: return std::to_string(value->value.uint);
     case vpiScalarVal: {
       switch (value->value.scalar) {
-        case vpi0: return "SCAL:0";
-        case vpi1: return "SCAL:1";
-        case vpiZ: return "SCAL:Z";
-        case vpiX: return "SCAL:X";
-        case vpiH: return "SCAL:H";
-        case vpiL: return "SCAL:L";
-        case vpiDontCare: return "SCAL:DontCare";
-        case vpiNoChange: return "SCAL:NoChange";
+        case vpi0: return "0";
+        case vpi1: return "1";
+        case vpiZ: return "Z";
+        case vpiX: return "X";
+        case vpiH: return "H";
+        case vpiL: return "L";
+        case vpiDontCare: return "DontCare";
+        case vpiNoChange: return "NoChange";
         default:
           // mmh, some unknown number.
-          return StrCat(kScalPrefix, value->value.scalar);
+          return std::to_string(value->value.scalar);
       }
     }
-    case vpiStringVal: return StrCat(kStrPrefix, value->value.str);
-    case vpiHexStrVal: return StrCat(kHexPrefix, value->value.str);
-    case vpiOctStrVal: return StrCat(kOctPrefix, value->value.str);
-    case vpiBinStrVal: return StrCat(kBinPrefix, value->value.str);
-    case vpiDecStrVal: return StrCat(kDecPrefix, value->value.str);
-    case vpiRealVal: return StrCat(kRealPrefix, value->value.real);
+    case vpiStringVal: return value->value.str;
+    case vpiHexStrVal: return value->value.str;
+    case vpiOctStrVal: return value->value.str;
+    case vpiBinStrVal: return value->value.str;
+    case vpiDecStrVal: return value->value.str;
+    case vpiRealVal: return std::to_string(value->value.real);
   }
 
   return "";

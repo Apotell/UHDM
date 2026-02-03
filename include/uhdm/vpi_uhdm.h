@@ -86,7 +86,7 @@ using ScopedVpiHandle = ScopedUhdmHandle;
 /** Obtain a vpiHandle from a BaseClass (any) object */
 vpiHandle NewVpiHandle(const uhdm::BaseClass* object);
 
-void String2VpiValue(std::string_view sv, s_vpi_value* value);
+void String2VpiValue(std::string_view sv, int32_t constType, s_vpi_value* value);
 void VpiDestroyValue(s_vpi_value& value);
 
 void String2VpiDelay(std::string_view sv, s_vpi_delay* delay);

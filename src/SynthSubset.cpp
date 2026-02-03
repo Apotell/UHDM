@@ -264,8 +264,8 @@ SysFuncCall* SynthSubset::makeStubDisplayStmt(const Any* object) {
   AnyCollection* arguments = m_serializer->makeCollection<Any>();
   Constant* c = m_serializer->make<Constant>();
   c->setConstType(vpiStringVal);
-  std::string text = "Stub for non-synthesizable stmt";
-  c->setValue("STRING:" + text);
+  std::string_view text = "Stub for non-synthesizable stmt";
+  c->setValue(text);
   c->setDecompile(text);
   c->setSize(text.size());
   arguments->push_back(c);
@@ -580,7 +580,7 @@ void SynthSubset::leaveForStmt(const ForStmt* object, vpiHandle handle) {
             item->setParent(case_st);
             Constant* c = m_serializer->make<Constant>();
             c->setConstType(vpiUIntConst);
-            c->setValue("UINT:" + std::to_string(i));
+            c->setValue(std::to_string(i));
             c->setDecompile(std::to_string(i));
             c->setParent(item);
             AnyCollection* exprs = m_serializer->makeCollection<Any>();

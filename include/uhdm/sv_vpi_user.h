@@ -277,6 +277,7 @@ extern "C" {
 #define vpiOneStepConst                    9
 #define vpiUnboundedConst                 10
 #define vpiNullConst                      11
+#define vpiScalarConst                    12
 
 #define vpiAlwaysType                         624
 #define vpiAlwaysComb                      2

@@ -136,3 +136,7 @@
   vpi: vpiIndex
   type: expr
   card: any
+- class_ref: value
+  vpi: vpiValue
+  type: expr
+  card: 1

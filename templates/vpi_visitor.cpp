@@ -23,6 +23,7 @@
  * Created on December 14, 2019, 10:03 PM
  */
 #include <uhdm/vpi_visitor.h>
+#include <uhdm/Utils.h>
 
 #include <algorithm>
 #include <cstring>
@@ -401,15 +402,15 @@ static void release_handle(vpiHandle obj_h) {
 static std::string visit_value(s_vpi_value* value) {
   if (value == nullptr) return "";
   switch (value->format) {
-    case vpiIntVal: return std::string("|INT:").append(std::to_string(value->value.integer)).append("\n");
-    case vpiUIntVal: return std::string("|UINT:").append(std::to_string(value->value.uint)).append("\n");
-    case vpiStringVal: return std::string("|STRING:").append((const char*)value->value.str).append("\n");
-    case vpiBinStrVal: return std::string("|BIN:").append((const char*)value->value.str).append("\n");
-    case vpiHexStrVal: return std::string("|HEX:").append((const char*)value->value.str).append("\n");
-    case vpiOctStrVal: return std::string("|OCT:").append((const char*)value->value.str).append("\n");
-    case vpiRealVal: return std::string("|REAL:").append(std::to_string(value->value.real)).append("\n");
-    case vpiScalarVal: return std::string("|SCAL:").append(std::to_string(value->value.scalar)).append("\n");
-    case vpiDecStrVal: return std::string("|DEC:").append((const char*)value->value.str).append("\n");
+    case vpiIntVal: return StrCat("|vpiValue:", value->value.integer, "\n");
+    case vpiUIntVal: return StrCat("|vpiValue:", value->value.uint, "\n");
+    case vpiStringVal: return StrCat("|vpiValue:", (const char*)value->value.str, "\n");
+    case vpiBinStrVal: return StrCat("|vpiValue:", (const char*)value->value.str, "\n");
+    case vpiHexStrVal: return StrCat("|vpiValue:", (const char*)value->value.str, "\n");
+    case vpiOctStrVal: return StrCat("|vpiValue:", (const char*)value->value.str, "\n");
+    case vpiRealVal: return StrCat("|vpiValue:", value->value.real, "\n");
+    case vpiScalarVal: return StrCat("|vpiValue:", value->value.scalar, "\n");
+    case vpiDecStrVal: return StrCat("|vpiValue:", (const char*)value->value.str, "\n");
   }
   return "";
 }

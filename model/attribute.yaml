@@ -23,9 +23,9 @@
   vpi: vpiDefAttribute
   type: bool
   card: 1
-- property: value
+- class_ref: value
   vpi: vpiValue
-  type: value
+  type: expr
   card: 1
 - property: def_file
   vpi: vpiDefFile

@@ -17,9 +17,9 @@
 - obj_def: int_typespec
 - extends: typespec
  # Non Standard, allows to model casts to integer values
-- property: value
+- class_ref: value
   vpi: vpiValue
-  type: value
+  type: expr
   card: 1
  # Or cast to expression
 - class_ref: expr

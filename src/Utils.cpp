@@ -242,7 +242,7 @@ void prettyPrint(std::ostream& out, const Any* object,
 
     case UhdmType::EnumConst:
       out << object->getName();
-      if (const Constant* const value = static_cast<const EnumConst*>(object)->getValue()) {
+      if (const Constant* const value = static_cast<const EnumConst*>(object)->getValue<Constant>()) {
         out << " = ";
         prettyPrint(out, value, 0);
       }

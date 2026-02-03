@@ -112,7 +112,7 @@
   vpi: vpiIndex
   type: expr
   card: any
-- obj_ref: value
+- class_ref: value
   vpi: vpiValue
-  type: constant
+  type: expr
   card: 1

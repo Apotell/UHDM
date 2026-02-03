@@ -60,7 +60,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     m1->setFile("fake1.sv");
     m1->setStartLine(10);
     Constant* c1 = s->make<Constant>();
-    c1->setValue("INT:2");
+    c1->setValue("2");
     c1->setDecompile("2");
     c1->setConstType(vpiIntConst);
     RefTypespec* rt1 = s->make<RefTypespec>();
@@ -69,7 +69,7 @@ std::vector<vpiHandle> build_designs(Serializer* s) {
     t1->setSigned(true);
     rt1->setActual(t1);
     Constant* c2 = s->make<Constant>();
-    c2->setValue("INT:3");
+    c2->setValue("3");
     c2->setDecompile("3");
     c2->setConstType(vpiIntConst);
     RefTypespec* rt2 = s->make<RefTypespec>();

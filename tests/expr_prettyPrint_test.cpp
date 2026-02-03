@@ -63,13 +63,13 @@ std::vector<vpiHandle> build_designs_MinusOp(Serializer* s) {
     ref->setActual(n);
 
     Constant* c1 = s->make<Constant>();
-    c1->setValue("UINT:1");
+    c1->setValue("1");
     c1->setConstType(vpiIntConst);
     c1->setDecompile("1");
     operands->push_back(c1);
 
     Constant* c2 = s->make<Constant>();
-    c2->setValue("UINT:0");
+    c2->setValue("0");
     c2->setConstType(vpiIntConst);
     c2->setDecompile("0");
 
@@ -163,13 +163,13 @@ std::vector<vpiHandle> build_designs_ConditionOp(Serializer* s) {
     operands->push_back(b);
 
     Constant* c1 = s->make<Constant>();
-    c1->setValue("UINT:1");
+    c1->setValue("1");
     c1->setConstType(vpiIntConst);
     c1->setDecompile("1");
     operands->push_back(c1);
 
     Constant* c2 = s->make<Constant>();
-    c2->setValue("UINT:3");
+    c2->setValue("3");
     c2->setConstType(vpiIntConst);
     c2->setDecompile("3");
     operands->push_back(c2);
@@ -346,13 +346,13 @@ std::vector<vpiHandle> build_designs_select(Serializer* s) {
     vs->setIndexes(exprs);
 
     Constant* c1 = s->make<Constant>();
-    c1->setValue("UINT:3");
+    c1->setValue("3");
     c1->setConstType(vpiIntConst);
     c1->setDecompile("3");
     exprs->push_back(c1);
 
     Constant* c2 = s->make<Constant>();
-    c2->setValue("UINT:2");
+    c2->setValue("2");
     c2->setConstType(vpiIntConst);
     c2->setDecompile("2");
     exprs->push_back(c2);
@@ -362,13 +362,13 @@ std::vector<vpiHandle> build_designs_select(Serializer* s) {
     ps->setConstantSelect(true);
 
     Constant* c3 = s->make<Constant>();
-    c3->setValue("UINT:1");
+    c3->setValue("1");
     c3->setConstType(vpiIntConst);
     c3->setDecompile("1");
     ps->setLeftExpr(c3);
 
     Constant* c4 = s->make<Constant>();
-    c4->setValue("UINT:0");
+    c4->setValue("0");
     c4->setConstType(vpiIntConst);
     c4->setDecompile("0");
     ps->setRightExpr(c4);
@@ -453,19 +453,19 @@ std::vector<vpiHandle> build_designs_AssignmentPatternOp(Serializer* s) {
     op->setOperands(operands);
 
     Constant* c1 = s->make<Constant>();
-    c1->setValue("UINT:1");
+    c1->setValue("1");
     c1->setConstType(vpiIntConst);
     c1->setDecompile("1");
     operands->push_back(c1);
 
     Constant* c2 = s->make<Constant>();
-    c2->setValue("UINT:2");
+    c2->setValue("2");
     c2->setConstType(vpiIntConst);
     c2->setDecompile("2");
     operands->push_back(c2);
 
     Constant* c3 = s->make<Constant>();
-    c3->setValue("UINT:3");
+    c3->setValue("3");
     c3->setConstType(vpiIntConst);
     c3->setDecompile("3");
     operands->push_back(c3);

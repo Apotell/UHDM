@@ -290,8 +290,7 @@ const ClassDefn* UhdmFinder::getClassDefn(std::string_view name,
       for (const Typespec* const t : *d->getTypespecs()) {
         if (const ImportTypespec* const it = t->Cast<ImportTypespec>()) {
           if (const Constant* const i = it->getItem()) {
-            if ((i->getValue() == "STRING:*") ||
-                (i->getValue() == StrCat("STRING:", name))) {
+            if ((i->getValue() == "*") || (i->getValue() == name)) {
               if (const Package* const p = getPackage(it->getName(), it)) {
                 if (const ClassDefn* const c =
                         getClassDefn(p->getClassDefns(), name)) {
@@ -483,8 +482,7 @@ const Any* UhdmFinder::findInPackage(std::string_view name, RefType refType,
     for (const Typespec* const t : *scope->getTypespecs()) {
       if (const ImportTypespec* const it = t->Cast<ImportTypespec>()) {
         if (const Constant* const i = it->getItem()) {
-          if ((i->getValue() == "STRING:*") ||
-              (i->getValue() == StrCat("STRING:", name))) {
+          if ((i->getValue() == "*") || (i->getValue() == name)) {
             if (const Package* const p = getPackage(it->getName(), it)) {
               if (const Any* const actual = findInPackage(name, refType, p)) {
                 return actual;

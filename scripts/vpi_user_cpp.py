@@ -31,7 +31,7 @@ def generate(models):
     vpi_get_value_body = [
          '  switch (handle->type) {'
     ] + [
-        f'    case UhdmType::{config.make_class_name(classname)}: String2VpiValue((({config.make_class_name(classname)}*)obj)->getValue(), value_p); break;'
+        f'    case UhdmType::{config.make_class_name(classname)}: String2VpiValue((({config.make_class_name(classname)}*)obj)->getValue(), (({config.make_class_name(classname)}*)obj)->getConstType(), value_p); break;'
         for classname in sorted(vpi_get_value_classes)
     ] + [
          '    default: break;',

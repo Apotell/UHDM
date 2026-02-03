@@ -15,9 +15,9 @@
 # Universal Hardware Data Model (UHDM) "table_entry" formal description
 
 - obj_def: table_entry
-- obj_ref: value
+- class_ref: value
   vpi: vpiValue
-  type: constant
+  type: expr
   card: 1
 - obj_ref: attribute
   vpi: vpiAttribute

@@ -238,7 +238,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
           int64_t val = 0;
           if (eval.getInt64(object, &val) && (val == 1)) {
             uint64_t mask = NumUtils::getMask(size);
-            newc->setValue("UINT:" + std::to_string(mask));
+            newc->setValue(std::to_string(mask));
             newc->setDecompile(std::to_string(mask));
             newc->setConstType(vpiUIntConst);
           }
@@ -274,7 +274,7 @@ void UhdmAdjuster::leaveConstant(const Constant* object, vpiHandle handle) {
           int64_t val = 0;
           if (eval.getInt64(object, &val) && (val == 1)) {
             uint64_t mask = NumUtils::getMask(size);
-            newc->setValue("UINT:" + std::to_string(mask));
+            newc->setValue(std::to_string(mask));
             newc->setDecompile(std::to_string(mask));
             newc->setConstType(vpiUIntConst);
           }
