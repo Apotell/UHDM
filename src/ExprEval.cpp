@@ -1890,6 +1890,27 @@ struct ExprEval::rank_op final {
   }
 };
 
+struct decode_unsigned_op final {
+  template <typename ST, typename UT>
+  ST operator()(UT raw, int32_t size) const {
+    if ((size <= 0) || (size >= static_cast<int32_t>(sizeof(UT) * 8))) {
+      return static_cast<ST>(raw);
+    }
+
+    const UT signMask = static_cast<UT>(1) << (size - 1);
+    const UT valueMask = (static_cast<UT>(1) << size) - 1;
+
+    raw &= valueMask;
+
+    // if MSB not set -> positive
+    if ((raw & signMask) == 0) return static_cast<ST>(raw);
+
+    // MSB set -> negative
+    UT magnitude = (~raw + 1) & valueMask;
+    return static_cast<ST>(-static_cast<ST>(magnitude));
+  }
+};
+
 class DetectRefObj final : public UhdmVisitor {
  public:
   void visitAny(const Any *any) final {
@@ -1921,38 +1942,6 @@ bool ExprEval::isFullySpecified(const Typespec *tps) {
   DetectRefObj detector;
   detector.visit(tps);
   return !detector.refObjDetected();
-}
-
-inline static bool isVector(const Typespec *typespec) {
-  return (typespec->getUhdmType() == UhdmType::IntegerTypespec) ||
-         (typespec->getUhdmType() == UhdmType::LogicTypespec) || (typespec->getUhdmType() == UhdmType::BitTypespec);
-}
-
-static constexpr bool isConvSysFunc(std::string_view name) {
-  return (name == "$rtoi") || (name == "$itor") || (name == "$signed") || (name == "$unsigned") ||
-         (name == "$realtobits") || (name == "$bitstoreal") || (name == "$shortrealtobits") || (name == "$cast") ||
-         (name == "$bitstoshortreal");
-}
-
-static constexpr bool isMathSysFunc(std::string_view name) {
-  return (name == "$clog2") || (name == "$asin") || (name == "$acos") || (name == "$atan") || (name == "$ln") ||
-         (name == "$log10") || (name == "$exp") || (name == "$sqrt") || (name == "$floor") || (name == "$ceil") ||
-         (name == "$sin") || (name == "$cos") || (name == "$tan") || (name == "$sinh") || (name == "$cosh") ||
-         (name == "$tanh") || (name == "$asinh") || (name == "$acosh") || (name == "$atanh") || (name == "$atan2") ||
-         (name == "$hypot") || (name == "$pow");
-}
-inline static bool isDataQuerySysFunc(std::string_view name) {
-  return (name == "$bits") || (name == "$isunbounded") || (name == "$typename");
-}
-
-inline static bool isArrayQuerySysFunc(std::string_view name) {
-  return (name == "$unpacked_dimensions") || (name == "$dimensions") || (name == "$left") || (name == "$right") ||
-         (name == "$low") || (name == "$high") || (name == "$increment") || (name == "$size");
-}
-
-inline static bool isBitVectorSysFunc(std::string_view name) {
-  return (name == "$countbits") || (name == "$onehot") || (name == "$isunknown") || (name == "$countones") ||
-         (name == "$onehot0");
 }
 
 template <typename T1, typename T2, typename T3>
@@ -2092,19 +2081,21 @@ std::variant<std::monostate, T2, T3> ExprEval::parseNumber(const TimeTypespec *t
 template <typename T1, typename T2, typename T3>
 std::variant<std::monostate, T2, T3, std::string> ExprEval::parseBinary(const T1 *typespec, std::string_view sv,
                                                                         int32_t constType) const {
+  // TODO::HS, remove constType as parameter, and remove rest of code
+  // Remove highest bit while typespec is positive
   std::variant<std::monostate, T2, T3, std::string> value;
   switch (constType) {
     case vpiBinaryConst: {
       if (typespec->getSigned()) {
         T2 v = 0;
-        if (!isVector(typespec) && (sv.length() <= (sizeof(T2) * 8)) && NumUtils::parseBinary(sv, &v)) {
+        if (!isVectorType(typespec) && (sv.length() <= (sizeof(T2) * 8)) && NumUtils::parseBinary(sv, &v)) {
           value = v;
         } else {
           value = std::move(std::string(sv));
         }
       } else {
         T3 v = 0;
-        if (!isVector(typespec) && (sv.length() <= (sizeof(T3) * 8)) && NumUtils::parseBinary(sv, &v)) {
+        if (!isVectorType(typespec) && (sv.length() <= (sizeof(T3) * 8)) && NumUtils::parseBinary(sv, &v)) {
           value = v;
         } else {
           value = std::move(std::string(sv));
@@ -3024,7 +3015,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
         }
         std::string sresult;
-        if (isVector(itypespec0)) {
+        if (isVectorType(itypespec0)) {
           oconstant = serializer->make<Constant>();
           const int32_t isize = std::max(iconstant0->getSize(), iconstant1->getSize());
           if (rtype == UhdmType::IntegerTypespec) {
@@ -3147,7 +3138,7 @@ bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
           std::visit([&uarg1](auto &&arg) { uarg1 = arg; }, nvalue1);
         }
         std::string sresult;
-        if (isVector(itypespec0)) {
+        if (isVectorType(itypespec0)) {
           oconstant = serializer->make<Constant>();
           const int32_t isize = std::max(iconstant0->getSize(), iconstant1->getSize());
           if (rtype == UhdmType::IntegerTypespec) {
@@ -4228,8 +4219,12 @@ bool ExprEval::reduceConvSysFunc(const SysFuncCall *call, const Any *pany, Expr 
   if (name == "$cast") {
     if (args->size() != 2) return false;
 
-    const Expr *const targetExpr = any_cast<Expr>((*args)[0]);
-    if (targetExpr == nullptr) return false;
+    Expr *targetExpr = nullptr;
+    if (RefObj *const arg0 = any_cast<RefObj>((*args)[0])) {
+      targetExpr = arg0->getActual<Expr>();
+    } else {
+      if (!reduceExpr(any_cast<Expr>((*args)[0]), pany, &targetExpr, muteError)) return false;
+    }
 
     const Typespec *const targetTs = getTypespec(targetExpr);
     if (targetTs == nullptr) return false;
@@ -4268,71 +4263,70 @@ bool ExprEval::reduceConvSysFunc(const SysFuncCall *call, const Any *pany, Expr 
   }
 
   if ((name == "$signed") || (name == "$unsigned")) {
-    Constant *const carg = any_cast<Constant>((*args)[0]);
-    if (carg == nullptr) return false;
-
-    value_t value = parse(carg);
-    if (std::holds_alternative<std::monostate>(value)) return false;
-
     Serializer &serializer = *call->getSerializer();
     const Typespec *const inTs = getTypespec(carg);
     if (inTs == nullptr) return false;
 
-    UhdmType inType = inTs->getUhdmType();
-    int32_t size = carg->getSize();
+    const UhdmType inType = inTs->getUhdmType();
+    const int32_t size = carg->getSize();
 
     cast_op castOp;
+    decode_unsigned_op decodeUnsignedOp;
 
     switch (inType) {
       case UhdmType::IntTypespec: {
-        int32_t i = castOp.operator()<int32_t>(value);
-        if (name == "$unsigned") {
-          *rexpr = createConstant<uint32_t>(static_cast<uint32_t>(i), serializer, inType, vpiIntConst, size);
-        } else {
-          *rexpr = createConstant<int32_t>(i, serializer, inType, vpiIntConst, size);
-        }
+        uint32_t raw = castOp.operator()<uint32_t>(value);
+        int32_t s = decodeUnsignedOp.operator()<int32_t, uint32_t>(raw, size);
+
+        if (name == "$unsigned")
+          *rexpr = createConstant<uint32_t>(static_cast<uint32_t>(s), serializer, inType, vpiIntConst, size);
+        else
+          *rexpr = createConstant<int32_t>(s, serializer, inType, vpiIntConst, size);
         return true;
       }
 
       case UhdmType::LongIntTypespec: {
-        int64_t i = castOp.operator()<int64_t>(value);
-        if (name == "$unsigned") {
-          *rexpr = createConstant<uint64_t>(static_cast<uint64_t>(i), serializer, inType, vpiIntConst, size);
-        } else {
-          *rexpr = createConstant<int64_t>(i, serializer, inType, vpiIntConst, size);
-        }
+        uint64_t raw = castOp.operator()<uint64_t>(value);
+        int64_t s = decodeUnsignedOp.operator()<int64_t, uint64_t>(raw, size);
+
+        if (name == "$unsigned")
+          *rexpr = createConstant<uint64_t>(static_cast<uint64_t>(s), serializer, inType, vpiIntConst, size);
+        else
+          *rexpr = createConstant<int64_t>(s, serializer, inType, vpiIntConst, size);
         return true;
       }
 
       case UhdmType::ShortIntTypespec: {
-        int16_t i = castOp.operator()<int16_t>(value);
-        if (name == "$unsigned") {
-          *rexpr = createConstant<uint16_t>(static_cast<uint16_t>(i), serializer, inType, vpiIntConst, size);
-        } else {
-          *rexpr = createConstant<int16_t>(i, serializer, inType, vpiIntConst, size);
-        }
+        uint16_t raw = castOp.operator()<uint16_t>(value);
+        int16_t s = decodeUnsignedOp.operator()<int16_t, uint16_t>(raw, size);
+
+        if (name == "$unsigned")
+          *rexpr = createConstant<uint16_t>(static_cast<uint16_t>(s), serializer, inType, vpiIntConst, size);
+        else
+          *rexpr = createConstant<int16_t>(s, serializer, inType, vpiIntConst, size);
         return true;
       }
 
       case UhdmType::ByteTypespec: {
-        int8_t i = castOp.operator()<int8_t>(value);
-        if (name == "$unsigned") {
-          *rexpr = createConstant<uint8_t>(static_cast<uint8_t>(i), serializer, inType, vpiIntConst, size);
-        } else {
-          *rexpr = createConstant<int8_t>(i, serializer, inType, vpiIntConst, size);
-        }
+        uint8_t raw = castOp.operator()<uint8_t>(value);
+        int8_t s = decodeUnsignedOp.operator()<int8_t, uint8_t>(raw, size);
+
+        if (name == "$unsigned")
+          *rexpr = createConstant<uint8_t>(static_cast<uint8_t>(s), serializer, inType, vpiIntConst, size);
+        else
+          *rexpr = createConstant<int8_t>(s, serializer, inType, vpiIntConst, size);
         return true;
       }
 
       case UhdmType::LogicTypespec:
       case UhdmType::BitTypespec: {
-        if (name == "$unsigned") {
-          uint64_t u = castOp.operator()<uint64_t>(value);
-          *rexpr = createConstant<uint64_t>(u, serializer, inType, vpiBinaryConst, size);
-        } else {
-          int64_t i = castOp.operator()<int64_t>(value);
-          *rexpr = createConstant<int64_t>(i, serializer, inType, vpiBinaryConst, size);
-        }
+        uint64_t raw = castOp.operator()<uint64_t>(value);
+        int64_t s = decodeUnsignedOp.operator()<int64_t, uint64_t>(raw, size);
+
+        if (name == "$unsigned")
+          *rexpr = createConstant<uint64_t>(raw, serializer, inType, vpiBinaryConst, size);
+        else
+          *rexpr = createConstant<int64_t>(s, serializer, inType, vpiBinaryConst, size);
         return true;
       }
 

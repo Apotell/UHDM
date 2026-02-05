@@ -95,6 +95,19 @@ class TypespecUnifier final : public UhdmListener {
       }
       return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
     }
+
+    int32_t compare(const Any* plhs, std::string_view lhs, const Any* prhs, std::string_view rhs, uint32_t relation,
+                    int32_t r) final {
+      if (relation == vpiFile) {
+        // Ignore file information for typespecs
+        if (const Typespec* const ts = getParent<Typespec>(plhs)) {
+          if (isOfPrimitiveType(ts)) {
+            return r;
+          }
+        }
+      }
+      return UhdmComparer::compare(plhs, lhs, prhs, rhs, relation, r);
+    }
   };
 
   template <typename T>

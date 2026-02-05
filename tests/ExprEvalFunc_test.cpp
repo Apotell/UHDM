@@ -169,20 +169,23 @@ TEST_P(ConvSysFuncTest, ConversionFunctions) {
   m_call->setName(name);
   AnyCollection *args = m_call->getArguments(true);
 
+  int32_t inputConstType = vpiDecConst;
   for (const auto &argDesc : argsDesc) {
     Constant *c = m_serializer.make<Constant>();
     c->setValue(argDesc.value);
     c->setDecompile(argDesc.value);
     c->setSize(64);
 
-    int32_t inputConstType = vpiDecConst;
     if (argDesc.typespecType == UhdmType::LogicTypespec || argDesc.typespecType == UhdmType::IntegerTypespec ||
         argDesc.typespecType == UhdmType::BitTypespec) {
       inputConstType = vpiBinaryConst;
+      c->setSize(argDesc.value.size());
     } else if (argDesc.typespecType == UhdmType::RealTypespec || argDesc.typespecType == UhdmType::ShortRealTypespec) {
       inputConstType = vpiRealConst;
     } else if (argDesc.typespecType == UhdmType::TimeTypespec) {
       inputConstType = vpiTimeConst;
+    } else {
+      inputConstType = vpiDecConst;
     }
 
     c->setConstType(inputConstType);
@@ -200,14 +203,18 @@ TEST_P(ConvSysFuncTest, ConversionFunctions) {
 
   if ((name == "$itor") || (name == "$bitstoreal") || (name == "$bitstoshortreal")) {
     expectedConstType = vpiRealConst;
-  } else if ((name == "$rtoi") || (name == "$signed") || (name == "$unsigned") || (name == "$realtobits") ||
-             (name == "$shortrealtobits")) {
+  } else if ((name == "$rtoi") || (name == "$realtobits") || (name == "$shortrealtobits")) {
     expectedConstType = vpiIntConst;
   } else if (name == "$cast") {
     if (expectedTsType == UhdmType::RealTypespec || expectedTsType == UhdmType::ShortRealTypespec) {
       expectedConstType = vpiRealConst;
     } else {
       expectedConstType = vpiIntConst;
+    }
+  } else if ((name == "$signed") || (name == "$unsigned")) {
+    expectedConstType = vpiIntConst;
+    if (inputConstType == vpiBinaryConst) {
+      expectedConstType = vpiBinaryConst;
     }
   }
 
@@ -909,12 +916,14 @@ INSTANTIATE_TEST_SUITE_P(
         ConvTestParam{"MathFunc198", "$signed", {{"255",   UhdmType::IntTypespec, false}}, "255",   UhdmType::IntTypespec, true},
         ConvTestParam{"MathFunc199", "$signed", {{"127",   UhdmType::IntTypespec, false}}, "127",   UhdmType::IntTypespec, true},
         ConvTestParam{"MathFunc200", "$signed", {{"32768", UhdmType::IntTypespec, false}}, "32768", UhdmType::IntTypespec, true},
+        ConvTestParam{"MathFunc200_1", "$signed", {{"1100", UhdmType::LogicTypespec, false}}, "1100", UhdmType::LogicTypespec, true},
 
         //TOCHECK::Arshi for output sign
         ConvTestParam{"MathFunc201", "$unsigned", {{"-1",      UhdmType::IntTypespec,   true}},  "4294967295", UhdmType::IntTypespec, false},
         ConvTestParam{"MathFunc202", "$unsigned", {{"255",     UhdmType::IntTypespec,   false}}, "255",        UhdmType::IntTypespec, false},
         ConvTestParam{"MathFunc203", "$unsigned", {{"0",       UhdmType::IntTypespec,   false}}, "0",          UhdmType::IntTypespec, false},
-        // ConvTestParam{"MathFunc209", "$unsigned", {"11111111", UhdmType::LogicTypespec, true},   "255",        UhdmType::IntTypespec, false}
+        ConvTestParam{"MathFunc203_1", "$unsigned", {{"-4",    UhdmType::IntTypespec,   true}}, "4294967292",          UhdmType::IntTypespec, false},
+        ConvTestParam{"MathFunc209", "$unsigned", {{"11111111", UhdmType::LogicTypespec, true}},   "11111111",        UhdmType::LogicTypespec, false},
         //
         ConvTestParam{"MathFunc204", "$cast", {{"int",  UhdmType::IntTypespec, true},  {"3.9",       UhdmType::RealTypespec,  false}}, "4",    UhdmType::IntTypespec,  true},
         ConvTestParam{"MathFunc205", "$cast", {{"real", UhdmType::RealTypespec, true}, {"10",        UhdmType::IntTypespec,   false}}, "10.0", UhdmType::RealTypespec, true},
@@ -1059,10 +1068,20 @@ INSTANTIATE_TEST_SUITE_P(
         // clang-format on
     ));
 #else
+INSTANTIATE_TEST_SUITE_P(DataQuery20_6, DataQuerySysFuncTest,
+                         ::testing::Values(DataQueryTestParam{"DQ_TypeName_Int",
+                                                              "$typename",
+                                                              {UhdmType::IntTypespec, true, {}, {}, vpiStaticArray},
+                                                              "int",
+                                                              UhdmType::StringTypespec,
+                                                              vpiStringConst}));
 INSTANTIATE_TEST_SUITE_P(
-    DataQuery20_6, DataQuerySysFuncTest,
-    ::testing::Values(
-        DataQueryTestParam{"DQ_TypeName_Int", "$typename", {UhdmType::IntTypespec,true,{},{} ,vpiStaticArray}, "int",UhdmType::StringTypespec,vpiStringConst}));
+    ConvSysFuncs, ConvSysFuncTest,
+    testing::Values(
+        // clang-format off
+        ConvTestParam{"MathFunc205", "$cast", {{"real", UhdmType::RealTypespec, true}, {"10",        UhdmType::IntTypespec,   false}}, "10.0", UhdmType::RealTypespec, true}
+        // clang-format on
+    ));
 #endif
 
 int main(int argc, char **argv) {

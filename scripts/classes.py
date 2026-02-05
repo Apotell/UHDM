@@ -702,6 +702,12 @@ def _get_setParent_implementation(model):
       includes.append('task_func_decl')
       content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr) && (data->Cast<Modport>() == nullptr) && (data->Cast<TaskFuncDecl>() == nullptr)) {')
 
+    elif ClassName in ['Typespec']:
+      includes.append('Utils')
+      content.append('  if ((data != nullptr) && isBuiltinTypespec(this)) {')
+      content.append('    data = m_serializer->topDesign();')
+      content.append('  } else if ((data != nullptr) && (data->Cast<Scope>() == nullptr)) {')
+
     else:
       content.append('  if ((data != nullptr) && (data->Cast<Scope>() == nullptr) && (data->Cast<Design>() == nullptr)) {')
 

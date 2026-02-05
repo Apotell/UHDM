@@ -85,7 +85,8 @@ void StrAppend(std::string* dest, Ts&&... args) {
     std::string_view str, std::string_view multichar_separator);
 
 template <typename R = Any, typename T = Any>
-constexpr auto getActual(T* object) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+[[nodiscard]] constexpr auto getActual(T* object) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (object == nullptr) return nullptr;
 
   if (auto* const ro = any_cast<RefObj>(object)) {
@@ -123,7 +124,8 @@ bool setActual(uhdm::Any* object, T* actual) {
 }
 
 template <typename R = Typespec, typename T = Any>
-constexpr auto getTypespec(T* object) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+[[nodiscard]] constexpr auto getTypespec(T* object) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (object == nullptr) return nullptr;
 
   if (auto* const e = any_cast<Expr>(object)) {
@@ -170,7 +172,8 @@ constexpr auto getTypespec(T* object) -> typename std::conditional<std::is_const
 bool setTypespec(Any* object, Typespec* typespec);
 
 template <typename R = Typespec, typename T = ArrayTypespec>
-constexpr auto getElemTypespec(T* typespec) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+[[nodiscard]] constexpr auto getElemTypespec(T* typespec) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getElemTypespec());
   }
@@ -180,7 +183,8 @@ constexpr auto getElemTypespec(T* typespec) -> typename std::conditional<std::is
 bool setElemTypespec(ArrayTypespec* typespec, Typespec* actual);
 
 template <typename R = Typespec, typename T = ArrayTypespec>
-constexpr auto getIndexTypespec(T* typespec) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+[[nodiscard]] constexpr auto getIndexTypespec(T* typespec) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(typespec)) {
     return getActual<R>(at->getIndexTypespec());
   }
@@ -189,8 +193,49 @@ constexpr auto getIndexTypespec(T* typespec) -> typename std::conditional<std::i
 
 bool setIndexTypespec(ArrayTypespec* typespec, Typespec* actual);
 
+[[nodiscard]] inline bool isVectorType(const Typespec* typespec) {
+  switch (typespec->getUhdmType()) {
+    case UhdmType::BitTypespec:
+    case UhdmType::IntegerTypespec:
+    case UhdmType::LogicTypespec: return true;
+    default: return false;
+  }
+}
+
+[[nodiscard]] inline bool isNumericType(const Typespec* typespec) {
+  switch (typespec->getUhdmType()) {
+    case UhdmType::ByteTypespec:
+    case UhdmType::IntTypespec:
+    case UhdmType::LongIntTypespec:
+    case UhdmType::RealTypespec:
+    case UhdmType::ShortIntTypespec:
+    case UhdmType::ShortRealTypespec: return true;
+    default: return false;
+  }
+}
+
+[[nodiscard]] inline bool isBuiltinTypespec(const Typespec* typespec) {
+  switch (typespec->getUhdmType()) {
+    case UhdmType::BitTypespec:
+    case UhdmType::ByteTypespec:
+    case UhdmType::ChandleTypespec:
+    case UhdmType::IntTypespec:
+    case UhdmType::IntegerTypespec:
+    case UhdmType::LogicTypespec:
+    case UhdmType::LongIntTypespec:
+    case UhdmType::RealTypespec:
+    case UhdmType::ShortIntTypespec:
+    case UhdmType::ShortRealTypespec:
+    case UhdmType::StringTypespec:
+    case UhdmType::TimeTypespec:
+    case UhdmType::VoidTypespec: return true;
+    default: return false;
+  }
+}
+
 template <typename R, typename T = Any>
-constexpr auto getParent(T* any) -> typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
+[[nodiscard]] constexpr auto getParent(T* any) ->
+    typename std::conditional<std::is_const<T>::value, const R*, R*>::type {
   auto* p = any_cast<Any>(any);
   while (p != nullptr) {
     if (auto* const pp = any_cast<R>(p)) {
@@ -201,11 +246,11 @@ constexpr auto getParent(T* any) -> typename std::conditional<std::is_const<T>::
   return nullptr;
 }
 
-bool getSigned(const Typespec* typespec);
+[[nodiscard]] bool getSigned(const Typespec* typespec);
 bool setSigned(Typespec* typespec, bool value);
 
 template <typename T = Any>
-auto getRanges(T* any) ->
+[[nodiscard]] auto getRanges(T* any) ->
     typename std::conditional<std::is_const<T>::value, const RangeCollection*,
                               RangeCollection*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(any)) {
@@ -226,8 +271,35 @@ auto getRanges(T* any) ->
   return nullptr;
 }
 
+[[nodiscard]] constexpr bool isConvSysFunc(std::string_view name) {
+  return (name == "$rtoi") || (name == "$itor") || (name == "$signed") || (name == "$unsigned") ||
+         (name == "$realtobits") || (name == "$bitstoreal") || (name == "$shortrealtobits") || (name == "$cast") ||
+         (name == "$bitstoshortreal");
+}
+
+[[nodiscard]] constexpr bool isMathSysFunc(std::string_view name) {
+  return (name == "$clog2") || (name == "$asin") || (name == "$acos") || (name == "$atan") || (name == "$ln") ||
+         (name == "$log10") || (name == "$exp") || (name == "$sqrt") || (name == "$floor") || (name == "$ceil") ||
+         (name == "$sin") || (name == "$cos") || (name == "$tan") || (name == "$sinh") || (name == "$cosh") ||
+         (name == "$tanh") || (name == "$asinh") || (name == "$acosh") || (name == "$atanh") || (name == "$atan2") ||
+         (name == "$hypot") || (name == "$pow");
+}
+[[nodiscard]] constexpr bool isDataQuerySysFunc(std::string_view name) {
+  return (name == "$bits") || (name == "$isunbounded") || (name == "$typename");
+}
+
+[[nodiscard]] constexpr bool isArrayQuerySysFunc(std::string_view name) {
+  return (name == "$unpacked_dimensions") || (name == "$dimensions") || (name == "$left") || (name == "$right") ||
+         (name == "$low") || (name == "$high") || (name == "$increment") || (name == "$size");
+}
+
+[[nodiscard]] constexpr bool isBitVectorSysFunc(std::string_view name) {
+  return (name == "$countbits") || (name == "$onehot") || (name == "$isunknown") || (name == "$countones") ||
+         (name == "$onehot0");
+}
+
 void prettyPrint(std::ostream& out, const Any* object, size_t indent = 0);
-std::string prettyPrint(const Any* object, size_t indent = 0);
+[[nodiscard]] std::string prettyPrint(const Any* object, size_t indent = 0);
 
 template <typename T>
 void prettyPrint(std::ostream& out, const std::vector<T*>* collection, std::string_view separator = ", ",
