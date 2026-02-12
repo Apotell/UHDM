@@ -83,7 +83,7 @@ def generate(models):
 
                         restore_adapters.append(f'    obj->set{FuncName}(serializer->getObject<{TypeName}>(reader.get{FuncName}().getType(), reader.get{FuncName}().getIndex() - 1));')
                     else:
-                        suffix = 'Obj 'if vpi in ['vpiName'] else ''
+                        suffix = 'Obj 'if type == 'identifier' else ''
                         saves_adapters.append(f'    if (auto p = obj->get{FuncName}{suffix}()) builder.set{FuncName}(getId(p, idMap));')
 
                         restore_adapters.append(f'    if (reader.get{FuncName}()) {{')

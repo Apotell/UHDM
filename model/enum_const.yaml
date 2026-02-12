@@ -15,9 +15,9 @@
 # Universal Hardware Data Model (UHDM) "enum_const" formal description
 
 - obj_def: enum_const
-- property: name
+- obj_ref: name
   vpi: vpiName
-  type: string
+  type: identifier
   card: 1
 - class_ref: value
   vpi: vpiValue

@@ -47,7 +47,7 @@
   vpi: vpiWaitingProcesses
   type: thread_obj
   card: any
-- property: end_label
+- obj_ref: end_label
   vpi: vpiEndLabel
-  type: string
+  type: identifier
   card: 1

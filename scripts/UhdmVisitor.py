@@ -10,7 +10,7 @@ def _get_listen_implementation(classname, name, vpi, type, card):
     TypeName = config.make_class_name(type)
 
     if card == '1':
-        suffix = 'Obj 'if vpi in ['vpiName'] else ''
+        suffix = 'Obj 'if type == 'identifier' else ''
         content.append(f'  if (const Any *const any = object->get{FuncName}{suffix}()) visit(any);')
     else:
         content.append(f'  if (const {TypeName}Collection *const collection = object->get{FuncName}()) {{')

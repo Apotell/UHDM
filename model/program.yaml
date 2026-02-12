@@ -60,7 +60,7 @@
   vpi: vpiGenScopeArray
   type: gen_scope_array
   card: any
-- property: end_label
+- obj_ref: end_label
   vpi: vpiEndLabel
-  type: string
+  type: identifier
   card: 1

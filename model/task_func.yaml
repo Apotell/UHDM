@@ -84,3 +84,7 @@
   vpi: vpiInstance
   type: instance
   card: 1
+- obj_ref: end_label
+  vpi: vpiEndLabel
+  type: identifier
+  card: 1

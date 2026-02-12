@@ -201,7 +201,7 @@ def _get_declarations(name, type, vpi, card, real_type=''):
         type = 'UhdmType'
 
     final = ' final' if vpi in ['uhdmType', 'vpiType', 'vpiDefName'] else ''
-    check = f'if (!{real_type}GroupCompliant(data)) return false;\n    ' if type == 'any' and real_type != 'any' else ''
+    check = f'if (!{real_type}GroupCompliant(data)) return false;\n      ' if type == 'any' and real_type != 'any' else ''
 
     varName = config.make_var_name(name, card)
     FuncName = config.make_func_name(name, card)
@@ -218,10 +218,10 @@ def _get_declarations(name, type, vpi, card, real_type=''):
         else:
             Type = config.make_class_name(type)
             suffix = ''
-            if vpi in ['vpiName']:
+            if type == 'identifier':
                 suffix = 'Obj'
-                content.append('  std::string_view getName() const final;')
-                content.append('  bool setName(std::string_view name);')
+                content.append(f'  std::string_view get{FuncName}() const{final};')
+                content.append(f'  bool set{FuncName}(std::string_view name);')
 
             content.append(f'  {Type}* get{FuncName}{suffix}(){final} {{ return m_{varName}; }}')
             content.append(f'  const {Type}* get{FuncName}{suffix}() const{final} {{ return m_{varName}; }}')
@@ -252,17 +252,17 @@ def _get_implementations(classname, name, type, vpi, card):
     FuncName = config.make_func_name(name, card)
     TypeName = config.make_class_name(type)
 
-    if vpi in ['vpiName'] and type == 'identifier':
-        content.append(f'std::string_view {ClassName}::getName() const {{')
+    if type == 'identifier':
+        content.append(f'std::string_view {ClassName}::get{FuncName}() const {{')
         content.append(f'  return (m_{varName} != nullptr) ? m_{varName}->getName() : kEmpty;')
         content.append( '}')
         content.append( '')
-        content.append(f'bool {ClassName}::setName(std::string_view name) {{')
-        content.append( '  if (m_name == nullptr) {')
-        content.append( '    m_name = m_serializer->make<Identifier>();')
-        content.append( '    m_name->setParent(this);')
+        content.append(f'bool {ClassName}::set{FuncName}(std::string_view name) {{')
+        content.append(f'  if (m_{varName} == nullptr) {{')
+        content.append(f'    m_{varName} = m_serializer->make<Identifier>();')
+        content.append(f'    m_{varName}->setParent(this);')
         content.append( '  }')
-        content.append( '  m_name->setName(name);')
+        content.append(f'  m_{varName}->setName(name);')
         content.append( '  return true;')
         content.append( '}')
 
