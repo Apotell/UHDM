@@ -81,8 +81,7 @@ void StrAppend(std::string* dest, Ts&&... args) {
   return ltrim_until(rtrim_until(str, c), c);
 }
 
-[[nodiscard]] std::vector<std::string_view> tokenize(
-    std::string_view str, std::string_view multichar_separator);
+[[nodiscard]] std::vector<std::string_view> tokenize(std::string_view str, std::string_view multichar_separator);
 
 template <typename R = Any, typename T = Any>
 [[nodiscard]] constexpr auto getActual(T* object) ->
@@ -251,8 +250,7 @@ bool setSigned(Typespec* typespec, bool value);
 
 template <typename T = Any>
 [[nodiscard]] auto getRanges(T* any) ->
-    typename std::conditional<std::is_const<T>::value, const RangeCollection*,
-                              RangeCollection*>::type {
+    typename std::conditional<std::is_const<T>::value, const RangeCollection*, RangeCollection*>::type {
   if (auto* const at = any_cast<ArrayTypespec>(any)) {
     return at->getRanges();
   } else if (auto* const bt = any_cast<BitTypespec>(any)) {
@@ -269,6 +267,108 @@ template <typename T = Any>
     return ut->getRanges();
   }
   return nullptr;
+}
+
+[[nodiscard]] constexpr std::string_view getOperationName(int32_t type) {
+  switch (type) {
+    case vpiMinusOp /* = 1 */: return "MinusOp";
+    case vpiPlusOp /* = 2 */: return "PlusOp";
+    case vpiNotOp /* = 3 */: return "NotOp";
+    case vpiBitNegOp /* = 4 */: return "BitNegOp";
+    case vpiUnaryAndOp /* = 5 */: return "UnaryAndOp";
+    case vpiUnaryNandOp /* = 6 */: return "UnaryNandOp";
+    case vpiUnaryOrOp /* = 7 */: return "UnaryOrOp";
+    case vpiUnaryNorOp /* = 8 */: return "UnaryNorOp";
+    case vpiUnaryXorOp /* = 9 */: return "UnaryXorOp";
+    case vpiUnaryXNorOp /* = 10 */: return "UnaryXNorOp";
+    case vpiSubOp /* = 11 */: return "SubOp";
+    case vpiDivOp /* = 12 */: return "DivOp";
+    case vpiModOp /* = 13 */: return "ModOp";
+    case vpiEqOp /* = 14 */: return "EqOp";
+    case vpiNeqOp /* = 15 */: return "NeqOp";
+    case vpiCaseEqOp /* = 16 */: return "CaseEqOp";
+    case vpiCaseNeqOp /* = 17 */: return "CaseNeqOp";
+    case vpiGtOp /* = 18 */: return "GtOp";
+    case vpiGeOp /* = 19 */: return "GeOp";
+    case vpiLtOp /* = 20 */: return "LtOp";
+    case vpiLeOp /* = 21 */: return "LeOp";
+    case vpiLShiftOp /* = 22 */: return "LShiftOp";
+    case vpiRShiftOp /* = 23 */: return "RShiftOp";
+    case vpiAddOp /* = 24 */: return "AddOp";
+    case vpiMultOp /* = 25 */: return "MultOp";
+    case vpiLogAndOp /* = 26 */: return "LogAndOp";
+    case vpiLogOrOp /* = 27 */: return "LogOrOp";
+    case vpiBitAndOp /* = 28 */: return "BitAndOp";
+    case vpiBitOrOp /* = 29 */: return "BitOrOp";
+    case vpiBitXorOp /* = 30 */: return "BitXorOp";
+    case vpiBitXNorOp /* = 31 */: return "BitXNorOp";
+    case vpiConditionOp /* = 32 */: return "ConditionOp";
+    case vpiConcatOp /* = 33 */: return "ConcatOp";
+    case vpiMultiConcatOp /* = 34 */: return "MultiConcatOp";
+    case vpiEventOrOp /* = 35 */: return "EventOrOp";
+    case vpiNullOp /* = 36 */: return "NullOp";
+    case vpiListOp /* = 37 */: return "ListOp";
+    case vpiMinTypMaxOp /* = 38 */: return "MinTypMaxOp";
+    case vpiPosedgeOp /* = 39 */: return "PosedgeOp";
+    case vpiNegedgeOp /* = 40 */: return "NegedgeOp";
+    case vpiArithLShiftOp /* = 41 */: return "ArithLShiftOp";
+    case vpiArithRShiftOp /* = 42 */: return "ArithRShiftOp";
+    case vpiPowerOp /* = 43 */: return "PowerOp";
+
+    case vpiImplyOp /* = 50 */: return "ImplyOp";
+    case vpiNonOverlapImplyOp /* = 51 */: return "NonOverlapImplyOp";
+    case vpiOverlapImplyOp /* = 52 */: return "OverlapImplyOp";
+    case vpiUnaryCycleDelayOp /* = 53 */: return "UnaryCycleDelayOp";
+    case vpiCycleDelayOp /* = 54 */: return "CycleDelayOp";
+    case vpiIntersectOp /* = 55 */: return "IntersectOp";
+    case vpiFirstMatchOp /* = 56 */: return "FirstMatchOp";
+    case vpiThroughoutOp /* = 57 */: return "ThroughoutOp";
+    case vpiWithinOp /* = 58 */: return "WithinOp";
+    case vpiRepeatOp /* = 59 */: return "RepeatOp";
+    case vpiConsecutiveRepeatOp /* = 60 */: return "ConsecutiveRepeatOp";
+    case vpiGotoRepeatOp /* = 61 */: return "GotoRepeatOp";
+
+    case vpiPostIncOp /* = 62 */: return "PostIncOp";
+    case vpiPreIncOp /* = 63 */: return "PreIncOp";
+    case vpiPostDecOp /* = 64 */: return "PostDecOp";
+    case vpiPreDecOp /* = 65 */: return "PreDecOp";
+
+    case vpiMatchOp /* = 66 */: return "MatchOp";
+    case vpiCastOp /* = 67 */: return "CastOp";
+    case vpiIffOp /* = 68 */: return "IffOp";
+    case vpiWildEqOp /* = 69 */: return "WildEqOp";
+    case vpiWildNeqOp /* = 70 */: return "WildNeqOp";
+
+    case vpiStreamLROp /* = 71 */: return "StreamLROp";
+    case vpiStreamRLOp /* = 72 */: return "StreamRLOp";
+
+    case vpiMatchedOp /* = 73 */: return "MatchedOp";
+    case vpiTriggeredOp /* = 74 */: return "TriggeredOp";
+    case vpiAssignmentPatternOp /* = 75 */: return "AssignmentPatternOp";
+    case vpiMultiAssignmentPatternOp /* = 76 */: return "MultiAssignmentPatternOp";
+    case vpiIfOp /* = 77 */: return "IfOp";
+    case vpiIfElseOp /* = 78 */: return "IfElseOp";
+    case vpiCompAndOp /* = 79 */: return "CompAndOp";
+    case vpiCompOrOp /* = 80 */: return "CompOrOp";
+    case vpiTypeOp /* = 81 */: return "TypeOp";
+    case vpiAssignmentOp /* = 82 */: return "AssignmentOp";
+
+    case vpiAcceptOnOp /* = 83 */: return "AcceptOnOp";
+    case vpiRejectOnOp /* = 84 */: return "RejectOnOp";
+    case vpiSyncAcceptOnOp /* = 85 */: return "SyncAcceptOnOp";
+    case vpiSyncRejectOnOp /* = 86 */: return "SyncRejectOnOp";
+    case vpiOverlapFollowedByOp /* = 87 */: return "OverlapFollowedByOp";
+    case vpiNonOverlapFollowedByOp /* = 88 */: return "NonOverlapFollowedByOp";
+    case vpiNexttimeOp /* = 89 */: return "NexttimeOp";
+    case vpiAlwaysOp /* = 90 */: return "AlwaysOp";
+    case vpiEventuallyOp /* = 91 */: return "EventuallyOp";
+    case vpiUntilOp /* = 92 */: return "UntilOp";
+    case vpiUntilWithOp /* = 93 */: return "UntilWithOp";
+    case vpiImpliesOp /* = 94 */: return "ImpliesOp";
+    case vpiInsideOp /* = 95 */: return "InsideOp";
+
+    default: return "<unknown>";
+  }
 }
 
 [[nodiscard]] constexpr bool isConvSysFunc(std::string_view name) {

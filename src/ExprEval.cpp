@@ -2583,6 +2583,27 @@ Constant *ExprEval::createConstant(T value, Serializer &serializer, UhdmType uhd
   return oconstant;
 }
 
+template <typename T>
+bool ExprEval::reduceAny(const Any *any, const Any *pany, T **rT, bool muteError) {
+  if ((any == nullptr) || (pany == nullptr) || (rT == nullptr)) return false;
+
+  if (const Expr *const expr = any_cast<Expr>(any)) {
+    Expr *rexpr = nullptr;
+    if (reduceExpr(expr, pany, &rexpr, muteError)) {
+      *rT = any_cast<T>(rexpr);
+      return (*rT != nullptr);
+    }
+  } else if (const EnumConst *const ec = any_cast<EnumConst>(any)) {
+    Expr *rexpr = nullptr;
+    if (reduceEnumConst(ec, pany, &rexpr, muteError)) {
+      *rT = any_cast<T>(rexpr);
+      return (*rT != nullptr);
+    }
+  }
+
+  return false;
+}
+
 bool ExprEval::getArraySizes(const Typespec *ts, const Any *pany, uint64_t &elemWidth, uint64_t &arrLength) {
   elemWidth = 1;
   arrLength = 1;
@@ -2600,15 +2621,11 @@ bool ExprEval::getArraySizes(const Typespec *ts, const Any *pany, uint64_t &elem
     if (ranges == nullptr) break;
 
     for (const Range *range : *ranges) {
-      Expr *leftR = nullptr;
-      if (!reduceExpr(range->getLeftExpr(), pany, &leftR, true)) return false;
+      Constant *lc = nullptr;
+      if (!reduceAny(range->getLeftExpr(), pany, &lc, true)) return false;
 
-      Expr *rightR = nullptr;
-      if (!reduceExpr(range->getRightExpr(), pany, &rightR, true)) return false;
-
-      const Constant *const lc = any_cast<const Constant>(leftR);
-      const Constant *const rc = any_cast<const Constant>(rightR);
-      if ((lc == nullptr) || (rc == nullptr)) return false;
+      Constant *rc = nullptr;
+      if (!reduceAny(range->getRightExpr(), pany, &rc, true)) return false;
 
       int64_t lval = 0;
       if (!NumUtils::parseInt64(lc->getValue(), &lval)) return false;
@@ -2669,11 +2686,8 @@ bool ExprEval::reduceCastOp(const Operation *op, const Any *pany, Expr **rexpr) 
   if (const RefTypespec *const rt = op->getTypespec()) targetTs = rt->getActual();
   if (targetTs == nullptr) return false;
 
-  Expr *srcExpr = nullptr;
-  if (!reduceExpr(any_cast<Expr>((*operands)[0]), pany, &srcExpr, true)) return false;
-
-  const Constant *const carg = any_cast<Constant>(srcExpr);
-  if (carg == nullptr) return false;
+  Constant *carg = nullptr;
+  if (!reduceAny(any_cast<Expr>((*operands)[0]), pany, &carg, true)) return false;
 
   value_t value = parse(carg);
   if (std::holds_alternative<std::monostate>(value)) return false;
@@ -2687,7 +2701,7 @@ bool ExprEval::reduceUnaryOp(const Expr *iexpr, const Any *pany, F op, Expr **re
   if (iexpr == nullptr) return false;
 
   Expr *expr = nullptr;
-  if (!reduceExpr(iexpr, pany, &expr, true)) return false;
+  if (!reduceAny(iexpr, pany, &expr, true)) return false;
 
   const value_t value = parse(expr);
   if (std::holds_alternative<std::monostate>(value)) return false;
@@ -2845,21 +2859,19 @@ template <typename F>
 bool ExprEval::reduceBinaryOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, F op, Expr **rexpr) {
   if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
 
-  Expr *expr0 = nullptr;
-  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
+  Constant *iconstant0 = nullptr;
+  if (!reduceAny(iexpr0, pany, &iconstant0, true)) return false;
 
-  Expr *expr1 = nullptr;
-  if (!reduceExpr(iexpr1, pany, &expr1, true)) return false;
+  Constant *iconstant1 = nullptr;
+  if (!reduceAny(iexpr1, pany, &iconstant1, true)) return false;
 
-  value_t value0 = parse(expr0);
+  value_t value0 = parse(iconstant0);
   if (std::holds_alternative<std::monostate>(value0)) return false;
 
-  value_t value1 = parse(expr1);
+  value_t value1 = parse(iconstant1);
   if (std::holds_alternative<std::monostate>(value1)) return false;
 
-  const Constant *const iconstant0 = any_cast<Constant>(expr0);
   const Typespec *const itypespec0 = getTypespec(iconstant0);
-  const Constant *const iconstant1 = any_cast<Constant>(expr1);
   const Typespec *const itypespec1 = getTypespec(iconstant1);
 
   UhdmType rtype = promoted(itypespec0->getUhdmType(), value0, itypespec1->getUhdmType(), value1);
@@ -3363,10 +3375,10 @@ bool ExprEval::reduceConcatOp(const AnyCollection &operands, const Any *pany, Ex
   std::string value;
   binary_concat_op f;
   for (const Any *op : operands) {
-    Expr *expr = nullptr;
-    if (!reduceExpr(any_cast<Expr>(op), pany, &expr, true)) return false;
+    Constant *constant = nullptr;
+    if (!reduceAny(any_cast<Expr>(op), pany, &constant, true)) return false;
 
-    value = f(value, parseBinary(expr));
+    value = f(value, parseBinary(constant));
   }
 
   Serializer *const serializer = pany->getSerializer();
@@ -3398,20 +3410,19 @@ bool ExprEval::reduceConcatOp(const AnyCollection &operands, const Any *pany, Ex
 bool ExprEval::reduceReplicationOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
   if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
 
-  Expr *expr0 = nullptr;
-  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
+  Constant *constant0 = nullptr;
+  if (!reduceAny(iexpr0, pany, &constant0, true)) return false;
 
-  Expr *expr1 = nullptr;
-  if (!reduceExpr(iexpr1, pany, &expr1, true)) return false;
+  Constant *constant1 = nullptr;
+  if (!reduceAny(iexpr1, pany, &constant1, true)) return false;
 
-  const Constant *const constant = any_cast<Constant>(expr0);
-  const std::string_view sv = constant->getValue();
+  const std::string_view sv = constant0->getValue();
 
   int64_t value0 = 0;
   if (!NumUtils::parseInt64(sv, &value0)) return false;
 
   binary_replicate_op f;
-  const std::string value = f(value0, parseBinary(expr1));
+  const std::string value = f(value0, parseBinary(constant1));
 
   Serializer *const serializer = pany->getSerializer();
   Constant *const oconstant = serializer->make<Constant>();
@@ -3434,11 +3445,8 @@ bool ExprEval::reduceReplicationOp(const Expr *iexpr0, const Expr *iexpr1, const
 bool ExprEval::reduceUnaryReplicationOp(const Expr *iexpr, const Any *pany, Expr **rexpr) {
   if (iexpr == nullptr) return false;
 
-  Expr *expr = nullptr;
-  if (!reduceExpr(iexpr, pany, &expr, true)) return false;
-
-  const Constant *const constant = any_cast<Constant>(expr);
-  if (constant == nullptr) return false;
+  Constant *constant = nullptr;
+  if (!reduceAny(iexpr, pany, &constant, true)) return false;
 
   const std::string_view value = constant->getValue();
   const size_t size = constant->getSize();
@@ -3468,29 +3476,26 @@ bool ExprEval::reduceConditionalOp(const Expr *iexpr0, const Expr *iexpr1, const
                                    Expr **rexpr) {
   if ((iexpr0 == nullptr) || (iexpr1 == nullptr) || (iexpr2 == nullptr)) return false;
 
-  Expr *expr0 = nullptr;
-  if (!reduceExpr(iexpr0, pany, &expr0, true)) return false;
-
-  const Constant *const condConst = any_cast<Constant>(expr0);
-  if (condConst == nullptr) return false;
+  Constant *constant = nullptr;
+  if (!reduceAny(iexpr0, pany, &constant, true)) return false;
 
   int64_t condValue = 0;
-  if (!NumUtils::parseInt64(condConst->getValue(), &condValue)) return false;
+  if (!NumUtils::parseInt64(constant->getValue(), &condValue)) return false;
 
   const Expr *const selectedExpr = (condValue != 0) ? iexpr1 : iexpr2;
-  return reduceExpr(selectedExpr, pany, rexpr, true);
+  return reduceAny(selectedExpr, pany, rexpr, true);
 }
 
 bool ExprEval::reduceCaseEqOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
   if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
 
-  Expr *expr0 = nullptr;
-  Expr *expr1 = nullptr;
+  Constant *constant0 = nullptr;
+  Constant *constant1 = nullptr;
 
-  if (!reduceExpr(iexpr0, pany, &expr0, true) || !reduceExpr(iexpr1, pany, &expr1, true)) return false;
+  if (!reduceAny(iexpr0, pany, &constant0, true) || !reduceAny(iexpr1, pany, &constant1, true)) return false;
 
-  const std::string a = parseBinary(expr0);
-  const std::string b = parseBinary(expr1);
+  const std::string a = parseBinary(constant0);
+  const std::string b = parseBinary(constant1);
   const std::string value = binary_case_eq_op()(a, b);
 
   Serializer *const serializer = pany->getSerializer();
@@ -3514,13 +3519,13 @@ bool ExprEval::reduceCaseEqOp(const Expr *iexpr0, const Expr *iexpr1, const Any 
 bool ExprEval::reduceCaseNeqOp(const Expr *iexpr0, const Expr *iexpr1, const Any *pany, Expr **rexpr) {
   if ((iexpr0 == nullptr) || (iexpr1 == nullptr)) return false;
 
-  Expr *expr0 = nullptr;
-  Expr *expr1 = nullptr;
+  Constant *constant0 = nullptr;
+  Constant *constant1 = nullptr;
 
-  if (!reduceExpr(iexpr0, pany, &expr0, true) || !reduceExpr(iexpr1, pany, &expr1, true)) return false;
+  if (!reduceAny(iexpr0, pany, &constant0, true) || !reduceAny(iexpr1, pany, &constant1, true)) return false;
 
-  const std::string a = parseBinary(expr0);
-  const std::string b = parseBinary(expr1);
+  const std::string a = parseBinary(constant0);
+  const std::string b = parseBinary(constant1);
 
   binary_case_neq_op f;
   std::string value = f(a, b);
@@ -3557,13 +3562,10 @@ bool ExprEval::reduceTaggedPattern(const TaggedPattern *tp, const Any *pany, std
 
   const Expr *const valueExpr = tp->getPattern<Expr>();
 
-  Expr *reducedValue = nullptr;
-  if (!reduceExpr(valueExpr, pany, &reducedValue, true)) return false;
+  Constant *reducedValue = nullptr;
+  if (!reduceAny(valueExpr, pany, &reducedValue, true)) return false;
 
-  Constant *const reducedConstant = any_cast<Constant>(reducedValue);
-  if (reducedConstant == nullptr) return false;
-
-  std::string elemBits(reducedConstant->getValue());
+  std::string elemBits(reducedValue->getValue());
   if (elemBits.size() < elemWidth) {
     elemBits = std::string(elemWidth - elemBits.size(), '0') + elemBits;
   }
@@ -3609,8 +3611,8 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
     if (const RefObj *const ro = any_cast<RefObj>(operand)) {
       if ((ro->getName() == "default") && ro->getStructMember()) continue;
 
-      Expr *ero = nullptr;
-      if (!reduceExpr(ro, pany, &ero, true)) return false;
+      Constant *ero = nullptr;
+      if (!reduceAny(ro, pany, &ero, true)) return false;
 
       const value_t value = parse(ero);
       if (std::holds_alternative<std::monostate>(value)) return false;
@@ -3623,8 +3625,8 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
 
       operands.emplace_back(operand);
     } else if (Expr *const expr = any_cast<Expr>(operand)) {
-      Expr *ec = nullptr;
-      if (!reduceExpr(expr, pany, &ec, true)) return false;
+      Constant *ec = nullptr;
+      if (!reduceAny(expr, pany, &ec, true)) return false;
 
       operands.emplace_back(ec);
     } else {
@@ -3658,6 +3660,38 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
         succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, identity(), rexpr);
       } break;
 
+      case vpiSubOp: {
+        // Unary Sub will be reduced only if Operation Parent if Range and LHS is empty
+        // Surelog will send only one Operand, reducer need to perform -1 on top of it
+        const Range *const range = operation->getParent<Range>();
+        if (range == nullptr) return false;
+        if (range->getLeftExpr() != nullptr) return false;
+
+        Constant *iconstant = nullptr;
+        const Expr *const iexpr = any_cast<Expr>(operands[0]);
+        if (!reduceAny(iexpr, pany, &iconstant, true)) return false;
+
+        uint64_t baseIndex = 0;
+        if (getUInt64(iconstant, &baseIndex)) {
+          const Typespec *const itypespec = getTypespec(iconstant);
+          const int32_t iconstType = iconstant->getConstType();
+          const int32_t isize = iconstant->getSize();
+          if (Constant *oconstant =
+                  createConstant(baseIndex - 1, serializer, itypespec->getUhdmType(), iconstType, isize)) {
+            RefTypespec *const rt = oconstant->getTypespec();
+            rt->setParent(oconstant);
+            if (const Any *const p = iexpr->getParent()) {
+              oconstant->setParent(const_cast<Any *>(p));
+            }
+            if (const Any *const p = getParent<Design>(iexpr)) {
+              rt->getActual()->setParent(const_cast<Any *>(p));
+            }
+            *rexpr = oconstant;
+          }
+        }
+        succeeded = *rexpr != nullptr;
+      } break;
+
       case vpiMinusOp: {
         succeeded = reduceUnaryOp(any_cast<Expr>(operands[0]), pany, unary_negate(), rexpr);
       } break;
@@ -3680,8 +3714,8 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
       } break;
 
       case vpiInsideOp: {
-        Expr *op0 = nullptr;
-        if (!reduceExpr(any_cast<Expr>(operands[0]), pany, &op0, muteError)) {
+        Constant *op0 = nullptr;
+        if (!reduceAny(any_cast<Expr>(operands[0]), pany, &op0, muteError)) {
           succeeded = false;
           break;
         }
@@ -3693,8 +3727,8 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
         }
 
         for (uint32_t i = 1, ni = operands.size(); (i < ni) && succeeded; ++i) {
-          Expr *opi = nullptr;
-          if (!reduceExpr(any_cast<Expr>(operands[i]), pany, &opi, muteError)) {
+          Constant *opi = nullptr;
+          if (!reduceAny(any_cast<Expr>(operands[i]), pany, &opi, muteError)) {
             succeeded = false;
             break;
           }
@@ -3804,6 +3838,10 @@ bool ExprEval::reduceOperation(const Operation *operation, const Any *pany, Expr
 
       case vpiMultiConcatOp: {
         succeeded = reduceUnaryReplicationOp(any_cast<Expr>(operands[0]), pany, rexpr);
+      } break;
+
+      case vpiConcatOp: {
+        succeeded = reduceExpr(any_cast<Expr *>(operands[0]), pany, rexpr, muteError);
       } break;
 
       default: break;
@@ -4142,14 +4180,7 @@ bool ExprEval::reduceMathSysFunc(const SysFuncCall *call, const Any *pany, Expr 
   std::vector<double> args;
   for (const Any *arg : *call->getArguments()) {
     Constant *carg = nullptr;
-    if (const Expr *argExpr = any_cast<Expr>(arg)) {
-      Expr *rarg = nullptr;
-      if (reduceExpr(argExpr, pany, &rarg, muteError)) {
-        carg = any_cast<Constant>(rarg);
-      }
-    }
-
-    if (carg == nullptr) return false;
+    if (!reduceAny(any_cast<Expr>(arg), pany, &carg, muteError)) return false;
 
     const value_t value = parse(carg);
     if (std::holds_alternative<std::monostate>(value)) return false;
@@ -4223,28 +4254,22 @@ bool ExprEval::reduceConvSysFunc(const SysFuncCall *call, const Any *pany, Expr 
     if (RefObj *const arg0 = any_cast<RefObj>((*args)[0])) {
       targetExpr = arg0->getActual<Expr>();
     } else {
-      if (!reduceExpr(any_cast<Expr>((*args)[0]), pany, &targetExpr, muteError)) return false;
+      if (!reduceAny(any_cast<Expr>((*args)[0]), pany, &targetExpr, muteError)) return false;
     }
 
     const Typespec *const targetTs = getTypespec(targetExpr);
     if (targetTs == nullptr) return false;
 
-    Expr *srcExpr = nullptr;
-    if (!reduceExpr(any_cast<Expr>((*args)[1]), pany, &srcExpr, muteError)) return false;
-
-    Constant *carg = any_cast<Constant>(srcExpr);
-    if (carg == nullptr) return false;
+    Constant *carg = nullptr;
+    if (!reduceAny(any_cast<Expr>((*args)[1]), pany, &carg, muteError)) return false;
 
     value_t value = parse(carg);
     if (std::holds_alternative<std::monostate>(value)) return false;
     return buildCastConstant(value, targetTs, serializer, rexpr);
   }
 
-  Expr *arg = nullptr;
-  if (!reduceExpr(any_cast<Expr>((*args)[0]), pany, &arg, muteError)) return false;
-
-  Constant *const carg = any_cast<Constant>(arg);
-  if (carg == nullptr) return false;
+  Constant *carg = nullptr;
+  if (!reduceAny(any_cast<Expr>((*args)[0]), pany, &carg, muteError)) return false;
 
   value_t value = parse(carg);
   if (std::holds_alternative<std::monostate>(value)) return false;
@@ -4387,7 +4412,7 @@ bool ExprEval::reduceDataQuerySysFunc(const SysFuncCall *call, const Any *pexpr,
 
   // Reduce argument expression
   Expr *argExpr = nullptr;
-  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+  if (!reduceAny(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
 
   const Typespec *ts = getTypespec(argExpr);
   if (ts == nullptr) return false;
@@ -4497,15 +4522,11 @@ bool ExprEval::collectDimensions(const Typespec *ts, const Any *pexpr, std::vect
   while (const ArrayTypespec *const arr = any_cast<const ArrayTypespec *>(cur)) {
     if (const RangeCollection *const ranges = arr->getRanges()) {
       for (const Range *r : *ranges) {
-        Expr *l = nullptr;
-        Expr *h = nullptr;
+        Constant *lc = nullptr;
+        Constant *rc = nullptr;
 
-        if (!reduceExpr(r->getLeftExpr(), pexpr, &l, true)) return false;
-        if (!reduceExpr(r->getRightExpr(), pexpr, &h, true)) return false;
-
-        const Constant *const lc = any_cast<const Constant *>(l);
-        const Constant *const rc = any_cast<const Constant *>(h);
-        if ((lc == nullptr) || (rc == nullptr)) return false;
+        if (!reduceAny(r->getLeftExpr(), pexpr, &lc, true)) return false;
+        if (!reduceAny(r->getRightExpr(), pexpr, &rc, true)) return false;
 
         int64_t lv = 0;
         if (!NumUtils::parseInt64(lc->getValue(), &lv)) return false;
@@ -4527,14 +4548,10 @@ bool ExprEval::collectDimensions(const Typespec *ts, const Any *pexpr, std::vect
   if (const LogicTypespec *const logic = any_cast<const LogicTypespec *>(cur)) {
     if (const RangeCollection *const ranges = logic->getRanges()) {
       for (const Range *r : *ranges) {
-        Expr *l = nullptr;
-        Expr *h = nullptr;
-        if (!reduceExpr(r->getLeftExpr(), pexpr, &l, true)) return false;
-        if (!reduceExpr(r->getRightExpr(), pexpr, &h, true)) return false;
-
-        const Constant *const lc = any_cast<const Constant *>(l);
-        const Constant *const rc = any_cast<const Constant *>(h);
-        if ((lc == nullptr) || (rc == nullptr)) return false;
+        Constant *lc = nullptr;
+        Constant *rc = nullptr;
+        if (!reduceAny(r->getLeftExpr(), pexpr, &lc, true)) return false;
+        if (!reduceAny(r->getRightExpr(), pexpr, &rc, true)) return false;
 
         int64_t lv = 0;
         if (!NumUtils::parseInt64(lc->getValue(), &lv)) return false;
@@ -4560,7 +4577,7 @@ bool ExprEval::reduceArrayQuerySysFunc(const SysFuncCall *call, const Any *pexpr
   if ((args == nullptr) || args->empty()) return false;
 
   Expr *argExpr = nullptr;
-  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+  if (!reduceAny(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
 
   const Typespec *const ts = getTypespec(argExpr);
   if (ts == nullptr) return false;
@@ -4591,11 +4608,8 @@ bool ExprEval::reduceArrayQuerySysFunc(const SysFuncCall *call, const Any *pexpr
   auto getDimIndex = [&](int64_t &idx, std::vector<DimInfo> &dims) -> bool {
     if (args->size() < 2) return false;
 
-    Expr *dimExpr = nullptr;
-    if (!reduceExpr(any_cast<Expr>((*args)[1]), pexpr, &dimExpr, muteError)) return false;
-
-    const Constant *const c = any_cast<const Constant *>(dimExpr);
-    if (c == nullptr) return false;
+    Constant *c = nullptr;
+    if (!reduceAny(any_cast<Expr>((*args)[1]), pexpr, &c, muteError)) return false;
     if (!NumUtils::parseInt64(c->getValue(), &idx)) return false;
 
     idx -= 1;
@@ -4682,13 +4696,10 @@ bool ExprEval::reduceBitVectorSysFunc(const SysFuncCall *call, const Any *pexpr,
   if ((args == nullptr) || args->empty()) return false;
 
   // Reduce argument
-  Expr *argExpr = nullptr;
-  if (!reduceExpr(any_cast<Expr>((*args)[0]), pexpr, &argExpr, muteError)) return false;
+  Constant *c = nullptr;
+  if (!reduceAny(any_cast<Expr>((*args)[0]), pexpr, &c, muteError)) return false;
 
-  const Constant *const c = any_cast<const Constant *>(argExpr);
-  if (c == nullptr) return false;
-
-  const Typespec *ts = getTypespec(argExpr);
+  const Typespec *ts = getTypespec(c);
   if (ts == nullptr) return false;
 
   if (const RefTypespec *const rt = any_cast<const RefTypespec *>(ts)) {
@@ -4696,7 +4707,7 @@ bool ExprEval::reduceBitVectorSysFunc(const SysFuncCall *call, const Any *pexpr,
   }
 
   uint64_t width = 0;
-  if (!getWordSize(argExpr, pexpr, &width)) return false;
+  if (!getWordSize(c, pexpr, &width)) return false;
 
   Serializer &serializer = *call->getSerializer();
 
@@ -4720,13 +4731,10 @@ bool ExprEval::reduceBitVectorSysFunc(const SysFuncCall *call, const Any *pexpr,
   if (name == "$countbits") {
     if (args->size() < 2) return false;
 
-    Expr *maskExpr = nullptr;
-    if (!reduceExpr(any_cast<Expr>((*args)[1]), pexpr, &maskExpr, muteError)) return false;
+    Constant *maskConstant = nullptr;
+    if (!reduceAny(any_cast<Expr>((*args)[1]), pexpr, &maskConstant, muteError)) return false;
 
-    const Constant *const maskC = any_cast<const Constant *>(maskExpr);
-    if (maskC == nullptr) return false;
-
-    const std::string_view mask = maskC->getValue();
+    const std::string_view mask = maskConstant->getValue();
 
     uint32_t cnt = 0;
     for (char b : bits) {
@@ -4818,32 +4826,42 @@ bool ExprEval::reduceSysFuncCall(const SysFuncCall *call, const Any *pany, Expr 
 }
 
 bool ExprEval::reduceFuncCall(const FuncCall *call, const Any *pany, Expr **rexpr, bool muteError) {
-  Serializer &serializer = *call->getSerializer();
+  if ((call == nullptr) || (pany == nullptr)) return false;
 
-  const std::string_view name = call->getName();
-  std::vector<Any *> *const args = call->getArguments();
-  const Function *actual_func = nullptr;
-  if (const TaskFunc *const func = getTaskFunc(name, nullptr, pany)) {
-    actual_func = any_cast<Function>(func);
-  }
-  if (actual_func == nullptr) {
-    if (!muteError && !m_muteError) {
-      const std::string errMsg(name);
-      serializer.getErrorHandler()(ErrorType::UHDM_UNDEFINED_USER_FUNCTION, errMsg, call, nullptr);
+  const TaskFunc *func = call->getTaskFunc();
+  if (func == nullptr) return false;
+
+  const Any *top = func->getStmt();
+  if (top == nullptr) return false;
+
+  Expr *lastValue = nullptr;
+  bool break_flag = false;
+
+  if (top->getUhdmType() == UhdmType::Begin) {
+    const Begin *blk = static_cast<const Begin *>(top);
+    const AnyCollection *stmts = blk->getStmts();
+    if (stmts == nullptr) return false;
+
+    for (const Any *s : *stmts) {
+      if (!reduceStmt(s, pany, &lastValue, muteError, break_flag)) return false;
+
+      if (break_flag) break;
     }
-    return false;
-  }
-  bool invalidValue = false;
-  if (Expr *const tmp = evalFunc(actual_func, args, invalidValue, nullptr, (Any *)pany, muteError)) {
-    if (!invalidValue) *rexpr = tmp;
+  } else {
+    if (!reduceStmt(top, pany, &lastValue, muteError, break_flag)) return false;
   }
 
-  return (*rexpr != nullptr);
+  if (lastValue == nullptr) return false;
+
+  *rexpr = lastValue;
+  return true;
 }
 
 bool ExprEval::reduceRefObj(const RefObj *ro, const Any *pany, Expr **rexpr, bool muteError) {
   if (const Expr *const actual = ro->getActual<Expr>()) {
-    return reduceExpr(actual, pany, rexpr, muteError);
+    return reduceAny(actual, pany, rexpr, muteError);
+  } else if (const EnumConst *const actual = ro->getActual<EnumConst>()) {
+    return reduceAny(actual, pany, rexpr, muteError);
   }
   return false;
 }
@@ -4865,17 +4883,17 @@ bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTy
   if (const ParamAssign *const pass = any_cast<ParamAssign>(object)) {
     const Expr *const rhs = pass->getRhs<Expr>();
     Expr *r = nullptr;
-    if ((invalidValue = !reduceExpr(rhs, pany, &r, muteError))) {
+    if ((invalidValue = !reduceAny(rhs, pany, &r, muteError))) {
       object = r;
     }
   } else if (const BitSelect *const bts = any_cast<BitSelect>(object)) {
     Expr *r = nullptr;
-    if ((invalidValue = !reduceExpr(bts, pany, &r, muteError))) {
+    if ((invalidValue = !reduceAny(bts, pany, &r, muteError))) {
       object = r;
     }
   } else if (const RefObj *const ref = any_cast<RefObj>(object)) {
     Expr *r = nullptr;
-    if ((invalidValue = !reduceExpr(ref, pany, &r, muteError))) {
+    if ((invalidValue = !reduceAny(ref, pany, &r, muteError))) {
       object = r;
     }
   } else if (const Constant *cons = any_cast<Constant>(object)) {
@@ -4901,7 +4919,7 @@ bool ExprEval::reduceHierPath(const HierPath *hp, const Any *pany, bool returnTy
     the_path.emplace_back(elemName);
     if (const BitSelect *const select = any_cast<BitSelect>(elem)) {
       Expr *bexpr = nullptr;
-      invalidValue = !reduceExpr(select->getIndex(), pany, &bexpr, muteError);
+      invalidValue = !reduceAny(select->getIndex(), pany, &bexpr, muteError);
       uint64_t baseIndex = 0;
       if (getUInt64(bexpr, &baseIndex)) {
         the_path.emplace_back("[" + std::to_string(baseIndex) + "]");
@@ -4932,7 +4950,7 @@ bool ExprEval::reduceBitSelect(const BitSelect *bs, const Any *pany, Expr **rexp
   const Constant *const c = static_cast<const Constant *>(object);
 
   Expr *rindex = nullptr;
-  if (!reduceExpr(bs->getIndex(), pany, &rindex, muteError)) return false;
+  if (!reduceAny(bs->getIndex(), pany, &rindex, muteError)) return false;
 
   int64_t index = 0;
   if (!getInt64(rindex, &index)) return false;
@@ -4959,8 +4977,8 @@ bool ExprEval::reduceBitSelect(const BitSelect *bs, const Any *pany, Expr **rexp
 
         Expr *lexpr2 = nullptr;
         Expr *rexpr2 = nullptr;
-        if (!reduceExpr(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
-        if (!reduceExpr(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
+        if (!reduceAny(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
+        if (!reduceAny(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
 
         if (!getInt64(lexpr2, &left)) return false;
         if (!getInt64(rexpr2, &right)) return false;
@@ -4973,8 +4991,8 @@ bool ExprEval::reduceBitSelect(const BitSelect *bs, const Any *pany, Expr **rexp
 
         Expr *lexpr2 = nullptr;
         Expr *rexpr2 = nullptr;
-        if (!reduceExpr(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
-        if (!reduceExpr(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
+        if (!reduceAny(r->getLeftExpr(), pany, &lexpr2, muteError)) return false;
+        if (!reduceAny(r->getRightExpr(), pany, &rexpr2, muteError)) return false;
 
         if (!getInt64(lexpr2, &left)) return false;
         if (!getInt64(rexpr2, &right)) return false;
@@ -5023,11 +5041,11 @@ bool ExprEval::selectArrayElement(const Constant *constant, uint32_t index, cons
 
   const Range *const r = rc->back();
 
-  Expr *llimit = nullptr;
-  if (!reduceExpr(r->getLeftExpr(), pany, &llimit, muteError)) return false;
+  Constant *llimit = nullptr;
+  if (!reduceAny(r->getLeftExpr(), pany, &llimit, muteError)) return false;
 
-  Expr *rlimit = nullptr;
-  if (!reduceExpr(r->getRightExpr(), pany, &rlimit, muteError)) return false;
+  Constant *rlimit = nullptr;
+  if (!reduceAny(r->getRightExpr(), pany, &rlimit, muteError)) return false;
 
   uint64_t lr = 0;
   uint64_t rr = 0;
@@ -5092,8 +5110,8 @@ bool ExprEval::reducePartSelect(const PartSelect *ps, const Any *pany, Expr **re
     object = getValue(name, nullptr, pany, muteError);
   }
   if (const Constant *const co = any_cast<Constant>(object)) {
-    Expr *lexpr = nullptr;
-    if (!reduceExpr(ps->getLeftExpr(), pany, &lexpr, muteError)) return false;
+    Constant *lexpr = nullptr;
+    if (!reduceAny(ps->getLeftExpr(), pany, &lexpr, muteError)) return false;
 
     std::string binary;
     if (!formatBinary(co, &binary)) return false;
@@ -5101,8 +5119,8 @@ bool ExprEval::reducePartSelect(const PartSelect *ps, const Any *pany, Expr **re
     int64_t lvalue = 0;
     if (!getInt64(lexpr, &lvalue)) return false;
 
-    Expr *rexpr = nullptr;
-    if (!reduceExpr(ps->getRightExpr(), pany, &rexpr, muteError)) return false;
+    Constant *rexpr = nullptr;
+    if (!reduceAny(ps->getRightExpr(), pany, &rexpr, muteError)) return false;
 
     int64_t rvalue = 0;
     if (!getInt64(rexpr, &rvalue)) return false;
@@ -5145,11 +5163,11 @@ bool ExprEval::reduceIndexedPartSelect(const IndexedPartSelect *ips, const Any *
   if (object == nullptr) return false;
   if (object->getUhdmType() != UhdmType::Constant) return false;
 
-  Expr *bexpr = nullptr;
-  if (!reduceExpr(ips->getBaseExpr(), pany, &bexpr, muteError)) return false;
+  Constant *bexpr = nullptr;
+  if (!reduceAny(ips->getBaseExpr(), pany, &bexpr, muteError)) return false;
 
-  Expr *oexpr = nullptr;
-  if (!reduceExpr(ips->getWidthExpr(), pany, &oexpr, muteError)) return false;
+  Constant *oexpr = nullptr;
+  if (!reduceAny(ips->getWidthExpr(), pany, &oexpr, muteError)) return false;
 
   int64_t base = 0;
   if (!getInt64(bexpr, &base)) return false;
@@ -5207,8 +5225,8 @@ bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexp
   };
 
   for (const Expr *index : *vs->getIndexes()) {
-    Expr *rindex = nullptr;
-    if (!reduceExpr(index, pany, &rindex, muteError)) return false;
+    Constant *rindex = nullptr;
+    if (!reduceAny(index, pany, &rindex, muteError)) return false;
 
     uint64_t indexVal = 0;
     if (!getUInt64(rindex, &indexVal)) return false;
@@ -5222,7 +5240,7 @@ bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexp
 
       case vpiConditionOp: {
         Expr *condExpr = nullptr;
-        if (!reduceExpr(any_cast<Expr>(object), pany, &condExpr, muteError)) return false;
+        if (!reduceAny(any_cast<Expr>(object), pany, &condExpr, muteError)) return false;
 
         const Operation *const innerOp = any_cast<Operation>(condExpr);
         if (innerOp == nullptr) return false;
@@ -5243,6 +5261,50 @@ bool ExprEval::reduceVarSelect(const VarSelect *vs, const Any *pany, Expr **rexp
 
   *rexpr = any_cast<Expr>(const_cast<Any *>(object));
   return (*rexpr != nullptr);
+}
+
+bool ExprEval::reduceParameter(const Parameter *param, const Any *pany, Expr **result, bool muteError) {
+  if ((param == nullptr) || (pany == nullptr)) return false;
+
+  bool succeeded = false;
+
+  const Scope *scope = param->getParent<Scope>();
+  if (scope == nullptr) return false;
+
+  const ParamAssignCollection *assigns = scope->getParamAssigns();
+  if (assigns == nullptr) return false;
+
+  for (const ParamAssign *pa : *assigns) {
+    if (pa == nullptr) continue;
+
+    if (pa->getLhs() == param) {
+      const Expr *rhs = any_cast<Expr *>(pa->getRhs());
+      if (rhs == nullptr) return false;
+      succeeded = reduceAny(rhs, pany, result, muteError);
+      return succeeded;
+    }
+  }
+
+  return false;
+}
+
+bool ExprEval::reduceEnumConst(const EnumConst *econst, const Any *pany, Expr **result, bool muteError) {
+  if ((econst == nullptr) || (pany == nullptr)) return false;
+
+  const Expr *val = econst->getValue();
+  if (val == nullptr) return false;
+
+  *result = const_cast<Expr *>(val);
+  return true;
+}
+
+bool ExprEval::reduceVariable(const Variable *var, const Any *pany, Expr **result, bool muteError) {
+  if ((var == nullptr) || (pany == nullptr)) return false;
+
+  const Expr *val = var->getValue();
+  if (val == nullptr) return false;
+
+  return reduceAny(val, pany, result, muteError);
 }
 
 bool ExprEval::reduceExpr(const Expr *expr, const Any *pany, Expr **rexpr, bool muteError) {
@@ -5284,15 +5346,27 @@ bool ExprEval::reduceExpr(const Expr *expr, const Any *pany, Expr **rexpr, bool 
     } break;
 
     case UhdmType::PartSelect: {
-      succeeded = reducePartSelect(static_cast<const PartSelect *>(expr), pany, &result, muteError);
+      // succeeded = reducePartSelect(static_cast<const PartSelect *>(expr), pany, &result, muteError);
+      succeeded = false;
     } break;
 
     case UhdmType::IndexedPartSelect: {
-      succeeded = reduceIndexedPartSelect(static_cast<const IndexedPartSelect *>(expr), pany, &result, muteError);
+      // TODO::HS
+      // tests/LargeHex goes in infiniteLoop
+      // succeeded = reduceIndexedPartSelect(static_cast<const IndexedPartSelect *>(expr), pany, &result, muteError);
+      succeeded = false;
     } break;
 
     case UhdmType::VarSelect: {
-      succeeded = reduceVarSelect(static_cast<const VarSelect *>(expr), pany, &result, muteError);
+      // succeeded = reduceVarSelect(static_cast<const VarSelect *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::Parameter: {
+      succeeded = reduceParameter(static_cast<const Parameter *>(expr), pany, &result, muteError);
+    } break;
+
+    case UhdmType::Variable: {
+      succeeded = reduceVariable(static_cast<const Variable *>(expr), pany, &result, muteError);
     } break;
 
     default: {
@@ -5348,10 +5422,10 @@ bool ExprEval::getWordSize(const Expr *exp, const Any *pany, uint64_t *wordSize)
         if (ranges->size() > 1) {
           const Range *const r = ranges->back();
 
-          Expr *le = nullptr;
-          Expr *re = nullptr;
+          Constant *le = nullptr;
+          Constant *re = nullptr;
           ExprEval ee(m_provider);
-          if (ee.reduceExpr(r->getLeftExpr(), r, &le, false) && ee.reduceExpr(r->getRightExpr(), r, &re, false)) {
+          if (ee.reduceAny(r->getLeftExpr(), r, &le, false) && ee.reduceAny(r->getRightExpr(), r, &re, false)) {
             uint64_t lr = 0;
             uint64_t rr = 0;
             if (getUInt64(le, &lr) && getUInt64(re, &rr)) {
@@ -5555,10 +5629,10 @@ bool ExprEval::getBitCount(const Any *any, const Any *pany, bool allRanges, uint
       const Expr *const lexpr = ps->getLeftExpr();
       const Expr *const rexpr = ps->getRightExpr();
 
-      Expr *rlexpr = nullptr;
-      Expr *rrexpr = nullptr;
+      Constant *rlexpr = nullptr;
+      Constant *rrexpr = nullptr;
       ExprEval ee(m_provider);
-      if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+      if (ee.reduceAny(lexpr, pany, &rlexpr, muteError) && ee.reduceAny(rexpr, pany, &rrexpr, muteError)) {
         int64_t lv = 0;
         int64_t rv = 0;
         bool blv = getInt64(rlexpr, &lv);
@@ -5590,10 +5664,10 @@ bool ExprEval::getBitCount(const Any *any, const Any *pany, bool allRanges, uint
         const Expr *const lexpr = r->getLeftExpr();
         const Expr *const rexpr = r->getRightExpr();
 
-        Expr *rlexpr = nullptr;
-        Expr *rrexpr = nullptr;
+        Constant *rlexpr = nullptr;
+        Constant *rrexpr = nullptr;
         ExprEval ee(m_provider);
-        if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+        if (ee.reduceAny(lexpr, pany, &rlexpr, muteError) && ee.reduceAny(rexpr, pany, &rrexpr, muteError)) {
           int64_t lv = 0;
           int64_t rv = 0;
           bool blv = getInt64(rlexpr, &lv);
@@ -5620,10 +5694,10 @@ bool ExprEval::getBitCount(const Any *any, const Any *pany, bool allRanges, uint
       const Expr *const lexpr = r->getLeftExpr();
       const Expr *const rexpr = r->getRightExpr();
 
-      Expr *rlexpr = nullptr;
-      Expr *rrexpr = nullptr;
+      Constant *rlexpr = nullptr;
+      Constant *rrexpr = nullptr;
       ExprEval ee(m_provider);
-      if (ee.reduceExpr(lexpr, pany, &rlexpr, muteError) && ee.reduceExpr(rexpr, pany, &rrexpr, muteError)) {
+      if (ee.reduceAny(lexpr, pany, &rlexpr, muteError) && ee.reduceAny(rexpr, pany, &rrexpr, muteError)) {
         int64_t lv = 0;
         int64_t rv = 0;
         bool blv = getInt64(rlexpr, &lv);
@@ -5996,7 +6070,7 @@ Any *ExprEval::getValue(std::string_view name, const Any *inst, const Any *pany,
         return nullptr;
       }
       Expr *rval = nullptr;
-      if (reduceExpr(any_cast<Expr>(result), pany, &rval, muteError)) result = rval;
+      if (reduceAny(any_cast<Expr>(result), pany, &rval, muteError)) result = rval;
     }
   }
   if ((result == nullptr) && (m_provider != nullptr)) {
@@ -6449,7 +6523,7 @@ const Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
             if (pattType == UhdmType::Constant) {
               const Any *ex = nullptr;
               Expr *expr = nullptr;
-              invalidValue = !reduceExpr((Expr *)patt, pany, &expr, muteError);
+              invalidValue = !reduceAny((Expr *)patt, pany, &expr, muteError);
               ex = expr;
               if (level < select_path.size()) {
                 ex = hierarchicalSelector(select_path, level + 1, ex, invalidValue, inst, pany, returnTypespec);
@@ -6494,7 +6568,7 @@ const Any *ExprEval::hierarchicalSelector(std::vector<std::string> &select_path,
       }
       if (defaultPattern) {
         if (Expr *ex = any_cast<Expr>(defaultPattern)) {
-          invalidValue = !reduceExpr(ex, pany, &ex, muteError);
+          invalidValue = !reduceAny(ex, pany, &ex, muteError);
           if (returnTypespec) {
             if (Typespec *tp = any_cast<Typespec>(ex)) {
               return tp;
@@ -6816,7 +6890,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
   std::string_view lhsname = lhs;
   if (lhsname.empty()) lhsname = lhsexp->getName();
   Expr *rhs = nullptr;
-  if (!reduceExpr(rhsexp, nullptr, &rhs, muteError)) return false;
+  if (!reduceAny(rhsexp, nullptr, &rhs, muteError)) return false;
   int64_t valI = 0;
   invalidValueI = !getInt64(rhsexp, &valI);
   uint64_t valUI = 0;
@@ -6964,12 +7038,12 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
             }
           }
           Expr *bexpr = nullptr;
-          invalidValue = !reduceExpr(sel->getBaseExpr(), lhsexp, &bexpr, muteError);
+          invalidValue = !reduceAny(sel->getBaseExpr(), lhsexp, &bexpr, muteError);
           uint64_t base = 0;
           invalidValue = !getUInt64(bexpr, &base);
 
           Expr *wexpr = nullptr;
-          invalidValue = !reduceExpr(sel->getWidthExpr(), lhsexp, &wexpr, muteError);
+          invalidValue = !reduceAny(sel->getWidthExpr(), lhsexp, &wexpr, muteError);
           uint64_t offset = 0;
           invalidValue = !getUInt64(wexpr, &offset);
           std::string rhsbinary;
@@ -7026,12 +7100,12 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
             lhsbinary.append(si, 'x');
           }
           Expr *lexpr = nullptr;
-          invalidValue = !reduceExpr(sel->getLeftExpr(), lhsexp, &lexpr, muteError);
+          invalidValue = !reduceAny(sel->getLeftExpr(), lhsexp, &lexpr, muteError);
           uint64_t left = 0;
           invalidValue = !getUInt64(lexpr, &left);
 
           Expr *rexpr = nullptr;
-          invalidValue = !reduceExpr(sel->getRightExpr(), lhsexp, &rexpr, muteError);
+          invalidValue = !reduceAny(sel->getRightExpr(), lhsexp, &rexpr, muteError);
           uint64_t right = 0;
           invalidValue = !getUInt64(rexpr, &right);
           std::string rhsbinary;
@@ -7060,7 +7134,7 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
       } else if (lhsexp->getUhdmType() == UhdmType::BitSelect) {
         BitSelect *sel = (BitSelect *)lhsexp;
         Expr *iexpr = nullptr;
-        invalidValue = !reduceExpr(sel->getIndex(), lhsexp, &iexpr, muteError);
+        invalidValue = !reduceAny(sel->getIndex(), lhsexp, &iexpr, muteError);
         uint64_t index = 0;
         invalidValue = !getUInt64(iexpr, &index);
         const std::string_view name = lhsexp->getName();
@@ -7236,6 +7310,26 @@ bool ExprEval::setValueInInstance(std::string_view lhs, Any *lhsexp, Expr *rhsex
   return invalidValue;
 }
 
+bool ExprEval::reduceStmt(const Any *s, const Any *pany, Expr **lastValue, bool muteError, bool &break_flag) {
+  if (s == nullptr) return false;
+
+  switch (s->getUhdmType()) {
+    case UhdmType::Assignment: {
+      const Assignment *as = static_cast<const Assignment *>(s);
+      return reduceAny(any_cast<Expr *>(as->getRhs()), pany, lastValue, muteError);
+    }
+
+    case UhdmType::ReturnStmt: {
+      const ReturnStmt *rs = static_cast<const ReturnStmt *>(s);
+      if (!reduceAny(any_cast<Expr *>(rs->getCondition()), pany, lastValue, muteError)) return false;
+      break_flag = true;
+      return true;
+    }
+
+    default: return false;
+  }
+}
+
 void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalidValue, bool &continue_flag,
                         bool &break_flag, bool &return_flag, const Any *inst, const Any *stmt,
                         std::map<std::string, const Typespec *, std::less<>> &local_vars, bool muteError) {
@@ -7250,7 +7344,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       Expr *cond = (Expr *)st->getCondition();
 
       Expr *sexpr = nullptr;
-      invalidValue = !reduceExpr(cond, nullptr, &sexpr, muteError);
+      invalidValue = !reduceAny(cond, nullptr, &sexpr, muteError);
       int64_t val = 0;
       invalidValue = !getInt64(sexpr, &val);
       for (CaseItem *item : *st->getCaseItems()) {
@@ -7258,7 +7352,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
           bool done = false;
           for (Any *exp : *exprs) {
             Expr *eexpr = nullptr;
-            invalidValue = !reduceExpr(any_cast<Expr>(exp), nullptr, &eexpr, muteError);
+            invalidValue = !reduceAny(any_cast<Expr>(exp), nullptr, &eexpr, muteError);
             int64_t vexp = 0;
             invalidValue = !getInt64(eexpr, &vexp);
             if (val == vexp) {
@@ -7277,7 +7371,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       IfElse *st = (IfElse *)stmt;
       Expr *cond = (Expr *)st->getCondition();
       Expr *cexpr = nullptr;
-      invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+      invalidValue = !reduceAny(cond, nullptr, &cexpr, muteError);
       int64_t val = 0;
       invalidValue = !getInt64(cexpr, &val);
       if (val > 0) {
@@ -7293,7 +7387,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       IfStmt *st = (IfStmt *)stmt;
       Expr *cond = (Expr *)st->getCondition();
       Expr *cexpr = nullptr;
-      invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+      invalidValue = !reduceAny(cond, nullptr, &cexpr, muteError);
       int64_t val = 0;
       invalidValue = !getInt64(cexpr, &val);
       if (val > 0) {
@@ -7328,7 +7422,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       Expr *lhsexp = st->getLhs();
       const Expr *rhs = st->getRhs<Expr>();
       Expr *rhsexp = nullptr;
-      invalidValue = !reduceExpr(rhs, nullptr, &rhsexp, muteError);
+      invalidValue = !reduceAny(rhs, nullptr, &rhsexp, muteError);
       invalidValue =
           setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt, local_vars, st->getOpType(), muteError);
       break;
@@ -7339,7 +7433,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       Expr *lhsexp = st->getLhs();
       const Expr *rhs = st->getRhs();
       Expr *rhsexp = nullptr;
-      invalidValue = !reduceExpr(rhs, nullptr, &rhsexp, muteError);
+      invalidValue = !reduceAny(rhs, nullptr, &rhsexp, muteError);
       invalidValue = setValueInInstance(lhs, lhsexp, rhsexp, invalidValue, s, inst, stmt, local_vars, 0, muteError);
       break;
     }
@@ -7347,9 +7441,9 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       Repeat *st = (Repeat *)stmt;
       const Expr *cond = st->getCondition();
       Expr *rcond1 = nullptr;
-      invalidValue = !reduceExpr((Expr *)cond, nullptr, &rcond1, muteError);
+      invalidValue = !reduceAny((Expr *)cond, nullptr, &rcond1, muteError);
       Expr *rcond2 = nullptr;
-      invalidValue = !reduceExpr(rcond1, nullptr, &rcond2, muteError);
+      invalidValue = !reduceAny(rcond1, nullptr, &rcond2, muteError);
       int64_t val = 0;
       invalidValue = !getInt64(rcond2, &val);
       if (invalidValue == false) {
@@ -7387,7 +7481,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
         Expr *cond = (Expr *)st->getCondition();
         if (cond) {
           Expr *cexpr = nullptr;
-          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          invalidValue = !reduceAny(cond, nullptr, &cexpr, muteError);
           int64_t val = 0;
           invalidValue = !getInt64(cexpr, &val);
           if (val == 0) {
@@ -7428,7 +7522,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       ReturnStmt *st = (ReturnStmt *)stmt;
       if (const Expr *cond = st->getCondition()) {
         Expr *rhsexp = nullptr;
-        invalidValue = !reduceExpr(cond, nullptr, &rhsexp, muteError);
+        invalidValue = !reduceAny(cond, nullptr, &rhsexp, muteError);
         RefObj *lhsexp = s.make<RefObj>();
         lhsexp->setName(funcName);
         invalidValue =
@@ -7442,7 +7536,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       if (const Expr *cond = st->getCondition()) {
         while (1) {
           Expr *cexpr = nullptr;
-          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          invalidValue = !reduceAny(cond, nullptr, &cexpr, muteError);
           int64_t val = 0;
           invalidValue = !getInt64(cexpr, &val);
           if (invalidValue) break;
@@ -7487,7 +7581,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
           }
 
           Expr *cexpr = nullptr;
-          invalidValue = !reduceExpr(cond, nullptr, &cexpr, muteError);
+          invalidValue = !reduceAny(cond, nullptr, &cexpr, muteError);
           int64_t val = 0;
           invalidValue = !getInt64(cexpr, &val);
           if (invalidValue) break;
@@ -7510,7 +7604,7 @@ void ExprEval::evalStmt(std::string_view funcName, Scopes &scopes, bool &invalid
       Operation *op = (Operation *)stmt;
       // ++, -- ops
       Expr *result = nullptr;
-      if (!reduceExpr(op, nullptr, &result, muteError)) {
+      if (!reduceAny(op, nullptr, &result, muteError)) {
         invalidValue = true;
       }
       break;
@@ -7583,7 +7677,7 @@ Expr *ExprEval::evalFunc(const Function *func, std::vector<Any *> *args, bool &i
         vars.emplace(ioname, tps);
         Expr *ioexp = (Expr *)args->at(index);
         Expr *exparg = nullptr;
-        if (reduceExpr(ioexp, pany, &exparg, muteError)) {
+        if (reduceAny(ioexp, pany, &exparg, muteError)) {
           if (exparg->getTypespec() == nullptr) {
             RefTypespec *crt = s.make<RefTypespec>();
             crt->setParent(exparg);

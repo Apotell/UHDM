@@ -48,6 +48,11 @@ struct ReduceRow final {
   size_t m_inputId = 0;
   size_t m_outputId = 0;
   ReduceStatus m_status;
+  uint32_t m_sl = 0;
+  uint32_t m_el = 0;
+  uint16_t m_sc = 0;
+  uint16_t m_ec = 0;
+  int32_t m_opType = 0;
 };
 
 class Reducer final : public ObjectProvider {

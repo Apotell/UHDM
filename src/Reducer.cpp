@@ -26,6 +26,7 @@
 #include <uhdm/ExprEval.h>
 #include <uhdm/Reducer.h>
 #include <uhdm/UhdmFinder.h>
+#include <uhdm/Utils.h>
 #include <uhdm/uhdm.h>
 
 namespace StringUtils {
@@ -74,6 +75,10 @@ void Reducer::addAttempt(const Any *what, Any *with, bool result) {
 
   row.m_inputType = UhdmName(what->getUhdmType());
   row.m_inputId = what->getUhdmId();
+  row.m_sl = what->getStartLine();
+  row.m_sc = what->getStartColumn();
+  row.m_el = what->getEndLine();
+  row.m_ec = what->getEndColumn();
 
   if ((with != nullptr) && result) {
     m_swaps.emplace(what, with);
@@ -89,6 +94,45 @@ void Reducer::addAttempt(const Any *what, Any *with, bool result) {
     row.m_outputId = what->getUhdmId();
     row.m_outputType = row.m_inputType;
     row.m_status = ReduceStatus::NO_CHANGE;
+  }
+
+  switch (what->getUhdmType()) {
+    case UhdmType::Operation: {
+      const Operation *const op = static_cast<const Operation *>(what);
+      StrAppend(&row.m_inputType, ":", getOperationName(op->getOpType()));
+    } break;
+
+    case UhdmType::FuncCall: {
+      const FuncCall *const fc = static_cast<const FuncCall *>(what);
+      if (!fc->getName().empty()) StrAppend(&row.m_inputType, ":", fc->getName());
+    } break;
+
+    case UhdmType::SysFuncCall: {
+      const SysFuncCall *const sfc = static_cast<const SysFuncCall *>(what);
+      if (!sfc->getName().empty()) StrAppend(&row.m_inputType, ":", sfc->getName());
+    } break;
+
+    case UhdmType::Variable: {
+      const Variable *const v = static_cast<const Variable *>(what);
+      if (!v->getName().empty()) StrAppend(&row.m_inputType, ":", v->getName());
+    } break;
+
+    case UhdmType::IODecl: {
+      const IODecl *const iod = static_cast<const IODecl *>(what);
+      if (!iod->getName().empty()) StrAppend(&row.m_inputType, ":", iod->getName());
+    } break;
+
+    case UhdmType::EnumConst: {
+      const EnumConst *const ec = static_cast<const EnumConst *>(what);
+      if (!ec->getName().empty()) StrAppend(&row.m_inputType, ":", ec->getName());
+    } break;
+
+    case UhdmType::Net: {
+      const Net *const n = static_cast<const Net *>(what);
+      if (!n->getName().empty()) StrAppend(&row.m_inputType, ":", n->getName());
+    }
+
+    default: break;
   }
 }
 
@@ -303,7 +347,7 @@ Any *Reducer::getValue(std::string_view name, const Any *inst, const Any *pexpr,
   return result;
 }
 
-static std::string_view statusToStr(ReduceStatus s) {
+static constexpr std::string_view statusToStr(ReduceStatus s) {
   switch (s) {
     case ReduceStatus::REDUCED: return "REDUCED";
     case ReduceStatus::INVALID: return "INVALID";
@@ -313,30 +357,73 @@ static std::string_view statusToStr(ReduceStatus s) {
 }
 
 void Reducer::printAttempts(std::ostream &os) const {
-  constexpr uint32_t kInputTypeW = 16;
-  constexpr uint32_t kInputIdW = 8;
-  constexpr uint32_t kOutputTypeW = 16;
-  constexpr uint32_t kOutputIdW = 8;
-  constexpr uint32_t kStatusW = 10;
-  constexpr uint32_t kTableW = kInputTypeW + kInputIdW + kOutputTypeW + kOutputIdW + kStatusW;
+  constexpr std::string_view kInputTypeH = "InputType";
+  constexpr std::string_view kInputIdH = "InputId";
+  constexpr std::string_view kSLH = "SL";
+  constexpr std::string_view kSCH = "SC";
+  constexpr std::string_view kELH = "EL";
+  constexpr std::string_view kECH = "EC";
+  constexpr std::string_view kOutputTypeH = "OutputType";
+  constexpr std::string_view kOutputIdH = "OutputId";
+  constexpr std::string_view kStatusH = "Status";
+
+  size_t wInputType = kInputTypeH.length();
+  size_t wInputId = kInputIdH.length();
+  size_t wSL = kSLH.length();
+  size_t wSC = kSCH.length();
+  size_t wEL = kELH.length();
+  size_t wEC = kECH.length();
+  size_t wOutputType = kOutputTypeH.length();
+  size_t wOutputId = kOutputIdH.length();
+  size_t wStatus =
+      std::max({kStatusH.length(), statusToStr(ReduceStatus::REDUCED).length(),
+                statusToStr(ReduceStatus::INVALID).length(), statusToStr(ReduceStatus::NO_CHANGE).length()});
+
+  // --- compute max width per column ---
+  for (const ReduceRow &r : m_rows) {
+    wInputType = std::max(wInputType, r.m_inputType.length());
+    wInputId = std::max(wInputId, std::to_string(r.m_inputId).length());
+    wSL = std::max(wSL, std::to_string(r.m_sl).length());
+    wSC = std::max(wSC, std::to_string(r.m_sc).length());
+    wEL = std::max(wEL, std::to_string(r.m_el).length());
+    wEC = std::max(wEC, std::to_string(r.m_ec).length());
+    wOutputType = std::max(wOutputType, r.m_outputType.length());
+    wOutputId = std::max(wOutputId, std::to_string(r.m_outputId).length());
+  }
+
+  constexpr size_t kPad = 2;
+  wInputId += kPad;
+  wSL += kPad;
+  wSC += kPad;
+  wEL += kPad;
+  wEC += kPad;
+  wOutputId += kPad;
+  wStatus += kPad;
+
+  wSL = wSC = wEL = wEC = std::max({wSL, wSC, wEL, wEC});
+  size_t wTable = wInputType + wInputId + wSL + wSC + wEL + wEC + wOutputType + wOutputId + wStatus + 1;
 
   auto printBanner = [&](std::string_view txt) {
-    uint32_t pad = kTableW - txt.size();
+    size_t pad = wTable > txt.size() ? wTable - txt.size() : 0;
     os << std::string(pad / 2, '=') << txt << std::string(pad - (pad / 2), '=') << '\n';
   };
 
   printBanner(" REDUCTION START ");
 
-  os << std::left << std::setw(kInputTypeW) << "InputObjType" << std::right << std::setw(kInputIdW) << "InputId"
-     << std::left << std::setw(kOutputTypeW) << " OutputObjType" << std::right << std::setw(kOutputIdW) << "OutputId"
-     << std::right << std::setw(kStatusW) << "Status" << '\n';
+  // --- optional header ---
+  os << std::setw(wInputType) << std::left << kInputTypeH << std::setw(wInputId) << std::right << kInputIdH
+     << std::setw(wSL) << "SL" << std::setw(wSC) << kSCH << std::setw(wEL) << kELH << std::setw(wEC) << kECH << " "
+     << std::setw(wOutputType) << std::left << kOutputTypeH << std::setw(wOutputId) << std::right << kOutputIdH
+     << std::setw(wStatus) << kStatusH << '\n';
 
-  os << std::string(kTableW, '-') << '\n';
+  os << std::string(wTable, '-') << '\n';
 
-  for (const auto &r : m_rows) {
-    os << std::left << std::setw(kInputTypeW) << r.m_inputType << std::right << std::setw(kInputIdW) << r.m_inputId
-       << std::left << " " << std::setw(kOutputTypeW - 1) << r.m_outputType << std::right << std::setw(kOutputIdW)
-       << r.m_outputId << std::right << std::setw(kStatusW) << statusToStr(r.m_status) << '\n';
+  // --- rows ---
+  for (const ReduceRow &r : m_rows) {
+    os << std::setw(wInputType) << std::left << r.m_inputType << std::setw(wInputId) << std::right << r.m_inputId
+       << std::setw(wSL) << r.m_sl << std::setw(wSC) << r.m_sc << std::setw(wEL) << r.m_el << std::setw(wEC) << r.m_ec
+       << " " << std::setw(wOutputType) << std::left << r.m_outputType << std::setw(wOutputId) << std::right
+       << r.m_outputId << std::setw(wStatus) << statusToStr(r.m_status) << '\n';
   }
 
   printBanner(" REDUCTION END ");
@@ -344,19 +431,22 @@ void Reducer::printAttempts(std::ostream &os) const {
 
 void Reducer::reduce(bool verbose) {
   if (Factory *const factory = m_serializer->getFactory<Operation>()) {
-    for (const Any *object : factory->getObjects()) {
+    const std::vector<Any *> objects(factory->getObjects());
+    for (const Any *object : objects) {
       reduce(static_cast<const Operation *>(object));
     }
   }
 
   if (Factory *const factory = m_serializer->getFactory<SysFuncCall>()) {
-    for (const Any *object : factory->getObjects()) {
+    const std::vector<Any *> objects(factory->getObjects());
+    for (const Any *object : objects) {
       reduce(static_cast<const SysFuncCall *>(object));
     }
   }
 
   if (Factory *const factory = m_serializer->getFactory<CaseItem>()) {
-    for (const Any *object : factory->getObjects()) {
+    const std::vector<Any *> objects(factory->getObjects());
+    for (const Any *object : objects) {
       if (const AnyCollection *const collection = static_cast<const CaseItem *>(object)->getExprs()) {
         for (const Any *expr : *collection) {
           if (const RefObj *const ro = any_cast<RefObj>(expr)) {

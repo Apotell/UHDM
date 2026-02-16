@@ -156,6 +156,8 @@ class ExprEval final {
   [[nodiscard]] Constant* createConstant(T value, Serializer& serializer, UhdmType uhdmType, int32_t constType,
                                          int32_t size) const;
 
+  template <typename T>
+  [[nodiscard]] bool reduceAny(const Any* any, const Any* pany, T** rT, bool muteError);
   [[nodiscard]] bool reduceCastOp(const Operation* op, const Any* pany, Expr** rexpr);
   template <typename F>
   [[nodiscard]] bool reduceUnaryOp(const Expr* iexpr, const Any* pany, F op, Expr** rexpr);
@@ -179,6 +181,10 @@ class ExprEval final {
   [[nodiscard]] bool reduceIndexedPartSelect(const IndexedPartSelect* ips, const Any* pany, Expr** rexpr,
                                              bool muteError);
   [[nodiscard]] bool reduceVarSelect(const VarSelect* vs, const Any* pany, Expr** rexpr, bool muteError);
+  [[nodiscard]] bool reduceStmt(const Any* s, const Any* pany, Expr** lastValue, bool muteError, bool& break_flag);
+  [[nodiscard]] bool reduceParameter(const Parameter* vs, const Any* pany, Expr** rexpr, bool muteError);
+  [[nodiscard]] bool reduceEnumConst(const EnumConst* econst, const Any* pany, Expr** rexpr, bool muteError);
+  [[nodiscard]] bool reduceVariable(const Variable* var, const Any* pany, Expr** rexpr, bool muteError);
   [[nodiscard]] bool reduceMathSysFunc(const SysFuncCall* call, const Any* pany, Expr** rexpr, bool muteError);
   [[nodiscard]] bool reduceConvSysFunc(const SysFuncCall* call, const Any* pany, Expr** rexpr, bool muteError);
   bool buildCastConstant(const value_t& value, const Typespec* targetTs, Serializer& serializer, Expr** rexpr);
