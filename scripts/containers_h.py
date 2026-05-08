@@ -4,23 +4,9 @@ from collections import OrderedDict
 
 
 def generate(models):
-    types = set()
-    for model in models.values():
-        for key, value in model.allitems():
-            if key == 'property':
-                name = value.get('name')
-                type = value.get('type')
-                card = value.get('card')
-
-                if (name != 'type') and (type != 'any') and (card == 'any'):
-                    types.add(type)
-
-            elif key in ['class', 'obj_ref', 'class_ref', 'group_ref']:
-                card = value.get('card')
-
-                if card == 'any':
-                    type = 'any' if key == 'group_ref' else value.get('type')
-                    types.add(type)
+    types = set([name for name, model in models.items() if model['type'] != 'group_def'])
+    types.add('any')
+    types.discard('BaseClass')
 
     containers = []
     for type in sorted(types):

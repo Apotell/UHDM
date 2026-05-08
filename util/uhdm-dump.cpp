@@ -38,6 +38,11 @@
 #include <uhdm/uhdm-version.h>
 #include <uhdm/uhdm.h>
 #include <uhdm/vpi_visitor.h>
+#include <uhdm/UhdmPrinter.h>
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+  #include <Windows.h>
+#endif
 
 using namespace UHDM;
 
@@ -86,7 +91,7 @@ static int32_t usage(const char *progname) {
   return 0;
 }
 
-int32_t main(int32_t argc, char **argv) {
+static int32_t private_main(int32_t argc, char **argv) {
   std::ios::sync_with_stdio(false);
 
   bool elab = false;
@@ -140,8 +145,10 @@ int32_t main(int32_t argc, char **argv) {
     serializer.PrintStats(std::cout, uhdmFile);
   }
 
+  UhdmPrinter::setPrintIds(true);
+
   std::cout << uhdmFile << ": Restored design Pre-Elab: " << std::endl;
-  visit_designs(restoredDesigns, std::cout);
+  print_tree(restoredDesigns, std::cout);
 
   if (!goldenFile.empty()) {
     std::stringstream restored;
@@ -162,4 +169,36 @@ int32_t main(int32_t argc, char **argv) {
   }
 
   return 0;
-};
+}
+
+int32_t main(int32_t argc, char** argv) {
+#if defined(_MSC_VER) && defined(_DEBUG)
+  // Redirect cout to file
+  std::streambuf* cout_rdbuf = nullptr;
+  std::streambuf* cerr_rdbuf = nullptr;
+  std::ofstream file;
+  if (IsDebuggerPresent() != 0) {
+    file.open("uhdm.dump");
+    cout_rdbuf = std::cout.rdbuf(file.rdbuf());
+    cerr_rdbuf = std::cerr.rdbuf(file.rdbuf());
+  }
+#endif  // #if defined(_MSC_VER) && defined(_DEBUG)
+
+  const int32_t result = private_main(argc, argv);
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+  // Redirect cout back to screen
+  if (cout_rdbuf != nullptr) {
+    std::cout.rdbuf(cout_rdbuf);
+  }
+  if (cerr_rdbuf != nullptr) {
+    std::cerr.rdbuf(cerr_rdbuf);
+  }
+  if (file.is_open()) {
+    file.flush();
+    file.close();
+  }
+#endif
+
+  return result;
+}
